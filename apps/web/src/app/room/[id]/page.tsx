@@ -5,65 +5,101 @@ import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
   Users, MessageSquare, Mic, MicOff, PhoneOff, Send, Smile,
-  Play, Pause, Settings, Crown, Volume2, Monitor, Wifi, WifiOff,
+  Play, Pause, Settings, Crown, Volume2, WifiOff, Bell,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useRoom } from '@/hooks/useRoom';
 import { getSocket } from '@/lib/socket';
 import { cn, formatTime } from '@/lib/utils';
-import { ServerToClientEvents, ClientToServerEvents, RoomMember } from '@syncsaga/shared';
-import { Socket } from 'socket.io-client';
+import { VirtualCinema, CinemaOverlay } from '@/components/cinema/VirtualCinema';
+import { TimelineReactions, ReactionBar } from '@/components/cinema/TimelineReactions';
+import { ClipCapture } from '@/components/cinema/ClipCapture';
+import { FriendsFeed } from '@/components/cinema/FriendsFeed';
+import { TasteGraph } from '@/components/cinema/TasteGraph';
+
+interface TimelineReaction {
+  id: string;
+  user_id: string;
+  username: string;
+  timestamp_sec: number;
+  type: string;
+  content?: string;
+}
 
 export default function RoomPage() {
   const params = useParams();
   const roomId = params.id as string;
   const { user } = useAppStore();
-
   const { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent } = useRoom(roomId);
 
   const [input, setInput] = useState('');
   const [activeTab, setActiveTab] = useState<'chat' | 'users'>('chat');
   const [playbackState, setPlaybackState] = useState<'playing' | 'paused'>('paused');
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(1440);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showFeed, setShowFeed] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isInVoice, setIsInVoice] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-
+  const [timelineReactions, setTimelineReactions] = useState<TimelineReaction[]>([]);
+  const [cinemaMode, setCinemaMode] = useState<'flat' | 'cinema' | 'immersive'>('flat');
+  const [episode, setEpisode] = useState<string | null>('Attack on Titan S4 E5');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Join room on mount
   useEffect(() => {
     join();
     const socket = getSocket();
-
-    socket.on('connect', () => setIsConnected(true));
-    socket.on('disconnect', () => setIsConnected(false));
-    socket.on('sync:event', (event: any) => {
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+    const onSync = (event: any) => {
       if (event.type === 'play') setPlaybackState('playing');
       if (event.type === 'pause') setPlaybackState('paused');
       if (event.type === 'seek') setCurrentTime(event.timestamp);
-    });
-    socket.on('sync:state', (state: any) => {
+      if (event.type === 'episode') setEpisode(event.episode);
+    };
+    const onState = (state: any) => {
       setCurrentTime(state.timestamp);
       setPlaybackState(state.playback_state);
-    });
-    socket.on('chat:typing', (data: { userId: string; isTyping: boolean }) => {
+      if (state.episode) setEpisode(state.episode);
+    };
+    const onTyping = (data: { userId: string; isTyping: boolean }) => {
       if (data.isTyping) {
         setTypingUsers(prev => prev.includes(data.userId) ? prev : [...prev, data.userId]);
         setTimeout(() => setTypingUsers(prev => prev.filter(id => id !== data.userId)), 3000);
       } else {
         setTypingUsers(prev => prev.filter(id => id !== data.userId));
       }
-    });
+    };
+    const onReaction = (r: TimelineReaction) => setTimelineReactions(prev => [...prev, r]);
 
-    return () => { leave(); };
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('sync:event', onSync);
+    socket.on('sync:state', onState);
+    socket.on('chat:typing', onTyping);
+    socket.on('reaction:new', onReaction);
+
+    return () => {
+      leave();
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('sync:event', onSync);
+      socket.off('sync:state', onState);
+      socket.off('chat:typing', onTyping);
+      socket.off('reaction:new', onReaction);
+    };
   }, [roomId]);
 
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // Simulate time during playback
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (playbackState !== 'playing') return;
+    const interval = setInterval(() => setCurrentTime(t => Math.min(t + 0.5, duration)), 500);
+    return () => clearInterval(interval);
+  }, [playbackState, duration]);
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
@@ -77,15 +113,15 @@ export default function RoomPage() {
 
   const toggleVoice = () => {
     setIsInVoice(!isInVoice);
-    const socket = getSocket();
-    socket.emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId });
+    getSocket().emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId });
   };
 
   const isHost = currentRoom?.host_id === user?.id;
+  const totalMembers = roomMembers.length + 1;
 
   return (
     <div className="h-screen bg-background text-text-primary flex overflow-hidden">
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-12 sm:h-14 border-b border-border glass flex items-center justify-between px-3 sm:px-4 shrink-0">
@@ -94,17 +130,23 @@ export default function RoomPage() {
             <h1 className="font-semibold truncate text-sm sm:text-base">{currentRoom?.name || `Room ${roomId.slice(0, 8)}`}</h1>
             <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface text-xs text-text-secondary">
               <Users className="w-3 h-3" />
-              {roomMembers.length + 1}
+              {totalMembers}
             </span>
             {isHost && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
+            {episode && (
+              <span className="hidden md:flex text-[10px] text-text-muted px-2 py-1 rounded bg-surface-light truncate max-w-[150px]">
+                {episode}
+              </span>
+            )}
             {!isConnected && (
-              <span className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/10 text-red-500 text-xs">
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/10 text-red-500 text-xs">
                 <WifiOff className="w-3 h-3" />
                 Reconnecting
               </span>
             )}
+            <FriendsFeed collapsed={!showFeed} onToggle={() => setShowFeed(!showFeed)} />
             <button onClick={() => setShowSidebar(!showSidebar)}
               className={cn("p-2 rounded-lg transition-colors", showSidebar ? 'bg-primary/20 text-primary' : 'hover:bg-surface-light text-text-secondary')}>
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -117,46 +159,85 @@ export default function RoomPage() {
 
         {/* Video / Sync Area */}
         <div className="flex-1 flex items-center justify-center p-2 sm:p-4 relative overflow-hidden">
-          <div className="w-full h-full max-w-5xl max-h-[60vh] bg-surface rounded-2xl border border-border relative flex items-center justify-center">
-            {/* Background animation when idle */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center px-4">
-                <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 3 }}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Play className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
-                </motion.div>
-                <h3 className="text-base sm:text-lg font-semibold mb-1">Ready to Watch</h3>
-                <p className="text-text-secondary text-xs sm:text-sm max-w-xs sm:max-w-md mx-auto">
-                  Open your anime with the SyncSaga extension installed. Playback syncs automatically.
-                </p>
-              </div>
-            </div>
-
-            {/* Playback Controls */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-              <div className="flex items-center gap-2 sm:gap-4">
-                <button onClick={() => {
-                  const next = playbackState === 'playing' ? 'paused' : 'playing';
-                  setPlaybackState(next);
-                  sendSyncEvent({ type: next === 'playing' ? 'play' : 'pause', timestamp: currentTime });
-                }}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0">
-                  {playbackState === 'playing' ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
-                </button>
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-xs text-text-secondary w-10 text-right shrink-0">{formatTime(currentTime)}</span>
-                  <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden cursor-pointer group">
-                    <div className="h-full bg-gradient-to-r from-primary to-accent-cyan rounded-full group-hover:h-2 transition-all" style={{ width: '0%' }} />
-                  </div>
-                  <span className="text-xs text-text-secondary w-10 shrink-0">24:00</span>
+          <CinemaOverlay mode={cinemaMode}>
+            <div className="w-full h-full max-w-5xl max-h-[60vh] bg-surface rounded-2xl border border-border relative flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center px-4">
+                  <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 3 }}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Play className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
+                  </motion.div>
+                  <h3 className="text-base sm:text-lg font-semibold mb-1">Ready to Watch</h3>
+                  <p className="text-text-secondary text-xs sm:text-sm max-w-xs sm:max-w-md mx-auto">
+                    Open your anime with the SyncSaga extension installed.
+                  </p>
                 </div>
-                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary shrink-0" />
+              </div>
+
+              {/* Timeline reaction bar */}
+              <div className="absolute top-0 left-0 right-0">
+                <ReactionBar reactions={timelineReactions} duration={duration} />
+              </div>
+
+              {/* Floating reactions */}
+              <AnimatePresence>
+                {timelineReactions.slice(-5).map((r, i) => {
+                  const emojis: Record<string, string> = { laugh: '😂', cry: '😭', shock: '😱', fire: '🔥', heart: '❤️', gg: '🎉' };
+                  return (
+                    <motion.div
+                      key={r.id}
+                      initial={{ opacity: 1, y: 0, scale: 0.5 }}
+                      animate={{ opacity: 0, y: -100, scale: 1.2 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 2, delay: i * 0.1 }}
+                      className="absolute bottom-1/2 text-3xl pointer-events-none z-20"
+                      style={{ left: `${20 + Math.random() * 60}%` }}
+                    >
+                      {emojis[r.type] || '🔥'}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+
+              {/* Playback Controls Overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <button onClick={() => {
+                      const next = playbackState === 'playing' ? 'paused' : 'playing';
+                      setPlaybackState(next);
+                      sendSyncEvent({ type: next === 'playing' ? 'play' : 'pause', timestamp: currentTime });
+                    }}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0">
+                      {playbackState === 'playing' ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    </button>
+                    {/* Clip capture */}
+                    <ClipCapture roomId={roomId} currentTime={currentTime} episode={episode || undefined} />
+                    {/* Timeline reactions */}
+                    <TimelineReactions
+                      roomId={roomId}
+                      currentTime={currentTime}
+                      reactions={timelineReactions}
+                      onReactionAdd={r => setTimelineReactions(prev => [...prev, r])}
+                    />
+                  </div>
+
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-xs text-text-secondary w-10 text-right shrink-0">{formatTime(currentTime)}</span>
+                    <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden cursor-pointer group relative">
+                      <div className="h-full bg-gradient-to-r from-primary to-accent-cyan rounded-full group-hover:h-2 transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
+                    </div>
+                    <span className="text-xs text-text-secondary w-10 shrink-0">{formatTime(duration)}</span>
+                  </div>
+
+                  <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary shrink-0" />
+                </div>
               </div>
             </div>
-          </div>
+          </CinemaOverlay>
         </div>
 
-        {/* Voice Bar */}
+        {/* Bottom Controls Bar */}
         <div className="h-14 sm:h-16 border-t border-border glass flex items-center justify-between px-3 sm:px-4 shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
             {isInVoice && roomMembers.slice(0, 4).map(m => (
@@ -166,7 +247,14 @@ export default function RoomPage() {
               </div>
             ))}
           </div>
+
           <div className="flex items-center gap-2 sm:gap-3">
+            <VirtualCinema
+              isActive={true}
+              mode={cinemaMode}
+              onModeChange={setCinemaMode}
+              participantCount={totalMembers}
+            />
             <button onClick={() => setIsMuted(!isMuted)}
               className={cn("p-2.5 sm:p-3 rounded-xl transition-colors", isMuted ? 'bg-red-500/20 text-red-500' : 'bg-surface-light hover:bg-surface text-text-secondary')}>
               {isMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
@@ -181,7 +269,7 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Chat Sidebar */}
       <AnimatePresence>
         {showSidebar && (
           <motion.aside
@@ -198,9 +286,9 @@ export default function RoomPage() {
                     className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-primary' : 'text-text-secondary hover:text-text-primary')}>
                     <span className="flex items-center justify-center gap-1.5">
                       {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                      {tab === 'chat' ? 'Chat' : `Users (${roomMembers.length + 1})`}
+                      {tab === 'chat' ? 'Chat' : `Users (${totalMembers})`}
                     </span>
-                    {activeTab === tab && <motion.div layoutId="sidebar-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+                    {activeTab === tab && <motion.div layoutId="room-sidebar-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                   </button>
                 ))}
               </div>
@@ -210,12 +298,10 @@ export default function RoomPage() {
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                   {messages.length === 0 && (
-                    <div className="text-center text-text-muted text-sm py-8">
-                      No messages yet. Say hello!
-                    </div>
+                    <div className="text-center text-text-muted text-sm py-8">No messages yet. Say hello!</div>
                   )}
                   {messages.map(msg => (
-                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="group">
+                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                       <div className="flex items-start gap-2">
                         <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
                           {msg.sender?.username?.[0]?.toUpperCase() || '?'}
@@ -231,17 +317,13 @@ export default function RoomPage() {
                     </motion.div>
                   ))}
                   {typingUsers.length > 0 && (
-                    <div className="text-xs text-text-muted italic">
-                      {typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...
-                    </div>
+                    <div className="text-xs text-text-muted italic">{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</div>
                   )}
                   <div ref={chatEndRef} />
                 </div>
                 <div className="p-3 border-t border-border shrink-0">
                   <div className="flex items-center gap-2 bg-surface-light rounded-xl px-3 py-2">
-                    <button className="text-text-muted hover:text-text-secondary transition-colors shrink-0">
-                      <Smile className="w-5 h-5" />
-                    </button>
+                    <button className="text-text-muted hover:text-text-secondary transition-colors shrink-0"><Smile className="w-5 h-5" /></button>
                     <input type="text" value={input} onChange={e => { setInput(e.target.value); sendTyping(e.target.value.length > 0); }}
                       onKeyDown={handleKeyDown} placeholder="Type a message..." maxLength={2000}
                       className="flex-1 bg-transparent text-sm outline-none placeholder:text-text-muted min-w-0" />
@@ -253,7 +335,7 @@ export default function RoomPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto p-3 space-y-1">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-primary/5">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent-pink flex items-center justify-center text-sm font-semibold shrink-0">
                     {user?.username?.[0]?.toUpperCase() || 'U'}
@@ -261,15 +343,14 @@ export default function RoomPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{user?.username || 'You'}</p>
                     <p className="text-xs text-accent-green flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                      Online{isConnected ? '' : ' (reconnecting)'}
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />Online
                     </p>
                   </div>
                   {isHost && <Crown className="w-4 h-4 text-yellow-500 ml-auto shrink-0" />}
                 </div>
 
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 px-1">In Room — {roomMembers.length + 1}</p>
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 px-1">In Room — {totalMembers}</p>
                   {roomMembers.map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-light transition-colors">
                       <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-sm font-semibold shrink-0">
@@ -283,9 +364,21 @@ export default function RoomPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Taste Graph */}
+                <div className="pt-3">
+                  <TasteGraph onSelect={(title) => setEpisode(title)} />
+                </div>
               </div>
             )}
           </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Activity Feed Sidebar */}
+      <AnimatePresence>
+        {showFeed && (
+          <FriendsFeed collapsed={false} onToggle={() => setShowFeed(false)} />
         )}
       </AnimatePresence>
     </div>

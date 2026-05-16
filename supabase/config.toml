@@ -1,0 +1,29 @@
+[project]
+name = "syncsaga"
+version = "2.0.0"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "pgvector"]
+
+[db]
+major_version = 15
+
+[db.pooler]
+enabled = true
+pool_mode = "transaction"
+default_pool_size = 20
+
+[auth]
+enabled = true
+
+[edge_functions]
+enabled = true
+include = ["sync-state", "match-episode"]
+
+[analytics]
+enabled = true
+
+[realtime]
+enabled = true

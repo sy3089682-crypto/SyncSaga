@@ -4,10 +4,9 @@ import os
 import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from app.api.routes import auth, rooms, sync, ai, clips, embed
+from app.api.routes import auth, rooms, sync, ai, clips, embed, anime, scenes
 from app.ws import socket_manager
 from app.core.config import settings
 from app.core.database import Database
@@ -16,13 +15,13 @@ from app.core.logger import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🚀 SyncSaga v2 backend starting...")
+    logger.info("SyncSaga v2 backend starting...")
     app.state.redis = await aioredis.from_url(
         settings.REDIS_URL, decode_responses=True
     )
     app.state.db = Database()
     await app.state.db.connect()
-    logger.info(f"✓ Redis connected | DB connected | Port {settings.BACKEND_PORT}")
+    logger.info(f"Redis connected | DB connected | Port {settings.BACKEND_PORT}")
     yield
     await app.state.redis.close()
     await app.state.db.disconnect()
@@ -50,6 +49,8 @@ app.include_router(sync.router, prefix="/api/sync", tags=["Sync"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(clips.router, prefix="/api/clips", tags=["Clips"])
 app.include_router(embed.router, prefix="/api/embed", tags=["Embed"])
+app.include_router(anime.router, tags=["Anime"])
+app.include_router(scenes.router, tags=["Scenes"])
 
 socket_manager.mount(app, path="/ws")
 

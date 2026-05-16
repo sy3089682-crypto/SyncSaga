@@ -27,12 +27,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   setSyncState: (state) => set({ syncState: state }),
 
   join: async (roomId) => {
-    await rooms.join(roomId)
+    await api.post<{ joined: boolean }>(`/api/rooms/${roomId}/join`)
     set({ isJoined: true })
   },
 
   leave: async (roomId) => {
-    await rooms.leave(roomId)
+    await api.post<{ left: boolean }>(`/api/rooms/${roomId}/leave`)
     set({ isJoined: false, currentRoom: null, participants: [], syncState: null })
   },
 

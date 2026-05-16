@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: syncsaga-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: syncsaga-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: syncsaga-redis
+          property: connectionString
+    healthCheckPath: /health
+
+  - type: web
+    name: syncsaga-frontend
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://syncsaga-backend.onrender.com
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://syncsaga-backend.onrender.com
+
+  - type: redis
+    name: syncsaga-redis
+    ipAllowList: []
+    plan: free
+
+databases:
+  - name: syncsaga-db
+    plan: free
+    databaseType: postgres
+    ipAllowList: []

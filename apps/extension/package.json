@@ -1,0 +1,15 @@
+{
+  "name": "syncsaga-extension",
+  "version": "1.0.0",
+  "description": "SyncSaga browser extension - synchronize anime playback with friends",
+  "scripts": {
+    "build": "tsc && cp manifest.json dist/ && cp -r icons dist/",
+    "dev": "tsc --watch",
+    "package:chrome": "npm run build && cd dist && zip -r ../chrome-extension.zip .",
+    "package:firefox": "npm run build && cd dist && zip -r ../firefox-extension.zip ."
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/chrome": "^0.0.254"
+  }
+}

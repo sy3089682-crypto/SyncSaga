@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "make", "gcc", "g++", "python3"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = [
+  "npm run build --workspace=packages/shared",
+  "npm run build --workspace=@syncsaga/api",
+  "npm run build --workspace=@syncsaga/web"
+]
+
+[start]
+cmd = "npm run dev"

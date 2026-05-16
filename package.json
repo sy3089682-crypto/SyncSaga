@@ -1,0 +1,20 @@
+{
+  "name": "syncsaga-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SyncSaga v2 - AI-Powered Cross-Source Anime Watch Party Platform",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "dev:ai": "cd ai-services && python -m uvicorn main:app --reload --port 8001",
+    "dev:worker": "cd backend && celery -A app.workers.sync_worker worker --loglevel=info",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ai\"",
+    "build": "cd frontend && npm run build && cd ../backend && docker build -t syncsaga-backend .",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "seed": "cd backend && python -m app.scripts.seed_fingerprints"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0"
+  }
+}

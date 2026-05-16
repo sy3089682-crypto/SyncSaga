@@ -1,4 +1,4 @@
-import type { WSMessage, SyncState, Reaction, User } from '@/types'
+import type { WSMessage, SyncState, Reaction, User, SyncEvent } from '@/types'
 
 type WSCallback = (msg: WSMessage) => void
 
@@ -82,7 +82,7 @@ class SyncSocket {
     return this.on('user_left', (msg) => cb(msg.payload as unknown as User))
   }
 
-  sendSyncEvent(event: Partial<import('@/types').SyncEvent>) {
+  sendSyncEvent(event: Partial<SyncEvent>) {
     this.send('sync_event', event as unknown as Record<string, unknown>)
   }
 

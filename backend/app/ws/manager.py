@@ -3,21 +3,17 @@
 import json
 import time
 from fastapi import WebSocket, WebSocketDisconnect
-from typing import Callable
+from typing import Callable, Optional
 from collections import defaultdict
 
 from app.core.redis import redis_sync
 from app.core.logger import logger
+from app.core.middleware import decode_jwt
 from app.services.sync_engine import sync_engine
 from app.models.schemas import SyncEvent
 
 
 class SocketManager:
-    """
-    Manages WebSocket connections for realtime room sync.
-    Supports Socket.IO-compatible events via Redis pub/sub.
-    """
-
     def __init__(self):
         self._connections: dict[str, dict[str, WebSocket]] = defaultdict(dict)
         self._user_rooms: dict[str, str] = {}
@@ -27,10 +23,18 @@ class SocketManager:
         async def ws_endpoint(ws: WebSocket):
             await self.handle_connection(ws)
 
-    async def handle_connection(self, ws: WebSocket):
+        @app.websocket(f"{path}/{{room_id}}")
+        async def ws_room_endpoint(ws: WebSocket, room_id: str):
+            await self.handle_connection(ws, room_id)
+
+        @app.websocket(f"/ws")
+        async def ws_root(ws: WebSocket):
+            await self.handle_connection(ws)
+
+    async def handle_connection(self, ws: WebSocket, path_room_id: Optional[str] = None):
         await ws.accept()
         user_id = None
-        room_id = None
+        room_id = path_room_id
 
         try:
             data = await ws.receive_json()
@@ -38,11 +42,17 @@ class SocketManager:
             token = data.get("token")
 
             if action == "auth" and token:
-                user_id = token[:8]
-                await ws.send_json({"type": "auth", "status": "ok", "user_id": user_id})
+                payload = decode_jwt(token)
+                if payload:
+                    user_id = payload.get("sub")
+                    await ws.send_json({"type": "auth", "status": "ok", "user_id": user_id})
+                else:
+                    await ws.send_json({"type": "auth", "status": "error", "message": "Invalid token"})
+                    await ws.close(code=4001)
+                    return
             else:
                 await ws.send_json({"type": "error", "message": "Auth required"})
-                await ws.close()
+                await ws.close(code=4001)
                 return
 
             while True:
@@ -50,7 +60,7 @@ class SocketManager:
                 msg_type = msg.get("type", "")
 
                 if msg_type == "room:join":
-                    room_id = msg.get("room_id")
+                    room_id = msg.get("room_id", path_room_id)
                     if not room_id:
                         continue
                     self._connections[room_id][user_id] = ws
@@ -101,10 +111,7 @@ class SocketManager:
 
                 elif msg_type == "sync:request":
                     state = await redis_sync.get_room_state(room_id)
-                    await ws.send_json({
-                        "type": "sync:state",
-                        "state": state or {},
-                    })
+                    await ws.send_json({"type": "sync:state", "state": state or {}})
 
                 elif msg_type == "sync:ping":
                     await ws.send_json({
@@ -148,7 +155,6 @@ class SocketManager:
                 })
 
     async def broadcast(self, room_id: str, message: dict, exclude: str | None = None):
-        """Broadcast to all WebSocket clients in a room."""
         dead = []
         for uid, ws in self._connections.get(room_id, {}).items():
             if uid == exclude:
@@ -161,7 +167,6 @@ class SocketManager:
             self._connections[room_id].pop(uid, None)
 
     async def send_to_user(self, user_id: str, message: dict):
-        """Send a message to a specific user across all rooms."""
         for room_id, users in self._connections.items():
             if user_id in users:
                 try:

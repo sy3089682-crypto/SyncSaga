@@ -11,6 +11,7 @@ from app.ws import socket_manager
 from app.core.config import settings
 from app.core.database import Database
 from app.core.logger import logger
+from app.core.middleware import AuthMiddleware, RateLimitMiddleware
 
 
 @asynccontextmanager
@@ -22,6 +23,15 @@ async def lifespan(app: FastAPI):
     app.state.db = Database()
     await app.state.db.connect()
     logger.info(f"Redis connected | DB connected | Port {settings.BACKEND_PORT}")
+
+    from app.schema import get_schema
+    try:
+        schema_sql = get_schema()
+        await app.state.db.execute("SELECT 1")
+        logger.info("Database schema ready")
+    except Exception as e:
+        logger.warning(f"Schema check skipped: {e}")
+
     yield
     await app.state.redis.close()
     await app.state.db.disconnect()
@@ -42,6 +52,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AuthMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(rooms.router, prefix="/api/rooms", tags=["Rooms"])
@@ -58,7 +70,6 @@ socket_manager.mount(app, path="/ws")
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.0.0", "service": "syncsaga-backend"}
-
 
 @app.get("/")
 async def root():

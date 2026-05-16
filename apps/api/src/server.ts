@@ -8,48 +8,45 @@ import { authRouter } from './routes/auth.routes';
 import { roomRouter } from './routes/room.routes';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
+import { wsBridge } from './services/wsBridge';
 import { logger } from './lib/logger';
 
 export async function createServer() {
   const app = express();
   const httpServer = createHttpServer(app);
 
-  // Security middleware
-  app.use(helmet({
-    contentSecurityPolicy: false, // Allow websocket connections
-  }));
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true,
   }));
 
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
 
-  // Health check
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // API routes
   app.use('/api/auth', authRouter);
   app.use('/api/rooms', roomRouter);
 
-  // Socket.IO setup
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
       credentials: true,
     },
     transports: ['websocket', 'polling'],
     pingTimeout: 60000,
     pingInterval: 25000,
+    connectTimeout: 30000,
+    maxHttpBufferSize: 1e6,
   });
 
-  // Initialize Redis
   await redisService.connect();
 
-  // Initialize socket handlers
   initializeSocketHandlers(io);
+
+  wsBridge.initialize(httpServer, '/ws');
 
   return { app, httpServer, io };
 }

@@ -1,9 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, Room, Message, PresenceEvent } from '@syncsaga/shared';
+import { User, Room, Message, RoomMember } from '@syncsaga/shared';
+
+interface OnlineUser {
+  user_id: string;
+  status: 'online' | 'offline' | 'away' | 'watching';
+  current_room_id: string | null;
+  activity: string | null;
+}
 
 interface AppState {
-  // Auth
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
@@ -11,62 +17,62 @@ interface AppState {
   setToken: (token: string | null) => void;
   logout: () => void;
 
-  // UI
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   activeRoomId: string | null;
   setActiveRoomId: (id: string | null) => void;
 
-  // Data
   rooms: Room[];
   setRooms: (rooms: Room[]) => void;
   addRoom: (room: Room) => void;
-  currentRoom: (Room & { members: any[] }) | null;
-  setCurrentRoom: (room: (Room & { members: any[] }) | null) => void;
 
-  // Friends & Presence
+  currentRoom: (Room & { members: RoomMember[] }) | null;
+  setCurrentRoom: (room: (Room & { members: RoomMember[] }) | null) => void;
+  updateRoomState: (partial: Partial<Room>) => void;
+
   friends: User[];
   setFriends: (friends: User[]) => void;
-  onlineUsers: Map<string, PresenceEvent & { user: User }>;
-  updatePresence: (presence: PresenceEvent & { user: User }) => void;
+  onlineUsers: Map<string, OnlineUser>;
+  updatePresence: (presence: { user_id: string; status: OnlineUser['status']; current_room_id?: string | null; activity?: string | null }) => void;
 
-  // Messages
   messages: Message[];
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
 
-  // Voice
-  isInVoice: boolean;
-  setIsInVoice: (value: boolean) => void;
-  voiceMuted: boolean;
-  setVoiceMuted: (value: boolean) => void;
+  roomMembers: RoomMember[];
+  setRoomMembers: (members: RoomMember[]) => void;
+  addRoomMember: (member: RoomMember) => void;
+  removeRoomMember: (userId: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // Auth
       user: null,
       token: null,
       isAuthenticated: false,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setToken: (token) => set({ token }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        set({ user: null, token: null, isAuthenticated: false, currentRoom: null, rooms: [], messages: [], friends: [], roomMembers: [] });
+      },
 
-      // UI
       sidebarOpen: true,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       activeRoomId: null,
       setActiveRoomId: (id) => set({ activeRoomId: id }),
 
-      // Data
       rooms: [],
       setRooms: (rooms) => set({ rooms }),
       addRoom: (room) => set({ rooms: [...get().rooms, room] }),
+
       currentRoom: null,
       setCurrentRoom: (room) => set({ currentRoom: room }),
+      updateRoomState: (partial) => {
+        const current = get().currentRoom;
+        if (current) set({ currentRoom: { ...current, ...partial } });
+      },
 
-      // Friends
       friends: [],
       setFriends: (friends) => set({ friends }),
       onlineUsers: new Map(),
@@ -75,25 +81,35 @@ export const useAppStore = create<AppState>()(
         if (presence.status === 'offline') {
           map.delete(presence.user_id);
         } else {
-          map.set(presence.user_id, presence);
+          map.set(presence.user_id, presence as OnlineUser);
         }
         set({ onlineUsers: map });
       },
 
-      // Messages
       messages: [],
-      addMessage: (message) => set({ messages: [...get().messages, message] }),
+      addMessage: (message) => {
+        const exists = get().messages.some(m => m.id === message.id);
+        if (!exists) set({ messages: [...get().messages, message] });
+      },
       setMessages: (messages) => set({ messages }),
 
-      // Voice
-      isInVoice: false,
-      setIsInVoice: (value) => set({ isInVoice: value }),
-      voiceMuted: false,
-      setVoiceMuted: (value) => set({ voiceMuted: value }),
+      roomMembers: [],
+      setRoomMembers: (members) => set({ roomMembers: members }),
+      addRoomMember: (member) => {
+        const exists = get().roomMembers.some(m => m.user_id === member.user_id);
+        if (!exists) set({ roomMembers: [...get().roomMembers, member] });
+      },
+      removeRoomMember: (userId) => set({ roomMembers: get().roomMembers.filter(m => m.user_id !== userId) }),
     }),
     {
       name: 'syncsaga-store',
       partialize: (state) => ({ token: state.token, user: state.user }),
+      merge: (persisted: any, current: AppState) => ({
+        ...current,
+        token: persisted?.token ?? null,
+        user: persisted?.user ?? null,
+        isAuthenticated: !!persisted?.user,
+      }),
     }
   )
 );

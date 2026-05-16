@@ -67,7 +67,7 @@ export function roomHandler(
     }
   });
 
-  socket.on('room:update', async (update: any) => {
+  socket.on('room:update', async (update) => {
     try {
       if (!socket.userId || !update.id) return;
 
@@ -76,8 +76,13 @@ export function roomHandler(
         return socket.emit('error', { code: 'FORBIDDEN', message: 'Only host can update room' });
       }
 
-      await roomService.updateRoomState(update.id, update);
-      socket.to(update.id).emit('room:state', await roomService.getRoom(update.id) as any);
+      const { id, ...fields } = update;
+      await roomService.updateRoomState(id, fields);
+      
+      const updatedRoom = await roomService.getRoom(update.id);
+      if (updatedRoom) {
+        io.to(update.id).emit('room:state', updatedRoom);
+      }
     } catch (error) {
       logger.error('Room update error:', error);
     }

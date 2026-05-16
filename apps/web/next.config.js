@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
   images: {
-    domains: ['localhost', 'cdn.discordapp.com', 'avatars.githubusercontent.com'],
+    domains: [
+      'localhost',
+      'cdn.discordapp.com',
+      'avatars.githubusercontent.com',
+      'lh3.googleusercontent.com',
+    ],
     unoptimized: true,
   },
   env: {

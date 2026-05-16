@@ -15,49 +15,44 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
   io.on('connection', async (socket: AuthenticatedSocket) => {
     logger.info(`Socket connected: ${socket.id} - User: ${socket.userId}`);
 
-    // Update presence
-    await redisService.setUserOnline(socket.userId!, {
+    const uid = socket.userId;
+    await redisService.setUserOnline(uid, {
       socketId: socket.id,
       status: 'online',
       connectedAt: new Date().toISOString(),
     });
 
-    // Broadcast presence update
     socket.broadcast.emit('presence:update', {
-      user_id: socket.userId!,
+      user_id: uid,
       status: 'online',
       current_room_id: null,
       activity: null,
       user: socket.user,
-    } as any);
+    });
 
-    // Initialize handlers
     roomHandler(io, socket);
     syncHandler(io, socket);
     chatHandler(io, socket);
     presenceHandler(io, socket);
 
-    // Disconnect handler
     socket.on('disconnect', async () => {
       logger.info(`Socket disconnected: ${socket.id}`);
       
-      // Leave all rooms
-      const rooms = await redisService.getClient().sMembers(`user:${socket.userId}:rooms`);
+      const rooms = await redisService.getClient().sMembers(`user:${uid}:rooms`);
       for (const roomId of rooms) {
-        await redisService.removeUserFromRoom(roomId, socket.userId!);
-        socket.to(roomId).emit('room:user_left', socket.userId!);
+        await redisService.removeUserFromRoom(roomId, uid);
+        socket.to(roomId).emit('room:user_left', uid);
       }
 
-      // Update presence
-      await redisService.setUserOffline(socket.userId!);
+      await redisService.setUserOffline(uid);
       
       socket.broadcast.emit('presence:update', {
-        user_id: socket.userId!,
+        user_id: uid,
         status: 'offline',
         current_room_id: null,
         activity: null,
         user: socket.user,
-      } as any);
+      });
     });
   });
 }

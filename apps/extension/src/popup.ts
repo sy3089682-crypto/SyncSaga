@@ -1,85 +1,59 @@
 /// <reference types="chrome"/>
 
-document.addEventListener('DOMContentLoaded', () => {
-  const roomIdInput = document.getElementById('roomId') as HTMLInputElement;
-  const tokenInput = document.getElementById('token') as HTMLInputElement;
-  const connectBtn = document.getElementById('connectBtn') as HTMLButtonElement;
-  const disconnectBtn = document.getElementById('disconnectBtn') as HTMLButtonElement;
-  const statusDot = document.getElementById('statusDot') as HTMLDivElement;
-  const statusText = document.getElementById('statusText') as HTMLSpanElement;
-  const videoDetected = document.getElementById('videoDetected') as HTMLDivElement;
+const $ = (id: string) => document.getElementById(id)!;
 
-  // Load stored values
+document.addEventListener('DOMContentLoaded', () => {
+  const roomIdInput = $('roomId') as HTMLInputElement;
+  const tokenInput = $('token') as HTMLInputElement;
+  const connectBtn = $('connectBtn') as HTMLButtonElement;
+  const disconnectBtn = $('disconnectBtn') as HTMLButtonElement;
+  const statusDot = $('statusDot') as HTMLDivElement;
+  const statusText = $('statusText') as HTMLSpanElement;
+  const videoDetected = $('videoDetected') as HTMLDivElement;
+
   chrome.storage.local.get(['roomId', 'token', 'connected'], (result) => {
     if (result.roomId) roomIdInput.value = result.roomId;
     if (result.token) tokenInput.value = result.token;
-    updateConnectionStatus(result.connected || false);
+    setConnected(result.connected || false);
   });
 
-  // Check for video on current tab
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const tab = tabs[0];
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     if (tab.id) {
       chrome.tabs.sendMessage(tab.id, { type: 'GET_STATE' })
-        .then((response) => {
-          if (response?.payload?.hasVideo) {
-            videoDetected.classList.add('show');
-          }
-        })
+        .then(() => videoDetected.classList.add('show'))
         .catch(() => {});
     }
   });
 
-  connectBtn.addEventListener('click', () => {
+  connectBtn.onclick = () => {
     const roomId = roomIdInput.value.trim();
     const token = tokenInput.value.trim();
-
     if (!roomId || !token) return;
 
-    // Send to content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
       if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: 'CONNECT',
-          roomId,
-          token,
-        }).catch(() => {
-          // Content script not loaded
-          statusText.textContent = 'Error: Refresh the anime page';
-          statusDot.style.background = '#ef4444';
-        });
+        chrome.tabs.sendMessage(tab.id, { type: 'CONNECT', payload: { roomId, token } })
+          .catch(() => { statusText.textContent = 'Error: refresh the page'; statusDot.style.background = '#ef4444'; });
       }
     });
 
-    // Store credentials
     chrome.storage.local.set({ roomId, token, connected: true });
-    updateConnectionStatus(true);
-  });
+    setConnected(true);
+  };
 
-  disconnectBtn.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, { type: 'DISCONNECT' }).catch(() => {});
-      }
+  disconnectBtn.onclick = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+      if (tab.id) chrome.tabs.sendMessage(tab.id, { type: 'DISCONNECT' });
     });
-
     chrome.storage.local.set({ connected: false });
-    updateConnectionStatus(false);
-  });
+    setConnected(false);
+  };
 
-  function updateConnectionStatus(connected: boolean) {
-    if (connected) {
-      statusDot.style.background = '#10b981';
-      statusText.textContent = 'Connected';
-      connectBtn.style.display = 'none';
-      disconnectBtn.style.display = 'block';
-    } else {
-      statusDot.style.background = '#ef4444';
-      statusText.textContent = 'Disconnected';
-      connectBtn.style.display = 'block';
-      disconnectBtn.style.display = 'none';
-    }
+  function setConnected(connected: boolean) {
+    const green = '#10b981', red = '#ef4444';
+    statusDot.style.background = connected ? green : red;
+    statusText.textContent = connected ? 'Connected' : 'Disconnected';
+    connectBtn.style.display = connected ? 'none' : 'block';
+    disconnectBtn.style.display = connected ? 'block' : 'none';
   }
 });

@@ -21,12 +21,11 @@ export function presenceHandler(
         updatedAt: new Date().toISOString(),
       });
 
-      // Broadcast to friends (in a full implementation, you'd use a friend list)
       socket.broadcast.emit('presence:update', {
         ...event,
         user_id: socket.userId,
         user: socket.user,
-      } as any);
+      });
 
       logger.debug(`Presence update: ${socket.userId} -> ${event.status}`);
     } catch (error) {
@@ -43,9 +42,9 @@ export function presenceHandler(
         if (userId !== socket.userId) {
           socket.emit('presence:update', {
             user_id: userId,
-            status: data.status,
-            current_room_id: data.currentRoomId,
-            activity: data.activity,
+            status: data.status || 'online',
+            current_room_id: data.currentRoomId || null,
+            activity: data.activity || null,
           } as any);
         }
       }

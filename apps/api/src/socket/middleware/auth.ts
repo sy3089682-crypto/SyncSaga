@@ -2,10 +2,11 @@ import { Socket } from 'socket.io';
 import { verifyToken } from '../../lib/jwt';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
+import { User } from '@syncsaga/shared';
 
 export interface AuthenticatedSocket extends Socket {
-  userId?: string;
-  user?: any;
+  userId: string;
+  user: Partial<User>;
 }
 
 export async function socketAuthMiddleware(socket: AuthenticatedSocket, next: (err?: Error) => void) {

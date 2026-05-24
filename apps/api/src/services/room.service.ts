@@ -10,16 +10,22 @@ export class RoomService {
     isPrivate?: boolean;
     maxUsers?: number;
     hostId: string;
+    animeTitle?: string;
+    animeMediaId?: number;
   }): Promise<Room | null> {
+    const insertData: any = {
+      name: data.name,
+      description: data.description,
+      is_private: data.isPrivate ?? false,
+      max_users: data.maxUsers ?? 10,
+      host_id: data.hostId,
+    };
+    if (data.animeTitle) insertData.anime_title = data.animeTitle;
+    if (data.animeMediaId) insertData.anime_media_id = data.animeMediaId;
+
     const { data: room, error } = await supabase
       .from('rooms')
-      .insert({
-        name: data.name,
-        description: data.description,
-        is_private: data.isPrivate ?? false,
-        max_users: data.maxUsers ?? 10,
-        host_id: data.hostId,
-      })
+      .insert(insertData)
       .select()
       .single();
 

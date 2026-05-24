@@ -9,6 +9,7 @@ import Link from 'next/link';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
+  { href: '/search', icon: Tv, label: 'Discover' },
   { href: '/friends', icon: Users, label: 'Friends' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];

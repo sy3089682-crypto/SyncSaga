@@ -41,6 +41,8 @@ const createRoomSchema = z.object({
   description: z.string().optional(),
   isPrivate: z.boolean().optional(),
   maxUsers: z.number().min(2).max(50).optional(),
+  animeTitle: z.string().optional(),
+  animeMediaId: z.number().optional(),
 });
 
 router.post('/', async (req, res) => {
@@ -52,6 +54,8 @@ router.post('/', async (req, res) => {
     const room = await roomService.createRoom({
       ...data,
       hostId: userId,
+      animeTitle: data.animeTitle,
+      animeMediaId: data.animeMediaId,
     });
 
     if (!room) {

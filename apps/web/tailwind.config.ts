@@ -41,6 +41,10 @@ const config: Config = {
         'slide-up': 'slide-up 0.3s ease-out',
         'slide-down': 'slide-down 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-out',
+        'sakura-fall': 'sakura-fall 10s linear infinite',
+        'sakura-sway': 'sakura-sway 3s ease-in-out infinite',
+        'bounce-glow': 'bounce-glow 2s ease-in-out infinite',
+        'shimmer': 'shimmer 2s linear infinite',
       },
       keyframes: {
         'gradient-x': {
@@ -66,6 +70,23 @@ const config: Config = {
         'fade-in': {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        'sakura-fall': {
+          '0%': { transform: 'translateY(-10vh) rotate(0deg)', opacity: '1' },
+          '100%': { transform: 'translateY(100vh) rotate(360deg)', opacity: '0' },
+        },
+        'sakura-sway': {
+          '0%, 100%': { transform: 'translateX(0) rotate(0deg)' },
+          '25%': { transform: 'translateX(15px) rotate(5deg)' },
+          '75%': { transform: 'translateX(-15px) rotate(-5deg)' },
+        },
+        'bounce-glow': {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.5' },
+          '50%': { transform: 'scale(1.1)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { 'background-position': '-200% 0' },
+          '100%': { 'background-position': '200% 0' },
         },
       },
       backgroundImage: {

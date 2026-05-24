@@ -8,6 +8,20 @@ const nextConfig = {
       'cdn.discordapp.com',
       'avatars.githubusercontent.com',
       'lh3.googleusercontent.com',
+      's4.anilist.co',
+      'img.anili.st',
+      'cdn.myanimelist.net',
+      'api.anilist.co',
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.anilist.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.myanimelist.net',
+      },
     ],
     unoptimized: true,
   },

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
   Users, MessageSquare, Mic, MicOff, PhoneOff, Send, Smile,
-  Play, Pause, Settings, Crown, Volume2, WifiOff, Bell,
+  Play, Pause, Settings, Crown, Volume2, WifiOff, Bell, Tv,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useRoom } from '@/hooks/useRoom';
@@ -16,6 +16,8 @@ import { TimelineReactions, ReactionBar } from '@/components/cinema/TimelineReac
 import { ClipCapture } from '@/components/cinema/ClipCapture';
 import { FriendsFeed } from '@/components/cinema/FriendsFeed';
 import { TasteGraph } from '@/components/cinema/TasteGraph';
+import { AnimeInfoSidebar } from '@/components/anime/AnimeInfoSidebar';
+import { EpisodePicker } from '@/components/anime/EpisodePicker';
 
 interface TimelineReaction {
   id: string;
@@ -31,9 +33,10 @@ export default function RoomPage() {
   const roomId = params.id as string;
   const { user } = useAppStore();
   const { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent } = useRoom(roomId);
+  const { driftStatuses, setDriftStatus } = useAppStore();
 
   const [input, setInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'chat' | 'users'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'users' | 'anime'>('chat');
   const [playbackState, setPlaybackState] = useState<'playing' | 'paused'>('paused');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(1440);
@@ -80,6 +83,16 @@ export default function RoomPage() {
     socket.on('sync:state', onState);
     socket.on('chat:typing', onTyping);
     socket.on('reaction:new', onReaction);
+    const onDriftUpdate = (data: { userId: string; drift: number; status: 'synced' | 'slight' | 'desynced' }) => {
+      setDriftStatus(data.userId, { drift: data.drift, status: data.status });
+    };
+    const onNewHost = (data: { newHostId: string }) => {
+      if (data.newHostId === user?.id) {
+        setEpisode(prev => prev); // Force re-render
+      }
+    };
+    socket.on('sync:drift_update', onDriftUpdate);
+    socket.on('room:new_host', onNewHost);
 
     return () => {
       leave();
@@ -89,6 +102,8 @@ export default function RoomPage() {
       socket.off('sync:state', onState);
       socket.off('chat:typing', onTyping);
       socket.off('reaction:new', onReaction);
+      socket.off('sync:drift_update', onDriftUpdate);
+      socket.off('room:new_host', onNewHost);
     };
   }, [roomId]);
 
@@ -135,6 +150,16 @@ export default function RoomPage() {
             {isHost && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
+            {currentRoom?.anime_media_id && isHost && (
+              <EpisodePicker
+                mediaId={currentRoom.anime_media_id}
+                currentEpisode={currentRoom.current_episode_number}
+                onSelect={(mediaId, ep) => {
+                  setEpisode(`Episode ${ep}`);
+                  getSocket().emit('anime:set_episode', { roomId, mediaId, episode: ep });
+                }}
+              />
+            )}
             {episode && (
               <span className="hidden md:flex text-[10px] text-text-muted px-2 py-1 rounded bg-surface-light truncate max-w-[150px]">
                 {episode}
@@ -281,12 +306,12 @@ export default function RoomPage() {
           >
             <LayoutGroup>
               <div className="flex border-b border-border shrink-0">
-                {(['chat', 'users'] as const).map(tab => (
+                {(['chat', 'users', 'anime'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)}
                     className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-primary' : 'text-text-secondary hover:text-text-primary')}>
                     <span className="flex items-center justify-center gap-1.5">
-                      {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                      {tab === 'chat' ? 'Chat' : `Users (${totalMembers})`}
+                      {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : tab === 'users' ? <Users className="w-4 h-4" /> : <Tv className="w-4 h-4" />}
+                      {tab === 'chat' ? 'Chat' : tab === 'users' ? `Users (${totalMembers})` : 'Anime'}
                     </span>
                     {activeTab === tab && <motion.div layoutId="room-sidebar-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                   </button>
@@ -294,7 +319,18 @@ export default function RoomPage() {
               </div>
             </LayoutGroup>
 
-            {activeTab === 'chat' ? (
+            {activeTab === 'anime' ? (
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <AnimeInfoSidebar
+                  animeTitle={episode}
+                  mediaId={currentRoom?.anime_media_id || null}
+                  currentEpisode={currentRoom?.current_episode_number || null}
+                  onSetEpisode={(mediaId, ep) => {
+                    sendSyncEvent({ type: 'episode', timestamp: 0, episode: `Episode ${ep}` });
+                  }}
+                />
+              </div>
+            ) : activeTab === 'chat' ? (
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                   {messages.length === 0 && (
@@ -342,27 +378,55 @@ export default function RoomPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{user?.username || 'You'}</p>
-                    <p className="text-xs text-accent-green flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />Online
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-xs text-accent-green">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />Online
+                      </span>
+                      {(() => {
+                        const ds = driftStatuses.get(user?.id || '');
+                        if (!ds) return null;
+                        const dc = ds.status === 'synced' ? 'bg-accent-green' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
+                        const tc = ds.status === 'synced' ? 'text-accent-green' : ds.status === 'slight' ? 'text-yellow-500' : 'text-red-500';
+                        return <span className={`flex items-center gap-1 text-xs ${tc}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${dc}`} />
+                          {ds.status === 'synced' ? 'In Sync' : ds.status === 'slight' ? 'Slight Drift' : 'Desynced'}
+                        </span>;
+                      })()}
+                    </div>
                   </div>
                   {isHost && <Crown className="w-4 h-4 text-yellow-500 ml-auto shrink-0" />}
                 </div>
 
                 <div className="pt-2 border-t border-border">
                   <p className="text-xs text-text-muted uppercase tracking-wider mb-2 px-1">In Room — {totalMembers}</p>
-                  {roomMembers.map(m => (
-                    <div key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-light transition-colors">
-                      <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-sm font-semibold shrink-0">
-                        {m.user_id[0]?.toUpperCase()}
+                  {roomMembers.map(m => {
+                    const ds = driftStatuses.get(m.user_id);
+                    const dc = !ds ? 'bg-text-muted' : ds.status === 'synced' ? 'bg-accent-green' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
+                    return (
+                      <div key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-light transition-colors">
+                        <div className="relative">
+                          <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-sm font-semibold shrink-0">
+                            {m.user_id[0]?.toUpperCase()}
+                          </div>
+                          {ds && (
+                            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dc} border-2 border-surface`} title={`Drift: ${ds.drift.toFixed(2)}s`} />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm truncate">{m.user_id.slice(0, 8)}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-text-muted">{m.role === 'host' ? 'Host' : m.role === 'co_host' ? 'Co-Host' : 'Member'}</p>
+                            {ds && (
+                              <span className={cn('text-[10px]', ds.status === 'synced' ? 'text-accent-green' : ds.status === 'slight' ? 'text-yellow-500' : 'text-red-500')}>
+                                {ds.status === 'synced' ? 'Synced' : `${ds.drift.toFixed(1)}s`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {m.role === 'host' && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-auto shrink-0" />}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm truncate">{m.user_id.slice(0, 8)}</p>
-                        <p className="text-xs text-text-muted">{m.role === 'host' ? 'Host' : m.role === 'co_host' ? 'Co-Host' : 'Member'}</p>
-                      </div>
-                      {m.role === 'host' && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-auto shrink-0" />}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Taste Graph */}

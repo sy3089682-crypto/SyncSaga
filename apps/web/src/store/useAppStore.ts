@@ -43,6 +43,9 @@ interface AppState {
   setRoomMembers: (members: RoomMember[]) => void;
   addRoomMember: (member: RoomMember) => void;
   removeRoomMember: (userId: string) => void;
+
+  driftStatuses: Map<string, { drift: number; status: 'synced' | 'slight' | 'desynced' }>;
+  setDriftStatus: (userId: string, data: { drift: number; status: 'synced' | 'slight' | 'desynced' }) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -100,6 +103,13 @@ export const useAppStore = create<AppState>()(
         if (!exists) set({ roomMembers: [...get().roomMembers, member] });
       },
       removeRoomMember: (userId) => set({ roomMembers: get().roomMembers.filter(m => m.user_id !== userId) }),
+
+      driftStatuses: new Map(),
+      setDriftStatus: (userId, data) => {
+        const map = new Map(get().driftStatuses);
+        map.set(userId, data);
+        set({ driftStatuses: map });
+      },
     }),
     {
       name: 'syncsaga-store',

@@ -3,6 +3,7 @@ import { createServer as createHttpServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
+import pinoHttp from 'pino-http';
 
 import { authRouter } from './routes/auth.routes';
 import { roomRouter } from './routes/room.routes';
@@ -10,11 +11,13 @@ import reactionsRouter from './routes/reactions';
 import clipsRouter from './routes/clips';
 import activityRouter from './routes/activity';
 import embedRouter from './routes/embed';
+import aiRouter from './routes/ai';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
 import { supabase } from './lib/supabase';
 import { logger } from './lib/logger';
+import { errorHandler } from './middleware/errorHandler';
 
 export async function createServer() {
   const app = express();
@@ -27,9 +30,32 @@ export async function createServer() {
   }));
 
   app.use(express.json({ limit: '1mb' }));
+  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  app.get('/health', async (_req, res) => {
+    let dbPing = false;
+    let redisPing = false;
+
+    try {
+      const { data } = await supabase.from('rooms').select('id').limit(1);
+      dbPing = true;
+    } catch {}
+
+    try {
+      if (redisService.getClient()) {
+        await redisService.getClient().ping();
+        redisPing = true;
+      }
+    } catch {}
+
+    res.json({
+      status: 'ok',
+      uptime: process.uptime(),
+      dbPing,
+      redisPing,
+      version: process.env.npm_package_version || '1.0.0',
+      timestamp: new Date().toISOString(),
+    });
   });
 
   // REST API routes
@@ -40,6 +66,10 @@ export async function createServer() {
   app.use('/api/activity', activityRouter);
   app.use('/api/embed', embedRouter);
   app.use('/api', embedRouter); // /api/api-keys, /api/embed/room/:id, /api/embed/widget/:id
+  app.use('/api/ai', aiRouter);
+
+  // Global error handler
+  app.use(errorHandler);
 
   // AI matching endpoint (stub — you'll implement the model inference)
   app.post('/api/ai/match-episode', async (req, res) => {

@@ -9,13 +9,18 @@
       --surface-light: #1a1a25;
       --border: #2a2a3a;
       --primary: #8b5cf6;
+      --primary-dark: #7c3aed;
       --text: #f8fafc;
       --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      width: 320px;
-      min-height: 400px;
+      width: 360px;
+      min-height: 480px;
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -24,98 +29,153 @@
     .header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       margin-bottom: 16px;
     }
     .logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 36px; height: 36px;
+      border-radius: 10px;
       background: linear-gradient(135deg, var(--primary), #06b6d4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 18px;
     }
     h1 {
-      font-size: 18px;
+      font-size: 20px;
       background: linear-gradient(135deg, var(--primary), #06b6d4);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px;
+    .status-card {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
       border-radius: 12px;
       background: var(--surface);
       border: 1px solid var(--border);
-      margin-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .status-left {
+      display: flex; align-items: center; gap: 10px;
     }
     .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ef4444;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--red);
     }
-    .dot.connected { background: #10b981; }
+    .dot.connected { background: var(--green); }
+    .status-label {
+      font-size: 13px; font-weight: 500;
+    }
+    .status-sub {
+      font-size: 11px; color: var(--text-muted);
+    }
+    .section-title {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--text-muted);
+      margin-bottom: 8px;
+    }
     .input-group {
       margin-bottom: 12px;
     }
     label {
-      display: block;
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: 4px;
+      display: block; font-size: 12px;
+      color: var(--text-secondary); margin-bottom: 4px;
     }
     input {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 8px;
+      width: 100%; padding: 10px 12px;
+      border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface-light); color: var(--text);
+      font-size: 13px; outline: none;
+    }
+    input:focus { border-color: var(--primary); }
+    .btn {
+      width: 100%; padding: 10px; border-radius: 8px;
+      border: none; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary); color: white;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger {
+      background: transparent; color: var(--red);
+      border: 1px solid var(--red);
+    }
+    .btn-danger:hover { background: var(--red); color: white; }
+    .btn-secondary {
+      background: var(--surface-light); color: var(--text);
       border: 1px solid var(--border);
-      background: var(--surface-light);
-      color: var(--text);
-      font-size: 14px;
-      outline: none;
     }
-    input:focus {
-      border-color: var(--primary);
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      background: var(--primary);
-      color: white;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover { background: #7c3aed; }
-    button.danger {
-      background: #ef4444;
-    }
-    button.danger:hover { background: #dc2626; }
-    .info {
-      text-align: center;
-      padding: 20px;
-      color: var(--text-secondary);
-      font-size: 13px;
+    .btn-secondary:hover { border-color: var(--primary); }
+    .info-box {
+      padding: 12px; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      margin-bottom: 12px;
     }
     .video-detected {
+      display: none;
       padding: 8px 12px;
-      background: #10b98120;
-      border: 1px solid #10b98140;
-      border-radius: 8px;
-      font-size: 12px;
-      color: #10b981;
+      background: var(--green)15;
+      border: 1px solid var(--green)30;
+      border-radius: 8px; font-size: 12px;
+      color: var(--green); margin-bottom: 12px;
+      align-items: center; gap: 6px;
+    }
+    .video-detected.show { display: flex; }
+    .room-status {
+      display: none;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--primary)10;
+      border: 1px solid var(--primary)25;
       margin-bottom: 12px;
+    }
+    .room-status.show { display: block; }
+    .room-name {
+      font-size: 14px; font-weight: 600; margin-bottom: 4px;
+    }
+    .room-meta {
+      font-size: 11px; color: var(--text-secondary);
+    }
+    .member-avatars {
+      display: flex; gap: 4px; margin-top: 8px;
+    }
+    .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--primary); display: flex;
+      align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600;
+      border: 2px solid var(--surface);
+    }
+    .quick-create {
+      display: flex; gap: 8px; align-items: center;
+      margin-bottom: 8px;
+    }
+    .quick-create input { flex: 1; }
+    .quick-create button {
+      white-space: nowrap; padding: 10px 16px;
+    }
+    .invite-link {
+      display: flex; gap: 8px; align-items: center; margin-top: 8px;
+    }
+    .invite-link input { flex: 1; font-size: 11px; }
+    .invite-link button {
+      padding: 8px 12px; font-size: 11px;
+    }
+    .copied-msg {
+      font-size: 11px; color: var(--green);
+      text-align: center; margin-top: 4px;
       display: none;
     }
-    .video-detected.show { display: block; }
+    .footer {
+      border-top: 1px solid var(--border);
+      padding-top: 12px; margin-top: 12px;
+      text-align: center;
+    }
+    .footer a {
+      color: var(--text-muted); text-decoration: none;
+      font-size: 11px;
+    }
+    .footer a:hover { color: var(--primary); }
   </style>
 </head>
 <body>
@@ -124,27 +184,58 @@
     <h1>SyncSaga</h1>
   </div>
 
-  <div class="status">
-    <div class="dot" id="statusDot"></div>
-    <span id="statusText">Disconnected</span>
+  <div class="status-card">
+    <div class="status-left">
+      <div class="dot" id="statusDot"></div>
+      <div>
+        <div class="status-label" id="statusLabel">Disconnected</div>
+        <div class="status-sub" id="statusSub">Not in a room</div>
+      </div>
+    </div>
+    <span id="videoStatus" style="font-size:11px;color:var(--text-muted)"></span>
   </div>
 
   <div class="video-detected" id="videoDetected">
-    ✓ Video player detected on this page
+    <span>✓</span> Video player detected on this page
   </div>
+
+  <div class="room-status" id="roomStatus">
+    <div class="room-name" id="currentRoomName">Room Name</div>
+    <div class="room-meta" id="currentRoomMeta">Members: 0</div>
+    <div class="member-avatars" id="memberAvatars"></div>
+  </div>
+
+  <div class="section-title">Quick Actions</div>
+
+  <div class="quick-create">
+    <input type="text" id="currentUrl" readonly placeholder="Current page URL..." />
+    <button class="btn btn-primary" id="createRoomBtn" style="width:auto;padding:10px 14px">Create Room</button>
+  </div>
+
+  <div class="section-title" style="margin-top:16px">Connect to Room</div>
 
   <div class="input-group">
     <label>Room ID</label>
-    <input type="text" id="roomId" placeholder="Enter room ID..." />
+    <input type="text" id="roomId" placeholder="Enter room ID or invite link..." />
   </div>
 
   <div class="input-group">
-    <label>Token</label>
-    <input type="password" id="token" placeholder="Your auth token" />
+    <label>Auth Token</label>
+    <input type="password" id="token" placeholder="Your SyncSaga auth token" />
   </div>
 
-  <button id="connectBtn">Connect to Room</button>
-  <button id="disconnectBtn" class="danger" style="margin-top: 8px; display: none;">Disconnect</button>
+  <button class="btn btn-primary" id="connectBtn">Connect to Room</button>
+  <button class="btn btn-danger" id="disconnectBtn" style="margin-top:8px;display:none;">Disconnect</button>
+
+  <div class="invite-link">
+    <input type="text" id="inviteLink" readonly placeholder="Invite link..." />
+    <button class="btn btn-secondary" id="copyInviteBtn" style="width:auto">Copy</button>
+  </div>
+  <div class="copied-msg" id="copiedMsg">✓ Copied to clipboard!</div>
+
+  <div class="footer">
+    <a href="https://syncsaga.app/dashboard" target="_blank">Open Dashboard →</a>
+  </div>
 
   <script src="popup.js"></script>
 </body>

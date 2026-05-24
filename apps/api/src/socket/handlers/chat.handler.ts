@@ -1,107 +1,115 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
-import { redisService } from '../../services/redis.service';
-import { supabase } from '../../lib/supabase';
 import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
+import { redisService } from '../../services/redis.service';
 import { logger } from '../../lib/logger';
+import { validate, chatMessageSchema, chatReactionSchema, chatTypingSchema } from '../../middleware/validators';
 
-const chatRateLimit = new Map<string, number[]>();
+function sanitizeContent(text: string): string {
+  return text
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
+    .replace(/data:/gi, '')
+    .slice(0, 2000);
+}
 
-function checkChatRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const window = 10000;
-  const maxMessages = 10;
-
-  const history = chatRateLimit.get(userId) || [];
-  const recent = history.filter(t => now - t < window);
-  
-  if (recent.length >= maxMessages) return false;
-
-  recent.push(now);
-  chatRateLimit.set(userId, recent);
-  return true;
+function isValidGifUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const allowedHosts = ['tenor.com', 'giphy.com', 'media.tenor.com', 'media.giphy.com', 'i.giphy.com'];
+    return allowedHosts.some(h => u.hostname.includes(h));
+  } catch {
+    return false;
+  }
 }
 
 export function chatHandler(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
   socket: AuthenticatedSocket
 ) {
-  socket.on('chat:message', async ({ roomId, content, type = 'text' }) => {
+  socket.on('chat:message', async (data) => {
     try {
+      const validation = validate(chatMessageSchema, data);
+      if (!validation.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
+      }
+
+      const { roomId, content, type } = validation.data;
       if (!socket.userId) return;
 
-      if (!checkChatRateLimit(socket.userId)) {
-        return socket.emit('error', { code: 'RATE_LIMITED', message: 'Sending messages too fast' });
+      const roomUsers = await redisService.getRoomUsers(roomId);
+      if (!roomUsers.includes(socket.userId)) {
+        return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 
-      if (!content || content.trim().length === 0 || content.length > 2000) {
-        return socket.emit('error', { code: 'INVALID_MESSAGE', message: 'Invalid message content' });
+      const allowed = await redisService.checkRateLimit(`chat:${socket.userId}`, 30, 60);
+      if (!allowed) {
+        return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
       }
 
-      const { data: message, error } = await supabase
-        .from('messages')
-        .insert({
-          room_id: roomId,
-          sender_id: socket.userId,
-          content: content.trim(),
-          type,
-        })
-        .select()
-        .single();
+      const sanitized = sanitizeContent(content);
+      if (!sanitized.trim()) return;
 
-      if (error) {
-        logger.error('Failed to save message:', error);
-        return socket.emit('error', { code: 'SAVE_FAILED', message: 'Failed to send message' });
+      if (type === 'gif' && !isValidGifUrl(sanitized)) {
+        return socket.emit('error', { code: 'INVALID_GIF', message: 'Only Tenor/Giphy URLs are allowed' });
       }
 
-      io.to(roomId).emit('chat:message', {
-        ...message,
-        sender: socket.user,
+      const message = {
+        id: `${Date.now()}-${socket.userId}-${Math.random().toString(36).slice(2, 8)}`,
+        room_id: roomId,
+        sender_id: socket.userId,
+        recipient_id: null,
+        content: sanitized,
+        type: type || 'text',
         reactions: {},
-      } as any);
+        created_at: new Date().toISOString(),
+        sender: socket.user,
+      };
 
+      io.to(roomId).emit('chat:message', message as any);
       logger.debug(`Chat message from ${socket.userId} in ${roomId}`);
     } catch (error) {
-      logger.error('Chat message error:', error);
+      logger.error('Chat handler error:', error);
     }
   });
 
-  socket.on('chat:typing', async ({ roomId, isTyping }) => {
+  socket.on('chat:typing', async (data) => {
     try {
+      const validation = validate(chatTypingSchema, data);
+      if (!validation.success) return;
+
+      const { roomId, isTyping } = validation.data;
       if (!socket.userId) return;
+
       socket.to(roomId).emit('chat:typing', { userId: socket.userId, isTyping });
     } catch (error) {
       logger.error('Chat typing error:', error);
     }
   });
 
-  socket.on('chat:reaction', async ({ messageId, emoji }) => {
+  socket.on('chat:reaction', async (data) => {
     try {
-      if (!socket.userId) return;
-
-      await supabase
-        .from('message_reactions')
-        .upsert({
-          message_id: messageId,
-          user_id: socket.userId,
-          emoji,
-        }, { onConflict: 'message_id, user_id, emoji' });
-
-      const { data: reactions } = await supabase
-        .from('message_reactions')
-        .select('*')
-        .eq('message_id', messageId);
-
-      if (reactions) {
-        io.to(socket.userId).emit('chat:message', {
-          id: messageId,
-          reactions: reactions.reduce((acc: Record<string, string[]>, r: any) => {
-            if (!acc[r.emoji]) acc[r.emoji] = [];
-            acc[r.emoji].push(r.user_id);
-            return acc;
-          }, {}),
-        } as any);
+      const validation = validate(chatReactionSchema, data);
+      if (!validation.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       }
+
+      if (!socket.userId) return;
+      const { messageId, emoji } = validation.data;
+
+      io.to(data.roomId || '').emit('chat:reaction', {
+        id: messageId,
+        sender_id: socket.userId,
+        content: emoji,
+        type: 'reaction',
+        created_at: new Date().toISOString(),
+        sender: socket.user,
+      } as any);
     } catch (error) {
       logger.error('Chat reaction error:', error);
     }

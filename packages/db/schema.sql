@@ -53,9 +53,18 @@ CREATE TABLE IF NOT EXISTS public.rooms (
     host_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     co_hosts UUID[] DEFAULT '{}',
     current_episode TEXT,
+    current_episode_number INTEGER,
     current_timestamp FLOAT DEFAULT 0,
     playback_state TEXT DEFAULT 'paused' CHECK (playback_state IN ('playing', 'paused', 'buffering')),
     playback_speed FLOAT DEFAULT 1.0,
+    anime_title TEXT,
+    anime_media_id INTEGER,
+    anime_cover_url TEXT,
+    anime_episode_count INTEGER,
+    sync_lock BOOLEAN DEFAULT false,
+    allow_soundboard BOOLEAN DEFAULT true,
+    allow_reactions BOOLEAN DEFAULT true,
+    banned_users UUID[] DEFAULT '{}',
     allow_guests BOOLEAN DEFAULT true,
     chat_enabled BOOLEAN DEFAULT true,
     voice_enabled BOOLEAN DEFAULT true,
@@ -147,6 +156,77 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Clips
+CREATE TABLE IF NOT EXISTS public.clips (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    room_id UUID REFERENCES public.rooms(id) ON DELETE SET NULL,
+    anime_title TEXT NOT NULL,
+    episode_number INTEGER,
+    start_time FLOAT NOT NULL,
+    end_time FLOAT NOT NULL,
+    title TEXT,
+    description TEXT,
+    is_public BOOLEAN DEFAULT true,
+    view_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Timeline reactions
+CREATE TABLE IF NOT EXISTS public.timeline_reactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    timestamp_sec FLOAT NOT NULL,
+    type TEXT NOT NULL,
+    content TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Activity feed
+CREATE TABLE IF NOT EXISTS public.activity_feed (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    data JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Scheduled rooms
+CREATE TABLE IF NOT EXISTS public.scheduled_rooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id UUID REFERENCES public.rooms(id) ON DELETE SET NULL,
+    anime_title TEXT NOT NULL,
+    episode INTEGER,
+    scheduled_at TIMESTAMPTZ NOT NULL,
+    created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    invite_code TEXT UNIQUE DEFAULT uuid_generate_v4(),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Bans (global)
+CREATE TABLE IF NOT EXISTS public.bans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    reason TEXT,
+    banned_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Webhooks
+CREATE TABLE IF NOT EXISTS public.webhooks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    secret TEXT NOT NULL,
+    events TEXT[] DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Reports
 CREATE TABLE IF NOT EXISTS public.reports (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -166,12 +246,18 @@ CREATE INDEX IF NOT EXISTS idx_friendships_requester ON public.friendships(reque
 CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON public.friendships(addressee_id);
 CREATE INDEX IF NOT EXISTS idx_room_members_room ON public.room_members(room_id);
 CREATE INDEX IF NOT EXISTS idx_room_members_user ON public.room_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_messages_room ON public.messages(room_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_is_public ON public.rooms(is_public);
+CREATE INDEX IF NOT EXISTS idx_rooms_created ON public.rooms(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rooms_host ON public.rooms(host_id);
+CREATE INDEX IF NOT EXISTS idx_messages_room_created ON public.messages(room_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_created ON public.messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id, is_read);
-CREATE INDEX IF NOT EXISTS idx_watch_history_user ON public.watch_history(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_watch_history_user ON public.watch_history(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_presence_status ON public.profiles(status);
+CREATE INDEX IF NOT EXISTS idx_clips_user ON public.clips(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_clips_anime ON public.clips(anime_title);
+CREATE INDEX IF NOT EXISTS idx_scheduled_rooms_time ON public.scheduled_rooms(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_bans_user ON public.bans(user_id);
 
 -- Row Level Security (RLS) policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

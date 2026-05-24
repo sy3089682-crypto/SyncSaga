@@ -1,6 +1,23 @@
-export const logger = {
-  info: (...args: any[]) => console.log(`[INFO]`, ...args),
-  error: (...args: any[]) => console.error(`[ERROR]`, ...args),
-  warn: (...args: any[]) => console.warn(`[WARN]`, ...args),
-  debug: (...args: any[]) => process.env.NODE_ENV === 'development' && console.log(`[DEBUG]`, ...args),
-};
+import pino from 'pino';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
+  transport: isDev
+    ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
+    : undefined,
+  redact: {
+    paths: ['password', 'token', 'secret', 'authorization', 'cookie'],
+    censor: '[REDACTED]',
+  },
+  serializers: {
+    req: (req) => ({
+      method: req.method,
+      url: req.url,
+      statusCode: req.statusCode,
+      responseTime: req.responseTime,
+    }),
+    err: pino.stdSerializers.err,
+  },
+});

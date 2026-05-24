@@ -8,7 +8,7 @@ class SyncSagaBackground {
   private tabStates: Map<number, TabState> = new Map();
 
   constructor() {
-    chrome.runtime.onMessage.addListener((message, sender) => {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tabId = sender.tab?.id;
       if (!tabId) return;
 

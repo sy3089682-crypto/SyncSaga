@@ -1,23 +1,22 @@
 {
-  "name": "syncsaga",
-  "version": "1.0.0",
+  "name": "syncsaga-v2",
+  "version": "2.0.0",
   "private": true,
-  "description": "SyncSaga - Realtime anime watch-party platform",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "description": "SyncSaga v2 - AI-Powered Cross-Source Anime Watch Party Platform",
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "dev:ai": "cd ai-services && python -m uvicorn main:app --reload --port 8001",
+    "dev:worker": "cd backend && celery -A app.workers.sync_worker worker --loglevel=info",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ai\"",
+    "lint": "cd frontend && npm run lint",
+    "typecheck": "cd frontend && npm run typecheck",
+    "build": "cd frontend && npm run build && cd ../backend && docker build -t syncsaga-backend .",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "seed": "cd backend && python -m app.scripts.seed_fingerprints"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "concurrently": "^8.0.0"
   }
 }

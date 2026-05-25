@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import pinoHttp from 'pino-http';
 import { getEnv } from '@syncsaga/config';
 
@@ -14,6 +15,8 @@ import clipsRouter from './routes/clips';
 import activityRouter from './routes/activity';
 import embedRouter from './routes/embed';
 import aiRouter from './routes/ai';
+import featuresRouter from './routes/features';
+import metricsRouter from './routes/metrics';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
@@ -21,11 +24,14 @@ import { supabase } from './lib/supabase';
 import { logger } from './lib/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware } from './middleware/security';
+import { metrics } from './services/metrics.service';
 
 export async function createServer() {
   const env = getEnv();
   const app = express();
   const httpServer = createHttpServer(app);
+
+  metrics.init();
 
   app.use(helmet({
     contentSecurityPolicy: env.NODE_ENV === 'production' ? {
@@ -52,11 +58,22 @@ export async function createServer() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   }));
 
+  app.use(compression({ level: 6, threshold: 256 }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
-  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
+  app.set('trust proxy', 1);
+  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/metrics' } }));
 
   app.use(rateLimitMiddleware(100, 60));
+
+  app.use((req, _res, next) => {
+    const start = Date.now();
+    _res.on('finish', () => {
+      metrics.incrementHttp(req.method, req.path, _res.statusCode);
+      metrics.observeHttpDuration(req.method, req.path, Date.now() - start);
+    });
+    next();
+  });
 
   app.get('/health', async (_req, res) => {
     let dbPing = false;
@@ -92,6 +109,8 @@ export async function createServer() {
   app.use('/api/activity', activityRouter);
   app.use('/api/embed', embedRouter);
   app.use('/api/ai', aiRouter);
+  app.use('/api/features', featuresRouter);
+  app.use('/metrics', metricsRouter);
 
   app.use(errorHandler);
 
@@ -105,12 +124,17 @@ export async function createServer() {
     pingInterval: 25000,
     connectTimeout: 30000,
     maxHttpBufferSize: 1e6,
+    perMessageDeflate: {
+      threshold: 1024,
+    },
   });
 
   await redisService.connect();
   initializeSocketHandlers(io);
 
   io.on('connection', (socket) => {
+    metrics.setConnectedSockets(io.engine.clientsCount);
+
     socket.on('reaction:add', async (data) => {
       const { roomId, timestampSec, type, content } = data;
       if (!roomId || timestampSec === undefined || !type) return;
@@ -128,6 +152,10 @@ export async function createServer() {
           data: { roomId, timestampSec, reactionType: type },
         });
       }
+    });
+
+    socket.on('disconnect', () => {
+      metrics.setConnectedSockets(io.engine.clientsCount);
     });
   });
 

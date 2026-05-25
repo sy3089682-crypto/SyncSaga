@@ -46,13 +46,7 @@ export function useSocket(token?: string | null) {
       updatePresence(event);
     });
 
-    socket.on('error', (error) => {
-      console.error('[SyncSaga] Socket error:', error.message);
-    });
-
-    return () => {
-      // Don't disconnect here - other hooks may need the socket
-    };
+    return () => {};
   }, [token]);
 }
 

@@ -1,5 +1,7 @@
 import { getEnv } from '@syncsaga/config';
 import { logger } from '../lib/logger';
+import { cacheService } from './cache.service';
+import { metrics } from './metrics.service';
 
 const env = getEnv();
 
@@ -10,6 +12,7 @@ interface AiRequestOptions {
   maxTokens?: number;
   temperature?: number;
   system?: string;
+  skipCache?: boolean;
 }
 
 export class AiService {
@@ -34,21 +37,164 @@ export class AiService {
       return this.fallbackResponse(prompt);
     }
 
+    const cacheKey = `ai:${this.provider}:${Buffer.from(prompt).toString('base64').slice(0, 100)}`;
+
+    if (!options.skipCache) {
+      const cached = await cacheService.get<string>(cacheKey);
+      if (cached) return cached;
+    }
+
+    metrics.incrementAiRequests(this.provider);
+
     try {
+      let result: string;
+
       switch (this.provider) {
         case 'claude':
-          return await this.callClaude(prompt, options);
+          result = await this.callClaude(prompt, options);
+          break;
         case 'openai':
-          return await this.callOpenAI(prompt, options);
+          result = await this.callOpenAI(prompt, options);
+          break;
         case 'gemini':
-          return await this.callGemini(prompt, options);
+          result = await this.callGemini(prompt, options);
+          break;
         default:
           return this.fallbackResponse(prompt);
       }
+
+      if (result && !options.skipCache) {
+        await cacheService.set(cacheKey, result, 600);
+      }
+
+      return result;
     } catch (error) {
       logger.error('AI generation error, falling back:', error);
       return this.fallbackResponse(prompt);
     }
+  }
+
+  async generateStream(prompt: string, onChunk: (chunk: string) => void, options: AiRequestOptions = {}): Promise<string> {
+    if (!this.isAvailable()) {
+      const fallback = this.fallbackResponse(prompt);
+      onChunk(fallback);
+      return fallback;
+    }
+
+    metrics.incrementAiRequests(this.provider);
+
+    try {
+      switch (this.provider) {
+        case 'claude':
+          return await this.streamClaude(prompt, onChunk, options);
+        case 'openai':
+          return await this.streamOpenAI(prompt, onChunk, options);
+        default:
+          const result = await this.generate(prompt, { ...options, skipCache: true });
+          onChunk(result);
+          return result;
+      }
+    } catch (error) {
+      logger.error('AI stream error:', error);
+      const fallback = this.fallbackResponse(prompt);
+      onChunk(fallback);
+      return fallback;
+    }
+  }
+
+  private async streamClaude(prompt: string, onChunk: (chunk: string) => void, options: AiRequestOptions): Promise<string> {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: options.model || this.model,
+        max_tokens: options.maxTokens || 1000,
+        temperature: options.temperature ?? 0.7,
+        system: options.system || 'You are a helpful anime assistant.',
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Claude stream error: ${response.status}`);
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let full = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value, { stream: true });
+      const lines = text.split('\n').filter(l => l.startsWith('data: '));
+
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line.slice(6));
+          const content = json.delta?.text || json.content_block?.text || '';
+          if (content) {
+            full += content;
+            onChunk(content);
+          }
+        } catch {}
+      }
+    }
+
+    return full;
+  }
+
+  private async streamOpenAI(prompt: string, onChunk: (chunk: string) => void, options: AiRequestOptions): Promise<string> {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: options.model || 'gpt-4o-mini',
+        max_tokens: options.maxTokens || 1000,
+        temperature: options.temperature ?? 0.7,
+        stream: true,
+        messages: [
+          { role: 'system', content: options.system || 'You are a helpful anime assistant.' },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) throw new Error(`OpenAI stream error: ${response.status}`);
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let full = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value, { stream: true });
+      const lines = text.split('\n').filter(l => l.startsWith('data: ') && l !== 'data: [DONE]');
+
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line.slice(6));
+          const content = json.choices?.[0]?.delta?.content || '';
+          if (content) {
+            full += content;
+            onChunk(content);
+          }
+        } catch {}
+      }
+    }
+
+    return full;
   }
 
   private async callClaude(prompt: string, options: AiRequestOptions): Promise<string> {

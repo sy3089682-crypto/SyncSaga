@@ -1,5 +1,5 @@
-interface ExtensionMessage {
-  type: 'CONNECT' | 'DISCONNECT' | 'GET_STATE' | 'VIDEO_DETECTED' | 'VIDEO_STATE';
+interface SyncMessage {
+  type: 'CONNECT' | 'DISCONNECT' | 'GET_STATE' | 'VIDEO_DETECTED' | 'VIDEO_STATE' | 'SYNC_EVENT' | 'SYNC_STATE';
   payload?: any;
 }
 
@@ -9,54 +9,10 @@ interface VideoState {
   duration: number;
   playbackRate: number;
   episode: string | null;
+  src: string | null;
 }
 
-const SITE_SELECTORS: Record<string, { video: string; episode?: () => string | null }> = {
-  'crunchyroll.com': {
-    video: '.video-player video',
-    episode: () => {
-      const match = window.location.pathname.match(/\/watch\/([^/]+)/);
-      return match ? match[1] : null;
-    },
-  },
-  'hianime.to': {
-    video: '#player video',
-    episode: () => {
-      const match = window.location.pathname.match(/\/watch\/([^/]+)/);
-      return match ? match[1] : null;
-    },
-  },
-  'gogoanime': {
-    video: '.play-video iframe video',
-    episode: () => {
-      const el = document.querySelector('[class*="episode"]');
-      return el?.textContent?.match(/episode\s*(\d+)/i)?.[1] || null;
-    },
-  },
-  '9anime': {
-    video: '.player video',
-    episode: () => {
-      const match = window.location.pathname.match(/\/watch\/([^.]+)/);
-      return match ? match[1] : null;
-    },
-  },
-  'bilibili.com': {
-    video: '.bpx-player video',
-    episode: () => {
-      const match = window.location.pathname.match(/\/video\/([^/]+)/);
-      return match ? match[1] : null;
-    },
-  },
-  'funimation.com': {
-    video: '.vjs-tech',
-    episode: () => {
-      const match = window.location.pathname.match(/\/v\/([^/]+)/);
-      return match ? match[1] : null;
-    },
-  },
-};
-
-class SyncSagaContentScript {
+class UniversalVideoSync {
   private video: HTMLVideoElement | null = null;
   private ws: WebSocket | null = null;
   private roomId: string | null = null;
@@ -70,157 +26,241 @@ class SyncSagaContentScript {
   private dragOffsetX: number = 0;
   private dragOffsetY: number = 0;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 10;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private boundEvents: Map<string, EventListener> = new Map();
+  private videoObservers: MutationObserver[] = [];
+  private iframeVideoFound: boolean = false;
 
   constructor() {
-    chrome.storage.local.get(['token', 'roomId', 'memberCount', 'roomName'], (result) => {
+    this.loadState();
+    this.listenForMessages();
+    this.startVideoDetection();
+  }
+
+  private loadState() {
+    chrome.storage.local.get(['token', 'roomId'], (result) => {
       this.token = result.token || null;
       this.roomId = result.roomId || null;
-      this.detectVideo();
-      this.watchDom();
       if (this.token && this.roomId) this.connect();
     });
+  }
 
-    chrome.runtime.onMessage.addListener((msg: ExtensionMessage) => {
+  private listenForMessages() {
+    chrome.runtime.onMessage.addListener((msg: SyncMessage, _sender, sendResponse) => {
       switch (msg.type) {
         case 'CONNECT':
-          this.token = msg.payload.token;
-          this.roomId = msg.payload.roomId;
-          chrome.storage.local.set({ token: this.token, roomId: this.roomId });
-          this.connect();
+          this.handleConnect(msg.payload);
+          sendResponse?.({ success: true });
           break;
         case 'DISCONNECT':
-          this.disconnect();
+          this.handleDisconnect();
+          sendResponse?.({ success: true });
           break;
         case 'GET_STATE':
-          chrome.runtime.sendMessage({ type: 'VIDEO_STATE', payload: this.getState() });
+          sendResponse?.(this.getVideoState());
           break;
       }
     });
   }
 
-  private getSiteConfig() {
-    const hostname = window.location.hostname;
-    for (const [domain, config] of Object.entries(SITE_SELECTORS)) {
-      if (hostname.includes(domain)) return config;
-    }
-    return null;
+  private handleConnect(payload: { token: string; roomId: string }) {
+    this.token = payload.token;
+    this.roomId = payload.roomId;
+    chrome.storage.local.set({ token: this.token, roomId: this.roomId });
+    this.connect();
   }
 
-  private detectVideo() {
-    const siteConfig = this.getSiteConfig();
-    let video: HTMLVideoElement | null = null;
-
-    if (siteConfig) {
-      video = document.querySelector(siteConfig.video) as HTMLVideoElement;
-    } else {
-      video = document.querySelector('video');
-    }
-
-    if (video && video !== this.video) {
-      this.video = video;
-      this.bindVideoEvents();
-      this.injectOverlay();
-      chrome.runtime.sendMessage({ type: 'VIDEO_DETECTED', payload: { hasVideo: true } });
-    }
+  private handleDisconnect() {
+    this.disconnect();
+    chrome.storage.local.remove(['token', 'roomId']);
   }
 
-  private watchDom() {
+  private startVideoDetection() {
+    this.scanForVideo();
+
     this.observer = new MutationObserver(() => {
-      if (this.debounceTimer) clearTimeout(this.debounceTimer);
-      this.debounceTimer = setTimeout(() => this.detectVideo(), 500);
+      this.debounce(() => this.scanForVideo(), 500);
     });
     this.observer.observe(document.body, { childList: true, subtree: true, attributes: false });
 
-    window.addEventListener('popstate', () => {
-      if (this.debounceTimer) clearTimeout(this.debounceTimer);
-      this.debounceTimer = setTimeout(() => this.detectVideo(), 500);
+    window.addEventListener('popstate', () => this.debounce(() => this.scanForVideo(), 500));
+    window.addEventListener('hashchange', () => this.debounce(() => this.scanForVideo(), 500));
+
+    this.watchShadowDom(document.body);
+  }
+
+  private watchShadowDom(root: Node) {
+    if (root instanceof ShadowRoot) {
+      const shadowObserver = new MutationObserver(() => {
+        this.debounce(() => this.scanForVideo(), 300);
+      });
+      shadowObserver.observe(root, { childList: true, subtree: true });
+      this.videoObservers.push(shadowObserver);
+    }
+
+    if (root instanceof Element) {
+      if (root.shadowRoot) {
+        this.watchShadowDom(root.shadowRoot);
+      }
+      for (const child of root.childNodes) {
+        if (child instanceof Element) {
+          this.watchShadowDom(child);
+        }
+      }
+    }
+  }
+
+  private scanForVideo() {
+    const videos = document.querySelectorAll('video');
+    for (const video of Array.from(videos)) {
+      if (video.readyState >= 1 || video.src || video.querySelector('source')) {
+        if (video !== this.video) {
+          this.attachToVideo(video);
+        }
+        return;
+      }
+    }
+
+    if (!this.iframeVideoFound) {
+      const iframes = document.querySelectorAll('iframe');
+      for (const iframe of Array.from(iframes)) {
+        try {
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDoc) {
+            const iframeVideos = iframeDoc.querySelectorAll('video');
+            for (const video of Array.from(iframeVideos)) {
+              if (video.readyState >= 1 || video.src) {
+                if (video !== this.video) {
+                  this.attachToVideo(video);
+                  this.iframeVideoFound = true;
+                }
+                return;
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+  }
+
+  private attachToVideo(video: HTMLVideoElement) {
+    this.video = video;
+    this.bindVideoEvents();
+    this.injectOverlay();
+
+    chrome.runtime.sendMessage({
+      type: 'VIDEO_DETECTED',
+      payload: { hasVideo: true, src: video.src || 'unknown' },
     });
 
-    window.addEventListener('hashchange', () => {
-      if (this.debounceTimer) clearTimeout(this.debounceTimer);
-      this.debounceTimer = setTimeout(() => this.detectVideo(), 500);
-    });
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.startSyncLoop();
+    }
   }
 
   private bindVideoEvents() {
     if (!this.video) return;
-    const events = ['play', 'pause', 'seeked', 'ratechange', 'waiting', 'canplay'] as const;
-    events.forEach(e => this.video!.addEventListener(e, () => this.onVideoEvent(e)));
+
+    this.boundEvents.forEach((listener, event) => {
+      this.video?.removeEventListener(event, listener);
+    });
+    this.boundEvents.clear();
+
+    const events = ['play', 'pause', 'seeked', 'ratechange', 'waiting', 'canplay', 'ended'];
+    for (const event of events) {
+      const handler = () => this.onVideoEvent(event);
+      this.video.addEventListener(event, handler);
+      this.boundEvents.set(event, handler);
+    }
   }
 
   private onVideoEvent(type: string) {
-    if (!this.video || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.video || this.ws?.readyState !== WebSocket.OPEN || !this.roomId) return;
+
+    const state = this.getVideoState();
     this.ws.send(JSON.stringify({
       type: 'SYNC_EVENT',
       payload: {
-        type,
-        timestamp: this.video.currentTime,
-        playback_speed: this.video.playbackRate,
-        episode: this.detectEpisode(),
+        type: type === 'seeked' ? 'seek' : type === 'ratechange' ? 'speed' : type === 'ended' ? 'pause' : type,
+        timestamp: state.currentTime,
+        playback_speed: state.playbackRate,
+        episode: state.episode,
+        duration: state.duration,
       },
     }));
   }
 
-  private detectEpisode(): string | null {
-    const siteConfig = this.getSiteConfig();
-    if (siteConfig?.episode) {
-      return siteConfig.episode();
-    }
-
-    const patterns = [
-      () => (window.location.pathname.match(/\/episode[s]?\/(\d+)/i) || [])[1],
-      () => {
-        for (const sel of ['[class*="episode"]', '[id*="episode"]', 'h1', 'h2', '.video-title', '.player-title']) {
-          const el = document.querySelector(sel);
-          if (el?.textContent?.match(/\d+/)) return el.textContent.trim();
-        }
-        return null;
-      },
-    ];
-    for (const p of patterns) {
-      const r = p();
-      if (r) return `Episode ${r}`;
-    }
-    return null;
-  }
-
   private connect() {
+    if (this.ws?.readyState === WebSocket.OPEN) return;
+
     const wsUrl = process.env.EXTENSION_WS_URL || 'ws://localhost:4000/ws';
     this.ws = new WebSocket(`${wsUrl}?token=${this.token}`);
 
     this.ws.onopen = () => {
+      this.reconnectAttempts = 0;
       this.ws!.send(JSON.stringify({ type: 'ROOM_JOIN', payload: { roomId: this.roomId } }));
       this.startSyncLoop();
+      this.startHeartbeat();
       this.updateOverlayStatus('connected');
     };
 
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'SYNC_EVENT') this.applySync(msg.payload);
-        if (msg.type === 'SYNC_STATE') this.applyState(msg.payload);
-        if (msg.type === 'ROOM_UPDATE') {
-          chrome.storage.local.set({ memberCount: msg.payload.memberCount, roomName: msg.payload.roomName });
+        switch (msg.type) {
+          case 'SYNC_EVENT':
+            this.applySyncEvent(msg.payload);
+            break;
+          case 'SYNC_STATE':
+            this.applySyncState(msg.payload);
+            break;
+          case 'ROOM_JOINED':
+          case 'ROOM_UPDATE':
+            this.updateOverlayStatus('connected');
+            break;
+          case 'ERROR':
+            this.updateOverlayStatus('disconnected');
+            break;
         }
       } catch {}
     };
 
     this.ws.onclose = () => {
       this.updateOverlayStatus('disconnected');
-      setTimeout(() => { if (this.token && this.roomId) this.connect(); }, 3000);
+      this.reconnectAttempts++;
+      if (this.reconnectAttempts < this.maxReconnectAttempts && this.token && this.roomId) {
+        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+        setTimeout(() => this.connect(), delay);
+      }
+    };
+
+    this.ws.onerror = () => {
+      this.ws?.close();
     };
   }
 
   private disconnect() {
-    if (this.ws) { this.ws.close(); this.ws = null; }
-    if (this.syncInterval) { clearInterval(this.syncInterval); this.syncInterval = null; }
-    if (this.overlay) { this.overlay.style.display = 'none'; }
+    if (this.ws) {
+      if (this.roomId) {
+        this.ws.send(JSON.stringify({ type: 'ROOM_LEAVE', payload: { roomId: this.roomId } }));
+      }
+      this.ws.close();
+      this.ws = null;
+    }
+    this.stopSyncLoop();
+    this.stopHeartbeat();
+    this.reconnectAttempts = this.maxReconnectAttempts;
     this.roomId = null;
     this.token = null;
-    chrome.storage.local.remove(['token', 'roomId']);
+    if (this.overlay) {
+      this.overlay.style.display = 'none';
+    }
   }
 
   private startSyncLoop() {
+    this.stopSyncLoop();
     this.syncInterval = setInterval(() => {
       if (this.video && this.ws?.readyState === WebSocket.OPEN) {
         const drift = Math.abs(this.video.currentTime - this.lastSyncTime);
@@ -235,50 +275,139 @@ class SyncSagaContentScript {
     }, 4000);
   }
 
-  private applySync(event: any) {
-    if (!this.video) return;
-    if (event.type === 'play' && this.video.paused) this.video.play();
-    else if (event.type === 'pause' && !this.video.paused) this.video.pause();
-    else if (event.type === 'seek') this.video.currentTime = event.timestamp;
-    else if (event.type === 'speed') this.video.playbackRate = event.playback_speed || 1;
-  }
-
-  private applyState(state: any) {
-    if (!this.video) return;
-    if (Math.abs(this.video.currentTime - (state.timestamp || 0)) > 1.5) {
-      this.video.currentTime = state.timestamp || 0;
+  private stopSyncLoop() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
     }
-    if (state.playback_state === 'playing' && this.video.paused) this.video.play();
-    if (state.playback_state === 'paused' && !this.video.paused) this.video.pause();
-    if (state.speed) this.video.playbackRate = state.speed;
   }
 
-  private getState(): VideoState | null {
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'HEARTBEAT', payload: { timestamp: Date.now() } }));
+      }
+    }, 25000);
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  private applySyncEvent(event: any) {
+    if (!this.video) return;
+
+    switch (event.type) {
+      case 'play':
+        if (this.video.paused) this.video.play().catch(() => {});
+        break;
+      case 'pause':
+        if (!this.video.paused) this.video.pause();
+        break;
+      case 'seek':
+        this.video.currentTime = event.timestamp;
+        break;
+      case 'speed':
+        if (event.playback_speed) this.video.playbackRate = event.playback_speed;
+        break;
+      case 'timestamp':
+        this.lastSyncTime = event.timestamp;
+        break;
+    }
+  }
+
+  private applySyncState(state: any) {
+    if (!this.video) return;
+
+    if (state.timestamp !== undefined && Math.abs(this.video.currentTime - state.timestamp) > 1.5) {
+      this.video.currentTime = state.timestamp;
+    }
+    if (state.playback_state === 'playing' && this.video.paused) {
+      this.video.play().catch(() => {});
+    }
+    if (state.playback_state === 'paused' && !this.video.paused) {
+      this.video.pause();
+    }
+    if (state.speed) {
+      this.video.playbackRate = state.speed;
+    }
+    this.lastSyncTime = state.timestamp || this.video.currentTime;
+  }
+
+  private getVideoState(): VideoState | null {
     if (!this.video) return null;
     return {
       isPlaying: !this.video.paused,
       currentTime: this.video.currentTime,
-      duration: this.video.duration,
+      duration: this.video.duration || 0,
       playbackRate: this.video.playbackRate,
       episode: this.detectEpisode(),
+      src: this.video.src || null,
     };
+  }
+
+  private detectEpisode(): string | null {
+    const pathname = window.location.pathname;
+
+    const patterns = [
+      /\/episode[s]?\/(\d+)/i,
+      /\/e[\/-](\d+)/i,
+      /\/watch\/[^/]+-episode-(\d+)/i,
+      /\/watch\/(?:[^/]+)?.*?(\d+)/i,
+      /ep-(\d+)/i,
+      /(\d+)(?:st|nd|rd|th)-episode/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = pathname.match(pattern);
+      if (match) return `Episode ${match[1]}`;
+    }
+
+    const metaSelectors = [
+      '[class*="episode"]',
+      '[id*="episode"]',
+      '[data-episode]',
+      '.video-title',
+      '.player-title',
+      'h1',
+      '.title',
+      '[class*="video-info"]',
+    ];
+
+    for (const selector of metaSelectors) {
+      const el = document.querySelector(selector);
+      if (el?.textContent) {
+        const numMatch = el.textContent.match(/(?:episode|ep|e)\s*(\d+)/i);
+        if (numMatch) return `Episode ${numMatch[1]}`;
+      }
+    }
+
+    return null;
   }
 
   private updateOverlayStatus(status: 'connected' | 'disconnected' | 'syncing') {
     if (!this.overlay) return;
-    const dot = this.overlay.querySelector('.syncsaga-dot') as HTMLDivElement;
-    const text = this.overlay.querySelector('.syncsaga-text') as HTMLSpanElement;
+    const dot = this.overlay.querySelector('.ss-dot') as HTMLDivElement;
+    const text = this.overlay.querySelector('.ss-text') as HTMLSpanElement;
     if (!dot || !text) return;
 
-    if (status === 'connected') {
-      dot.style.background = '#10b981';
-      text.textContent = 'Synced';
-    } else if (status === 'disconnected') {
-      dot.style.background = '#ef4444';
-      text.textContent = 'Disconnected';
-    } else {
-      dot.style.background = '#f59e0b';
-      text.textContent = 'Syncing...';
+    switch (status) {
+      case 'connected':
+        dot.style.background = '#10b981';
+        text.textContent = `Room: ${this.roomId?.slice(0, 8)}...`;
+        break;
+      case 'disconnected':
+        dot.style.background = '#ef4444';
+        text.textContent = 'Disconnected';
+        break;
+      case 'syncing':
+        dot.style.background = '#f59e0b';
+        text.textContent = 'Syncing...';
+        break;
     }
   }
 
@@ -290,39 +419,41 @@ class SyncSagaContentScript {
 
     const overlay = document.createElement('div');
     overlay.innerHTML = `
-      <div class="syncsaga-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
-      <span class="syncsaga-text" style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">SyncSaga</span>
-      <button class="syncsaga-mute-btn" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.7;flex-shrink:0" title="Toggle mic">
+      <div class="ss-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
+      <span class="ss-text" style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">SyncSaga</span>
+      <button class="ss-mute" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.7;flex-shrink:0" title="Toggle mic">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
       </button>
-      <button class="syncsaga-minimize-btn" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.7;flex-shrink:0" title="Minimize">
+      <button class="ss-minimize" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.7;flex-shrink:0" title="Minimize">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
     `;
-    overlay.style.cssText = `
-      position:fixed;bottom:80px;right:20px;z-index:999999;
-      display:flex;align-items:center;gap:8px;
-      padding:8px 14px;
-      background:rgba(10,10,15,0.92);
-      backdrop-filter:blur(12px);
-      border:1px solid rgba(139,92,246,0.3);
-      border-radius:100px;
-      color:white;
-      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      font-size:12px;
-      box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(139,92,246,0.1);
-      cursor:grab;
-      user-select:none;
-      transition:box-shadow 0.2s,transform 0.2s;
-      min-width:120px;
-      max-width:240px;
-    `;
 
-    const muteBtn = overlay.querySelector('.syncsaga-mute-btn') as HTMLButtonElement;
+    overlay.style.cssText = [
+      'position:fixed;bottom:80px;right:20px;z-index:2147483647;',
+      'display:flex;align-items:center;gap:8px;',
+      'padding:8px 14px;',
+      'background:rgba(10,10,15,0.92);',
+      'backdrop-filter:blur(12px);',
+      '-webkit-backdrop-filter:blur(12px);',
+      'border:1px solid rgba(139,92,246,0.3);',
+      'border-radius:100px;',
+      'color:white;',
+      'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;',
+      'font-size:12px;',
+      'box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(139,92,246,0.1);',
+      'cursor:grab;',
+      'user-select:none;',
+      'min-width:120px;',
+      'max-width:240px;',
+      'transition:box-shadow 0.2s,transform 0.2s;',
+    ].join('');
+
+    const muteBtn = overlay.querySelector('.ss-mute') as HTMLButtonElement;
     muteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const svg = muteBtn.querySelector('svg')!;
-      const isMuted = svg.innerHTML.includes('M9');
+      const isMuted = !svg.innerHTML.includes('M9');
       if (isMuted) {
         svg.innerHTML = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
       } else {
@@ -330,12 +461,12 @@ class SyncSagaContentScript {
       }
     });
 
-    const minimizeBtn = overlay.querySelector('.syncsaga-minimize-btn') as HTMLButtonElement;
+    const minimizeBtn = overlay.querySelector('.ss-minimize') as HTMLButtonElement;
     minimizeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.overlayVisible = !this.overlayVisible;
-      const text = overlay.querySelector('.syncsaga-text') as HTMLSpanElement;
-      const dot = overlay.querySelector('.syncsaga-dot') as HTMLDivElement;
+      const text = overlay.querySelector('.ss-text') as HTMLSpanElement;
+      const dot = overlay.querySelector('.ss-dot') as HTMLDivElement;
       if (this.overlayVisible) {
         text.style.display = '';
         dot.style.display = '';
@@ -355,8 +486,9 @@ class SyncSagaContentScript {
 
     overlay.addEventListener('mousedown', (e) => {
       this.isDragging = true;
-      this.dragOffsetX = e.clientX - overlay.getBoundingClientRect().left;
-      this.dragOffsetY = e.clientY - overlay.getBoundingClientRect().top;
+      const rect = overlay.getBoundingClientRect();
+      this.dragOffsetX = e.clientX - rect.left;
+      this.dragOffsetY = e.clientY - rect.top;
       overlay.style.cursor = 'grabbing';
     });
 
@@ -378,6 +510,11 @@ class SyncSagaContentScript {
     this.overlay = overlay;
     document.body.appendChild(overlay);
   }
+
+  private debounce(fn: () => void, delay: number) {
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(fn, delay);
+  }
 }
 
-new SyncSagaContentScript();
+new UniversalVideoSync();

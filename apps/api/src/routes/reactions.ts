@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { supabase } from '../../lib/supabase';
-import { verifyToken } from '../../lib/jwt';
+import { supabase } from '../lib/supabase';
+import { verifyToken } from '../lib/jwt';
 import { z } from 'zod';
 
 const router = Router();

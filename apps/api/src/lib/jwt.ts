@@ -1,34 +1,45 @@
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { redisService } from '../services/redis.service';
+import { getEnv } from '@syncsaga/config';
 
-const ACCESS_SECRET = process.env.JWT_SECRET || 'syncsaga-dev-secret-change-me';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'syncsaga-refresh-secret-change-me';
+const env = getEnv();
+const ACCESS_SECRET = env.JWT_SECRET;
+const REFRESH_SECRET = env.JWT_REFRESH_SECRET;
 const ACCESS_EXPIRES = '15m';
 const REFRESH_EXPIRES = '7d';
 
-export function generateAccessToken(payload: { userId: string; email: string }): string {
+export interface JwtPayload {
+  userId: string;
+  email: string;
+}
+
+export interface RefreshJwtPayload extends JwtPayload {
+  refreshId: string;
+}
+
+export function generateAccessToken(payload: JwtPayload): string {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES });
 }
 
-export function generateRefreshToken(payload: { userId: string; email: string }): { token: string; id: string } {
+export function generateRefreshToken(payload: JwtPayload): { token: string; id: string } {
   const id = uuidv4();
   const token = jwt.sign({ ...payload, refreshId: id }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES });
   return { token, id };
 }
 
-export function verifyToken(token: string): { userId: string; email: string } | null {
+export function verifyToken(token: string): JwtPayload | null {
   try {
-    const decoded = jwt.verify(token, ACCESS_SECRET) as { userId: string; email: string };
+    const decoded = jwt.verify(token, ACCESS_SECRET) as JwtPayload;
     return decoded;
   } catch {
     return null;
   }
 }
 
-export function verifyRefreshToken(token: string): { userId: string; email: string; refreshId: string } | null {
+export function verifyRefreshToken(token: string): RefreshJwtPayload | null {
   try {
-    const decoded = jwt.verify(token, REFRESH_SECRET) as { userId: string; email: string; refreshId: string };
+    const decoded = jwt.verify(token, REFRESH_SECRET) as RefreshJwtPayload;
     return decoded;
   } catch {
     return null;

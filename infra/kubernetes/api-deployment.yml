@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncsaga-api
+  namespace: syncsaga
+  labels:
+    app: syncsaga-api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: syncsaga-api
+  template:
+    metadata:
+      labels:
+        app: syncsaga-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/sy3089682-crypto/syncsaga-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4000
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "4000"
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: redis-url
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: supabase-url
+            - name: SUPABASE_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: supabase-service-key
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: jwt-secret
+            - name: JWT_REFRESH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: jwt-refresh-secret
+            - name: CORS_ORIGIN
+              value: "https://syncsaga.app,https://www.syncsaga.app"
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: livekit-api-key
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: syncsaga-secrets
+                  key: livekit-api-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncsaga-api
+  namespace: syncsaga
+spec:
+  selector:
+    app: syncsaga-api
+  ports:
+    - port: 4000
+      targetPort: 4000
+      name: http
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: syncsaga-api
+  namespace: syncsaga
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: syncsaga-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

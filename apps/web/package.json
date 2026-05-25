@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@syncsaga/shared": "*",
@@ -24,7 +26,9 @@
     "lucide-react": "^0.344.0",
     "livekit-client": "^2.0.0",
     "@livekit/components-react": "^2.0.0",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "@stripe/react-stripe-js": "^2.7.0",
+    "@stripe/stripe-js": "^3.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
@@ -35,6 +39,10 @@
     "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^8.57.0",
-    "eslint-config-next": "15.0.0"
+    "eslint-config-next": "15.0.0",
+    "vitest": "^1.6.0",
+    "@testing-library/react": "^14.2.0",
+    "@testing-library/jest-dom": "^6.4.0",
+    "jsdom": "^24.0.0"
   }
 }

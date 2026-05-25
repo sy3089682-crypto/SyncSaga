@@ -1,14 +1,16 @@
 import pino from 'pino';
+import { getEnv } from '@syncsaga/config';
 
-const isDev = process.env.NODE_ENV !== 'production';
+const env = getEnv();
+const isDev = env.NODE_ENV !== 'production';
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
+  level: env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
   transport: isDev
     ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
     : undefined,
   redact: {
-    paths: ['password', 'token', 'secret', 'authorization', 'cookie'],
+    paths: ['password', 'token', 'secret', 'authorization', 'cookie', 'key'],
     censor: '[REDACTED]',
   },
   serializers: {

@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "SyncSaga",
   "version": "1.0.0",
-  "description": "Watch anime together in sync. Synchronizes playback across browser-based anime websites.",
+  "description": "Watch videos together in perfect sync. Synchronizes HTML5 video playback across any website.",
+  "homepage_url": "https://syncsaga.app",
   "permissions": [
     "storage",
     "tabs"
@@ -21,7 +22,9 @@
     {
       "matches": ["*://*/*"],
       "js": ["content.js"],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "all_frames": true,
+      "match_about_blank": true
     }
   ],
   "background": {
@@ -32,5 +35,17 @@
     "16": "icons/icon16.svg",
     "48": "icons/icon48.svg",
     "128": "icons/icon128.svg"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{syncsaga@syncsaga.app}",
+      "strict_min_version": "109.0"
+    },
+    "edge": {
+      "browser_action_next_to_addressbar": true
+    }
   }
 }

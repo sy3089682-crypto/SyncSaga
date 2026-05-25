@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { getEnv } from '@syncsaga/config';
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+const env = getEnv();
+const supabaseUrl = env.SUPABASE_URL;
+const supabaseServiceKey = env.SUPABASE_SERVICE_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {

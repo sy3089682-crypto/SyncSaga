@@ -1,3 +1,6 @@
+import { Button } from './Button';
+import { AlertTriangle } from 'lucide-react';
+
 export function LoadingSpinner({ size = 'md', className = '' }: { size?: 'sm' | 'md' | 'lg'; className?: string }) {
   const sizes = { sm: 'w-5 h-5', md: 'w-8 h-8', lg: 'w-12 h-12' };
   return (
@@ -20,6 +23,26 @@ export function PageSkeleton() {
         {[1, 2, 3, 4, 5, 6].map(i => (
           <Skeleton key={i} className="h-32 rounded-2xl" />
         ))}
+      </div>
+    </div>
+  );
+}
+
+export function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8">
+      <div className="rounded-full bg-red-500/10 p-4">
+        <AlertTriangle className="h-8 w-8 text-red-400" />
+      </div>
+      <h2 className="text-xl font-semibold">Something went wrong</h2>
+      <p className="max-w-md text-center text-sm text-muted-foreground">
+        {error.message || 'An unexpected error occurred'}
+      </p>
+      <div className="flex gap-3">
+        <Button onClick={reset}>Try again</Button>
+        <Button variant="outline" onClick={() => window.location.href = '/'}>
+          Go home
+        </Button>
       </div>
     </div>
   );

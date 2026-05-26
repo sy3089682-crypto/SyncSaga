@@ -17,13 +17,14 @@ import embedRouter from './routes/embed';
 import aiRouter from './routes/ai';
 import featuresRouter from './routes/features';
 import metricsRouter from './routes/metrics';
+import paymentsRouter from './routes/payments';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
 import { supabase } from './lib/supabase';
 import { logger } from './lib/logger';
 import { errorHandler } from './middleware/errorHandler';
-import { rateLimitMiddleware } from './middleware/security';
+import { rateLimitMiddleware, csrfProtection } from './middleware/security';
 import { metrics } from './services/metrics.service';
 
 export async function createServer() {
@@ -65,6 +66,8 @@ export async function createServer() {
   app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/metrics' } }));
 
   app.use(rateLimitMiddleware(100, 60));
+
+  app.use(csrfProtection);
 
   app.use((req, _res, next) => {
     const start = Date.now();
@@ -110,6 +113,7 @@ export async function createServer() {
   app.use('/api/embed', embedRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/features', featuresRouter);
+  app.use('/api/payments', paymentsRouter);
   app.use('/metrics', metricsRouter);
 
   app.use(errorHandler);

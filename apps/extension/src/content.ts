@@ -195,7 +195,7 @@ class UniversalVideoSync {
   private connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = process.env.EXTENSION_WS_URL || 'ws://localhost:4000/ws';
+    const wsUrl = 'wss://api.syncsaga.app/ws';
     this.ws = new WebSocket(`${wsUrl}?token=${this.token}`);
 
     this.ws.onopen = () => {

@@ -1,4 +1,5 @@
 import { getEnv } from '@syncsaga/config';
+import { redisService } from './redis.service';
 
 export type FeatureFlag =
   | 'ai_recommendations'
@@ -35,24 +36,46 @@ const FLAGS: FlagConfig[] = [
   { key: 'taste_graph', description: 'Taste matching graph', defaultEnabled: true },
 ];
 
+const OVERRIDE_PREFIX = 'feature:override:';
+
 class FeatureService {
-  private overrides: Map<FeatureFlag, boolean> = new Map();
-
-  setOverride(flag: FeatureFlag, enabled: boolean) {
-    this.overrides.set(flag, enabled);
+  async loadOverrides(): Promise<Map<FeatureFlag, boolean>> {
+    const map = new Map<FeatureFlag, boolean>();
+    try {
+      const keys = await redisService.getClient().keys(`${OVERRIDE_PREFIX}*`);
+      if (keys.length > 0) {
+        const values = await redisService.getClient().mget(keys);
+        for (let i = 0; i < keys.length; i++) {
+          const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
+          if (values[i] !== null) {
+            map.set(flag, values[i] === 'true');
+          }
+        }
+      }
+    } catch {}
+    return map;
   }
 
-  clearOverride(flag: FeatureFlag) {
-    this.overrides.delete(flag);
+  async setOverride(flag: FeatureFlag, enabled: boolean) {
+    try {
+      await redisService.getClient().set(`${OVERRIDE_PREFIX}${flag}`, enabled ? 'true' : 'false', { EX: 86400 * 7 });
+    } catch {}
   }
 
-  isEnabled(flag: FeatureFlag): boolean {
-    const override = this.overrides.get(flag);
-    if (override !== undefined) return override;
+  async clearOverride(flag: FeatureFlag) {
+    try {
+      await redisService.getClient().del(`${OVERRIDE_PREFIX}${flag}`);
+    } catch {}
+  }
+
+  async isEnabled(flag: FeatureFlag): Promise<boolean> {
+    try {
+      const overrideVal = await redisService.getClient().get(`${OVERRIDE_PREFIX}${flag}`);
+      if (overrideVal !== null) return overrideVal === 'true';
+    } catch {}
 
     const config = FLAGS.find(f => f.key === flag);
     if (!config) return false;
-
     if (!config.defaultEnabled) return false;
 
     if (config.requiresEnv) {
@@ -63,20 +86,30 @@ class FeatureService {
     return true;
   }
 
-  getFeatureList(): (FlagConfig & { enabled: boolean })[] {
-    return FLAGS.map(f => ({ ...f, enabled: this.isEnabled(f.key) }));
+  async getFeatureList(): Promise<(FlagConfig & { enabled: boolean })[]> {
+    const results = await Promise.all(
+      FLAGS.map(async f => ({ ...f, enabled: await this.isEnabled(f.key) }))
+    );
+    return results;
   }
 
-  getEnabledFeatures(): FeatureFlag[] {
-    return FLAGS.filter(f => this.isEnabled(f.key)).map(f => f.key);
+  async getEnabledFeatures(): Promise<FeatureFlag[]> {
+    const results = await Promise.all(
+      FLAGS.map(async f => ({ key: f.key, enabled: await this.isEnabled(f.key) }))
+    );
+    return results.filter(f => f.enabled).map(f => f.key);
   }
 
-  isAvailableForPlan(flag: FeatureFlag, plan: string): boolean {
+  async isAvailableForPlan(flag: FeatureFlag, plan: string): Promise<boolean> {
     const config = FLAGS.find(f => f.key === flag);
     if (!config || !config.requiresSubscription) return true;
     if (plan === 'pro') return true;
     if (plan === 'premium' && config.requiresSubscription === 'premium') return true;
     return false;
+  }
+
+  getFlagConfig(flag: FeatureFlag): FlagConfig | undefined {
+    return FLAGS.find(f => f.key === flag);
   }
 }
 

@@ -2,96 +2,137 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/Button';
+import { Eye, EyeOff, UserPlus } from 'lucide-react';
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { supabase, signInWithOAuth } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { setToken, setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
-  const router = useRouter();
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
+
     try {
-      await register(email, password, username);
+      const { token, user } = await api.post('/api/auth/register', {
+        email, password, username,
+      });
+      setToken(token);
+      setUser(user);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      setError(err.error || err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background text-text-primary flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-pink/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" style={{ animationDelay: '-3s' }} />
-      </div>
+  const handleOAuth = async (provider: 'google' | 'github' | 'discord') => {
+    try {
+      const { error } = await signInWithOAuth(provider);
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message || 'OAuth failed');
+    }
+  };
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-md"
-      >
-        <div className="glass rounded-3xl p-8">
-          <div className="flex items-center gap-2 justify-center mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent-cyan flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent-cyan bg-clip-text text-transparent">
-              SyncSaga
-            </span>
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <UserPlus className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold">Create your account</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Join the SyncSaga community</p>
+        </div>
+
+        <div className="flex gap-3">
+          <button onClick={() => handleOAuth('google')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
+            Google
+          </button>
+          <button onClick={() => handleOAuth('github')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
+            GitHub
+          </button>
+          <button onClick={() => handleOAuth('discord')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
+            Discord
+          </button>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10" /></div>
+          <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or email</span></div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
+              placeholder="Your username"
+              required
+              minLength={3}
+              maxLength={30}
+              pattern="^[a-zA-Z0-9_]+$"
+            />
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-2">Create account</h1>
-          <p className="text-text-secondary text-center mb-8">Start your watch party journey</p>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
 
-          {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
-              {error}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm focus:border-primary focus:outline-none"
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
-          )}
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Username</label>
-              <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-surface-light border border-border text-text-primary placeholder:text-text-muted focus:border-primary outline-none transition-colors"
-                placeholder="anime_fan42" required minLength={3} />
-            </div>
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-surface-light border border-border text-text-primary placeholder:text-text-muted focus:border-primary outline-none transition-colors"
-                placeholder="you@example.com" required />
-            </div>
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-surface-light border border-border text-text-primary placeholder:text-text-muted focus:border-primary outline-none transition-colors"
-                placeholder="••••••••" required minLength={6} />
-            </div>
-            <button type="submit" disabled={loading}
-              className="w-full py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark disabled:opacity-50 transition-colors">
-              {loading ? 'Creating account...' : 'Create Account'}
-            </button>
-          </form>
+          {error && <p className="text-sm text-red-400">{error}</p>}
 
-          <p className="text-center mt-6 text-sm text-text-secondary">
-            Already have an account?{' '}
-            <Link href="/auth/login" className="text-primary hover:underline">Sign in</Link>
-          </p>
-        </div>
-      </motion.div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Creating account...' : 'Create account'}
+          </Button>
+        </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{' '}
+          <Link href="/auth/login" className="text-primary hover:underline">Log in</Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -97,6 +97,18 @@ class Analytics {
   trackRoomDuration(roomId: string, durationMinutes: number) {
     this.capture('room_duration', { roomId, durationMinutes });
   }
+
+  trackAiRequest(feature: string, provider: string, latencyMs: number, success: boolean) {
+    this.capture('ai_request', { feature, provider, latencyMs, success });
+  }
+
+  trackAiFailure(feature: string, provider: string, error: string) {
+    this.capture('ai_failure', { feature, provider, error });
+  }
+
+  trackFeatureFlag(flag: string, enabled: boolean) {
+    this.capture('feature_flag', { flag, enabled });
+  }
 }
 
 export const analytics = new Analytics();

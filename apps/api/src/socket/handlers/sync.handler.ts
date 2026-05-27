@@ -53,7 +53,7 @@ export function syncHandler(
           episode_number: state.current_episode_number || null,
         });
       }
-    }, 3000);
+    }, 5000);
     heartbeatIntervals.set(socket.id, interval);
   }
 

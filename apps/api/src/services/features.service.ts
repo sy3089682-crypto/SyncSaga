@@ -4,6 +4,12 @@ import { redisService } from './redis.service';
 export type FeatureFlag =
   | 'ai_recommendations'
   | 'ai_moderation'
+  | 'ai_recaps'
+  | 'ai_room_names'
+  | 'ai_search'
+  | 'ai_summaries'
+  | 'ai_chat_assistant'
+  | 'ai_embeddings'
   | 'extension_diagnostics'
   | 'voice_chat'
   | 'clips'
@@ -23,11 +29,17 @@ type FlagConfig = {
 };
 
 const FLAGS: FlagConfig[] = [
-  { key: 'ai_recommendations', description: 'AI-powered anime recommendations', defaultEnabled: true, requiresSubscription: 'premium' },
-  { key: 'ai_moderation', description: 'AI content moderation', defaultEnabled: true, requiresEnv: 'AI_API_KEY' },
+  { key: 'ai_recommendations', description: 'AI-powered anime recommendations', defaultEnabled: true },
+  { key: 'ai_moderation', description: 'AI content moderation', defaultEnabled: true },
+  { key: 'ai_recaps', description: 'AI watch party recaps', defaultEnabled: true },
+  { key: 'ai_room_names', description: 'AI room name generation', defaultEnabled: true },
+  { key: 'ai_search', description: 'AI-powered search', defaultEnabled: true },
+  { key: 'ai_summaries', description: 'AI session summaries', defaultEnabled: true },
+  { key: 'ai_chat_assistant', description: 'AI chat assistant (SyncBot)', defaultEnabled: true },
+  { key: 'ai_embeddings', description: 'AI vector embeddings', defaultEnabled: true, requiresEnv: 'CLOUDFLARE_ACCOUNT_ID' },
   { key: 'extension_diagnostics', description: 'Extension diagnostic tools', defaultEnabled: true },
   { key: 'voice_chat', description: 'Voice chat via LiveKit', defaultEnabled: true, requiresEnv: 'LIVEKIT_API_KEY' },
-  { key: 'clips', description: 'Clip creation and sharing', defaultEnabled: true, requiresSubscription: 'premium' },
+  { key: 'clips', description: 'Clip creation and sharing', defaultEnabled: true },
   { key: 'streaks', description: 'Watch streaks system', defaultEnabled: true },
   { key: 'achievements', description: 'Achievement system', defaultEnabled: true },
   { key: 'analytics', description: 'Usage analytics', defaultEnabled: true, requiresEnv: 'POSTHOG_API_KEY' },
@@ -98,18 +110,6 @@ class FeatureService {
       FLAGS.map(async f => ({ key: f.key, enabled: await this.isEnabled(f.key) }))
     );
     return results.filter(f => f.enabled).map(f => f.key);
-  }
-
-  async isAvailableForPlan(flag: FeatureFlag, plan: string): Promise<boolean> {
-    const config = FLAGS.find(f => f.key === flag);
-    if (!config || !config.requiresSubscription) return true;
-    if (plan === 'pro') return true;
-    if (plan === 'premium' && config.requiresSubscription === 'premium') return true;
-    return false;
-  }
-
-  getFlagConfig(flag: FeatureFlag): FlagConfig | undefined {
-    return FLAGS.find(f => f.key === flag);
   }
 }
 

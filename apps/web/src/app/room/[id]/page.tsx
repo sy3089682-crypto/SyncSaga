@@ -16,6 +16,7 @@ import { TimelineReactions, ReactionBar } from '@/components/cinema/TimelineReac
 import { ClipCapture } from '@/components/cinema/ClipCapture';
 import { FriendsFeed } from '@/components/cinema/FriendsFeed';
 import { TasteGraph } from '@/components/cinema/TasteGraph';
+import { AiRecap } from '@/components/cinema/AiRecap';
 import { AnimeInfoSidebar } from '@/components/anime/AnimeInfoSidebar';
 import { EpisodePicker } from '@/components/anime/EpisodePicker';
 
@@ -172,6 +173,7 @@ export default function RoomPage() {
               </span>
             )}
             <FriendsFeed collapsed={!showFeed} onToggle={() => setShowFeed(!showFeed)} />
+            <AiRecap roomId={roomId} animeTitle={currentRoom?.anime_title} episodeNumber={currentRoom?.current_episode_number} />
             <button onClick={() => setShowSidebar(!showSidebar)}
               className={cn("p-2 rounded-lg transition-colors", showSidebar ? 'bg-primary/20 text-primary' : 'hover:bg-surface-light text-text-secondary')}>
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />

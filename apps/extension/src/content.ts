@@ -32,11 +32,17 @@ class UniversalVideoSync {
   private boundEvents: Map<string, EventListener> = new Map();
   private videoObservers: MutationObserver[] = [];
   private iframeVideoFound: boolean = false;
+  private cleanupFns: (() => void)[] = [];
+  private urlCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private lastUrl: string = '';
 
   constructor() {
+    this.lastUrl = window.location.href;
     this.loadState();
     this.listenForMessages();
     this.startVideoDetection();
+    this.watchSpaNavigation();
+    this.cleanupFns.push(() => this.destroy());
   }
 
   private loadState() {
@@ -77,17 +83,48 @@ class UniversalVideoSync {
     chrome.storage.local.remove(['token', 'roomId']);
   }
 
+  private watchSpaNavigation() {
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+
+    history.pushState = (...args) => {
+      originalPushState(...args);
+      this.detectUrlChange();
+    };
+    history.replaceState = (...args) => {
+      originalReplaceState(...args);
+      this.detectUrlChange();
+    };
+
+    window.addEventListener('popstate', () => this.detectUrlChange());
+    window.addEventListener('hashchange', () => this.detectUrlChange());
+
+    this.urlCheckInterval = setInterval(() => {
+      if (window.location.href !== this.lastUrl) {
+        this.lastUrl = window.location.href;
+        this.detectUrlChange();
+      }
+    }, 2000);
+  }
+
+  private detectUrlChange() {
+    this.lastUrl = window.location.href;
+    this.cleanupVideo();
+    this.debounce(() => {
+      this.scanForVideo();
+      if (this.token && this.roomId) {
+        this.reconnectAttempts = 0;
+        this.connect();
+      }
+    }, 500);
+  }
+
   private startVideoDetection() {
     this.scanForVideo();
-
     this.observer = new MutationObserver(() => {
       this.debounce(() => this.scanForVideo(), 500);
     });
     this.observer.observe(document.body, { childList: true, subtree: true, attributes: false });
-
-    window.addEventListener('popstate', () => this.debounce(() => this.scanForVideo(), 500));
-    window.addEventListener('hashchange', () => this.debounce(() => this.scanForVideo(), 500));
-
     this.watchShadowDom(document.body);
   }
 
@@ -99,15 +136,10 @@ class UniversalVideoSync {
       shadowObserver.observe(root, { childList: true, subtree: true });
       this.videoObservers.push(shadowObserver);
     }
-
     if (root instanceof Element) {
-      if (root.shadowRoot) {
-        this.watchShadowDom(root.shadowRoot);
-      }
+      if (root.shadowRoot) this.watchShadowDom(root.shadowRoot);
       for (const child of root.childNodes) {
-        if (child instanceof Element) {
-          this.watchShadowDom(child);
-        }
+        if (child instanceof Element) this.watchShadowDom(child);
       }
     }
   }
@@ -122,7 +154,6 @@ class UniversalVideoSync {
         return;
       }
     }
-
     if (!this.iframeVideoFound) {
       const iframes = document.querySelectorAll('iframe');
       for (const iframe of Array.from(iframes)) {
@@ -145,16 +176,30 @@ class UniversalVideoSync {
     }
   }
 
+  private cleanupVideo() {
+    if (this.video) {
+      this.boundEvents.forEach((listener, event) => {
+        this.video?.removeEventListener(event, listener);
+      });
+      this.boundEvents.clear();
+      this.video = null;
+    }
+    this.iframeVideoFound = false;
+    this.stopSyncLoop();
+    if (this.overlay) {
+      this.overlay.remove();
+      this.overlay = null;
+    }
+  }
+
   private attachToVideo(video: HTMLVideoElement) {
     this.video = video;
     this.bindVideoEvents();
     this.injectOverlay();
-
     chrome.runtime.sendMessage({
       type: 'VIDEO_DETECTED',
       payload: { hasVideo: true, src: video.src || 'unknown' },
     });
-
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.startSyncLoop();
     }
@@ -162,12 +207,10 @@ class UniversalVideoSync {
 
   private bindVideoEvents() {
     if (!this.video) return;
-
     this.boundEvents.forEach((listener, event) => {
       this.video?.removeEventListener(event, listener);
     });
     this.boundEvents.clear();
-
     const events = ['play', 'pause', 'seeked', 'ratechange', 'waiting', 'canplay', 'ended'];
     for (const event of events) {
       const handler = () => this.onVideoEvent(event);
@@ -178,7 +221,6 @@ class UniversalVideoSync {
 
   private onVideoEvent(type: string) {
     if (!this.video || this.ws?.readyState !== WebSocket.OPEN || !this.roomId) return;
-
     const state = this.getVideoState();
     this.ws.send(JSON.stringify({
       type: 'SYNC_EVENT',
@@ -194,10 +236,8 @@ class UniversalVideoSync {
 
   private connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return;
-
     const wsUrl = process.env.EXTENSION_WS_URL || 'wss://api.syncsaga.app/ws';
     this.ws = new WebSocket(`${wsUrl}?token=${this.token}`);
-
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
       this.ws!.send(JSON.stringify({ type: 'ROOM_JOIN', payload: { roomId: this.roomId } }));
@@ -205,7 +245,6 @@ class UniversalVideoSync {
       this.startHeartbeat();
       this.updateOverlayStatus('connected');
     };
-
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
@@ -226,7 +265,6 @@ class UniversalVideoSync {
         }
       } catch {}
     };
-
     this.ws.onclose = () => {
       this.updateOverlayStatus('disconnected');
       this.reconnectAttempts++;
@@ -235,7 +273,6 @@ class UniversalVideoSync {
         setTimeout(() => this.connect(), delay);
       }
     };
-
     this.ws.onerror = () => {
       this.ws?.close();
     };
@@ -300,7 +337,6 @@ class UniversalVideoSync {
 
   private applySyncEvent(event: any) {
     if (!this.video) return;
-
     switch (event.type) {
       case 'play':
         if (this.video.paused) this.video.play().catch(() => {});
@@ -322,7 +358,6 @@ class UniversalVideoSync {
 
   private applySyncState(state: any) {
     if (!this.video) return;
-
     if (state.timestamp !== undefined && Math.abs(this.video.currentTime - state.timestamp) > 1.5) {
       this.video.currentTime = state.timestamp;
     }
@@ -352,7 +387,6 @@ class UniversalVideoSync {
 
   private detectEpisode(): string | null {
     const pathname = window.location.pathname;
-
     const patterns = [
       /\/episode[s]?\/(\d+)/i,
       /\/e[\/-](\d+)/i,
@@ -361,23 +395,14 @@ class UniversalVideoSync {
       /ep-(\d+)/i,
       /(\d+)(?:st|nd|rd|th)-episode/i,
     ];
-
     for (const pattern of patterns) {
       const match = pathname.match(pattern);
       if (match) return `Episode ${match[1]}`;
     }
-
     const metaSelectors = [
-      '[class*="episode"]',
-      '[id*="episode"]',
-      '[data-episode]',
-      '.video-title',
-      '.player-title',
-      'h1',
-      '.title',
-      '[class*="video-info"]',
+      '[class*="episode"]', '[id*="episode"]', '[data-episode]',
+      '.video-title', '.player-title', 'h1', '.title',
     ];
-
     for (const selector of metaSelectors) {
       const el = document.querySelector(selector);
       if (el?.textContent) {
@@ -385,7 +410,6 @@ class UniversalVideoSync {
         if (numMatch) return `Episode ${numMatch[1]}`;
       }
     }
-
     return null;
   }
 
@@ -394,7 +418,6 @@ class UniversalVideoSync {
     const dot = this.overlay.querySelector('.ss-dot') as HTMLDivElement;
     const text = this.overlay.querySelector('.ss-text') as HTMLSpanElement;
     if (!dot || !text) return;
-
     switch (status) {
       case 'connected':
         dot.style.background = '#10b981';
@@ -416,7 +439,6 @@ class UniversalVideoSync {
       this.overlay.style.display = 'flex';
       return;
     }
-
     const overlay = document.createElement('div');
     overlay.innerHTML = `
       <div class="ss-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
@@ -426,26 +448,19 @@ class UniversalVideoSync {
       </button>
       <button class="ss-minimize" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.7;flex-shrink:0" title="Minimize">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-    `;
-
+      </button>`;
     overlay.style.cssText = [
       'position:fixed;bottom:80px;right:20px;z-index:2147483647;',
       'display:flex;align-items:center;gap:8px;',
       'padding:8px 14px;',
       'background:rgba(10,10,15,0.92);',
-      'backdrop-filter:blur(12px);',
-      '-webkit-backdrop-filter:blur(12px);',
+      'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);',
       'border:1px solid rgba(139,92,246,0.3);',
       'border-radius:100px;',
-      'color:white;',
-      'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;',
-      'font-size:12px;',
+      'color:white;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;font-size:12px;',
       'box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(139,92,246,0.1);',
-      'cursor:grab;',
-      'user-select:none;',
-      'min-width:120px;',
-      'max-width:240px;',
+      'cursor:grab;user-select:none;',
+      'min-width:120px;max-width:240px;',
       'transition:box-shadow 0.2s,transform 0.2s;',
     ].join('');
 
@@ -468,18 +483,12 @@ class UniversalVideoSync {
       const text = overlay.querySelector('.ss-text') as HTMLSpanElement;
       const dot = overlay.querySelector('.ss-dot') as HTMLDivElement;
       if (this.overlayVisible) {
-        text.style.display = '';
-        dot.style.display = '';
-        muteBtn.style.display = '';
-        overlay.style.minWidth = '120px';
-        overlay.style.maxWidth = '240px';
+        text.style.display = ''; dot.style.display = ''; muteBtn.style.display = '';
+        overlay.style.minWidth = '120px'; overlay.style.maxWidth = '240px';
         minimizeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>';
       } else {
-        text.style.display = 'none';
-        dot.style.display = 'none';
-        muteBtn.style.display = 'none';
-        overlay.style.minWidth = 'auto';
-        overlay.style.maxWidth = 'auto';
+        text.style.display = 'none'; dot.style.display = 'none'; muteBtn.style.display = 'none';
+        overlay.style.minWidth = 'auto'; overlay.style.maxWidth = 'auto';
         minimizeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>';
       }
     });
@@ -491,17 +500,13 @@ class UniversalVideoSync {
       this.dragOffsetY = e.clientY - rect.top;
       overlay.style.cursor = 'grabbing';
     });
-
     document.addEventListener('mousemove', (e) => {
       if (!this.isDragging) return;
       const x = Math.max(0, Math.min(window.innerWidth - overlay.offsetWidth, e.clientX - this.dragOffsetX));
       const y = Math.max(0, Math.min(window.innerHeight - overlay.offsetHeight, e.clientY - this.dragOffsetY));
-      overlay.style.left = `${x}px`;
-      overlay.style.right = 'auto';
-      overlay.style.top = `${y}px`;
-      overlay.style.bottom = 'auto';
+      overlay.style.left = `${x}px`; overlay.style.right = 'auto';
+      overlay.style.top = `${y}px`; overlay.style.bottom = 'auto';
     });
-
     document.addEventListener('mouseup', () => {
       this.isDragging = false;
       overlay.style.cursor = 'grab';
@@ -514,6 +519,16 @@ class UniversalVideoSync {
   private debounce(fn: () => void, delay: number) {
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(fn, delay);
+  }
+
+  private destroy() {
+    this.disconnect();
+    this.cleanupVideo();
+    if (this.observer) { this.observer.disconnect(); this.observer = null; }
+    for (const vo of this.videoObservers) { vo.disconnect(); }
+    this.videoObservers = [];
+    if (this.urlCheckInterval) { clearInterval(this.urlCheckInterval); this.urlCheckInterval = null; }
+    if (this.overlay) { this.overlay.remove(); this.overlay = null; }
   }
 }
 

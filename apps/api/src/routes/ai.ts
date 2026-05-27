@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { aiService } from '../services/ai.service';
+import { getAiRouter } from '../services/ai.service';
+import { aiCache } from '../lib/ai/cache/ai-cache';
 import { supabase } from '../lib/supabase';
 import { verifyToken } from '../lib/jwt';
+import { RECOMMENDATIONS_PROMPT, SUMMARY_PROMPT, ROOM_NAME_PROMPT, RECAP_PROMPT } from '../lib/ai/prompts';
+import { providerHealth } from '../lib/ai/router/provider-health';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -24,25 +28,14 @@ const summarizeSchema = z.object({
   animeTitle: z.string().optional(),
 });
 
-const subtitleQuerySchema = z.object({
-  question: z.string().min(1).max(500),
-  animeTitle: z.string().optional(),
-  episode: z.number().optional(),
-  timestamp: z.number().optional(),
-  context: z.string().optional(),
-});
-
 const generateRoomNamesSchema = z.object({
   animeTitle: z.string().min(1).max(200),
 });
 
-const chatAssistantSchema = z.object({
-  message: z.string().min(1).max(1000),
-  roomContext: z.object({
-    animeTitle: z.string().optional(),
-    episode: z.number().optional(),
-    participants: z.array(z.string()).optional(),
-  }).optional(),
+const recapSchema = z.object({
+  roomId: z.string(),
+  animeTitle: z.string().optional(),
+  episodeNumber: z.number().optional(),
 });
 
 function requireAuth(req: Request, res: Response): string | null {
@@ -59,39 +52,58 @@ function requireAuth(req: Request, res: Response): string | null {
   return decoded.userId;
 }
 
+async function generateWithFallback(
+  prompt: string,
+  system: string,
+  fallback: () => any,
+  opts: { cacheKey?: string; cacheTtl?: number; temperature?: number; maxTokens?: number } = {},
+) {
+  try {
+    const router = getAiRouter();
+    if (!router.isAvailable()) return fallback();
+
+    const { result } = await router.generate(prompt, {
+      system,
+      temperature: opts.temperature ?? 0.7,
+      maxTokens: opts.maxTokens ?? 800,
+      cacheKey: opts.cacheKey,
+      cacheTtl: opts.cacheTtl ?? 600,
+      priority: 'speed',
+    });
+
+    try {
+      return JSON.parse(result);
+    } catch {
+      return result;
+    }
+  } catch (error) {
+    logger.error({ error }, 'AI generation failed, using fallback');
+    return fallback();
+  }
+}
+
 router.post('/recommend', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
 
     const { watchHistory, preferredGenres } = recommendSchema.parse(req.body);
-
     const titleList = watchHistory.map(w => w.title).join(', ');
     const genreList = preferredGenres?.join(', ') || 'any';
+    const prompt = `${RECOMMENDATIONS_PROMPT}\n\nUser watch history: ${titleList || 'none yet'}\nPreferred genres: ${genreList}`;
+    const cacheKey = `rec:${aiCache.dedupKey('rec', `${titleList}:${genreList}`)}`;
 
-    const prompt = `You are an anime recommendation AI. Based on the user's watch history (${titleList || 'none yet'}) and preferred genres (${genreList}), recommend 5 anime titles. Return ONLY valid JSON with this exact structure, no other text: { "recommendations": [{ "title": "string", "reason": "string", "matchScore": number(0-100), "coverUrl": "string" }] }`;
+    const result = await generateWithFallback(prompt, 'You are an anime recommendation AI.', () => {
+      return { recommendations: [
+        { title: 'Fullmetal Alchemist: Brotherhood', reason: 'A masterpiece with perfect pacing and story.', matchScore: 98 },
+        { title: 'Steins;Gate', reason: 'Brilliant time-travel story with deep character development.', matchScore: 96 },
+        { title: 'Hunter x Hunter', reason: 'Exceptional world-building and character growth.', matchScore: 95 },
+        { title: 'Attack on Titan', reason: 'Epic scale with constant twists.', matchScore: 93 },
+        { title: 'Vinland Saga', reason: 'Incredible character development and historical depth.', matchScore: 91 },
+      ]};
+    }, { cacheKey, cacheTtl: 3600 });
 
-    const result = await aiService.generate(prompt, { temperature: 0.8, maxTokens: 800 });
-
-    try {
-      const parsed = JSON.parse(result);
-      res.json({ recommendations: parsed.recommendations || [] });
-    } catch {
-      const { data: trending } = await supabase
-        .from('rooms')
-        .select('anime_title')
-        .not('anime_title', 'is', null)
-        .limit(20);
-
-      const fallbackRecs = (trending || []).slice(0, 5).map((r, i) => ({
-        title: r.anime_title,
-        reason: 'Popular choice among SyncSaga users!',
-        matchScore: Math.round(85 + Math.random() * 15),
-        coverUrl: `https://img.anili.st/media/${i + 1}`,
-      }));
-
-      res.json({ recommendations: fallbackRecs });
-    }
+    res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
     res.status(500).json({ error: 'Internal server error' });
@@ -104,72 +116,22 @@ router.post('/summarize-session', async (req: Request, res: Response) => {
     if (!userId) return;
 
     const { messages, animeTitle } = summarizeSchema.parse(req.body);
+    const messagesText = messages.slice(-100).map(m => `${m.username}: ${m.content}`).join('\n');
+    const prompt = `${SUMMARY_PROMPT}\n\nAnime: ${animeTitle || 'an anime'}\n\nChat:\n${messagesText}`;
+    const cacheKey = `sum:${aiCache.dedupKey('sum', messagesText.slice(0, 200))}`;
 
-    if (aiService.isAvailable()) {
-      const messagesText = messages.slice(-50).map(m => `${m.username}: ${m.content}`).join('\n');
-      const prompt = `Summarize this anime watch party chat session for "${animeTitle || 'an anime'}". Return ONLY valid JSON with this structure: { "title": "string", "stats": { "totalMessages": number, "uniqueParticipants": number, "totalReactions": number, "questionsAsked": number }, "topMoments": [{ "user": "string", "message": "string", "time": "string" }], "vibe": "string", "duration": "string" }\n\nChat:\n${messagesText}`;
-
-      const result = await aiService.generate(prompt, { temperature: 0.5, maxTokens: 500 });
-      try {
-        const parsed = JSON.parse(result);
-        return res.json({ summary: parsed });
-      } catch {}
-    }
-
-    const total = messages.length;
-    const uniqueUsers = [...new Set(messages.map(m => m.username))].length;
-    const reactions = messages.filter(m => m.content.startsWith(':') || /[\u{1F300}-\u{1FAFF}]/u.test(m.content)).length;
-    const questions = messages.filter(m => m.content.includes('?')).length;
-    const topMessages = messages.slice(-3).reverse();
-
-    res.json({
-      summary: {
+    const result = await generateWithFallback(prompt, 'You are a session summarizer.', () => {
+      const total = messages.length;
+      const uniqueUsers = [...new Set(messages.map(m => m.username))].length;
+      return {
         title: `${animeTitle || 'Watch Session'} Highlights`,
-        stats: { totalMessages: total, uniqueParticipants: uniqueUsers, totalReactions: reactions, questionsAsked: questions },
-        topMoments: topMessages.map(m => ({
-          user: m.username,
-          message: m.content,
-          time: m.timestamp,
-        })),
+        stats: { totalMessages: total, uniqueParticipants: uniqueUsers, totalReactions: messages.filter(m => /[\u{1F300}-\u{1FAFF}]/u.test(m.content)).length },
+        topMoments: messages.slice(-3).reverse().map(m => ({ user: m.username, message: m.content, time: m.timestamp })),
         vibe: total > 50 ? 'Lively' : total > 20 ? 'Chatty' : total > 5 ? 'Quiet' : 'Silent',
-        duration: `${Math.floor(total / 5)} minutes of chat`,
-      },
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      };
+    }, { cacheKey, cacheTtl: 300, priority: 'quality' });
 
-router.post('/subtitle-assist', async (req: Request, res: Response) => {
-  try {
-    const userId = requireAuth(req, res);
-    if (!userId) return;
-
-    const { question, animeTitle, timestamp } = subtitleQuerySchema.parse(req.body);
-
-    if (aiService.isAvailable()) {
-      const prompt = `You are a Japanese anime subtitle/cultural assistant. Answer this question about an anime scene: "${question}"${animeTitle ? ` (from ${animeTitle})` : ''}${timestamp ? ` at ${Math.floor(timestamp / 60)}:${Math.floor(timestamp % 60).toString().padStart(2, '0')}` : ''}. Give a helpful, concise explanation. Return ONLY valid JSON: { "explanation": "string", "context": "string", "relatedTerms": ["string"] }`;
-
-      const result = await aiService.generate(prompt, { temperature: 0.4, maxTokens: 300 });
-      try {
-        const parsed = JSON.parse(result);
-        return res.json(parsed);
-      } catch {}
-    }
-
-    const responses = [
-      `In Japanese culture, the phrase carries nuanced meaning. The character is expressing deep respect mixed with personal hesitation.`,
-      `This scene references a common trope in ${animeTitle || 'anime'} where characters use indirect language to preserve harmony.`,
-      `The translation doesn't fully capture the original Japanese honorifics. The character uses a casual form implying close friendship.`,
-      `This is a cultural reference to "reading the atmosphere" (kuuki wo yomu). The character deliberately avoids saying what they mean.`,
-    ];
-
-    res.json({
-      explanation: responses[Math.floor(Math.random() * responses.length)],
-      context: `Scene from ${animeTitle || 'anime'} around ${timestamp ? `${Math.floor(timestamp / 60)}:${Math.floor(timestamp % 60).toString().padStart(2, '0')}` : 'this point'}`,
-      relatedTerms: question.split(' ').filter(w => w.length > 3).slice(0, 3),
-    });
+    res.json({ summary: result });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
     res.status(500).json({ error: 'Internal server error' });
@@ -182,76 +144,106 @@ router.post('/generate-room-names', async (req: Request, res: Response) => {
     if (!userId) return;
 
     const { animeTitle } = generateRoomNamesSchema.parse(req.body);
+    const prompt = `${ROOM_NAME_PROMPT}\n\nAnime: ${animeTitle}`;
+    const cacheKey = `rn:${aiCache.dedupKey('rn', animeTitle)}`;
 
-    if (aiService.isAvailable()) {
-      const prompt = `Generate 5 creative, fun room names for a watch party of "${animeTitle}". Return ONLY valid JSON array: ["name1", "name2", "name3", "name4", "name5"]`;
+    const result = await generateWithFallback(prompt, 'You are a creative naming AI.', () => {
+      const templates = [
+        `${animeTitle} Watch Party`, `${animeTitle} Night`, `${animeTitle} Squad`,
+        `${animeTitle} Marathon`, `${animeTitle} Club`, `${animeTitle} Fans Unite`,
+        `${animeTitle} Hour`, `${animeTitle} Adventure`, `${animeTitle} Showdown`,
+        `${animeTitle} Chronicles`, `${animeTitle} Vibes`, `${animeTitle} and Chill`,
+        `${animeTitle} Watchalong`, `${animeTitle} Reactor`, `The ${animeTitle} Experience`,
+      ];
+      return { suggestions: templates.sort(() => Math.random() - 0.5).slice(0, 5) };
+    }, { cacheKey, cacheTtl: 3600, temperature: 0.9 });
 
-      const result = await aiService.generate(prompt, { temperature: 0.9, maxTokens: 200 });
-      try {
-        const parsed = JSON.parse(result);
-        return res.json({ suggestions: Array.isArray(parsed) ? parsed.slice(0, 5) : parsed.suggestions?.slice(0, 5) || [] });
-      } catch {}
-    }
-
-    const templates = [
-      `${animeTitle} Watch Party`,
-      `${animeTitle} Night`,
-      `${animeTitle} Squad`,
-      `${animeTitle} Marathon`,
-      `${animeTitle} Club`,
-      `${animeTitle} Fans Unite`,
-      `${animeTitle} Hour`,
-      `${animeTitle} Adventure`,
-      `${animeTitle} Showdown`,
-      `${animeTitle} Chronicles`,
-      `${animeTitle} Vibes`,
-      `${animeTitle} and Chill`,
-      `${animeTitle} Watchalong`,
-      `${animeTitle} Reactor`,
-      `The ${animeTitle} Experience`,
-    ];
-
-    const suggestions = templates.sort(() => Math.random() - 0.5).slice(0, 5);
-    res.json({ suggestions });
+    res.json({ suggestions: Array.isArray(result) ? result.slice(0, 5) : result.suggestions?.slice(0, 5) || [] });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-router.post('/chat-assistant', async (req: Request, res: Response) => {
+router.post('/recap', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
 
-    const { message, roomContext } = chatAssistantSchema.parse(req.body);
+    const { roomId, animeTitle, episodeNumber } = recapSchema.parse(req.body);
 
-    let prompt = `You are SyncBot, a helpful anime watch-party assistant in a SyncSaga room. Keep responses concise (under 200 chars) and friendly. User says: "${message}"`;
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('content, sender_id, created_at, type')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .limit(200);
 
-    if (roomContext?.animeTitle) {
-      prompt += `\nCurrently watching: ${roomContext.animeTitle}${roomContext.episode ? ` Episode ${roomContext.episode}` : ''}`;
-    }
-    if (roomContext?.participants?.length) {
-      prompt += `\nParticipants: ${roomContext.participants.join(', ')}`;
-    }
+    const { data: reactions } = await supabase
+      .from('timeline_reactions')
+      .select('type, created_at')
+      .eq('room_id', roomId)
+      .limit(100);
 
-    if (!aiService.isAvailable()) {
-      const fallbacks = [
-        "That's a great take! Anyone else got thoughts?",
-        "I'm watching too — this part is amazing!",
-        "Hold up, let me catch up to that scene!",
-        "Classic moment. Never gets old.",
-        "The animation in this episode is incredible!",
-        "Did you catch that detail? So good!",
-      ];
-      return res.json({ reply: fallbacks[Math.floor(Math.random() * fallbacks.length)] });
-    }
+    const chatMessages = (messages || []).map(m => ({
+      user: m.sender_id,
+      message: m.content,
+      time: m.created_at,
+      type: m.type,
+    }));
 
-    const result = await aiService.generate(prompt, { temperature: 0.7, maxTokens: 200 });
-    res.json({ reply: result });
+    const topReactions = (reactions || []).reduce<Record<string, number>>((acc, r) => {
+      acc[r.type] = (acc[r.type] || 0) + 1;
+      return acc;
+    }, {});
+
+    const chatText = chatMessages.slice(0, 100).map(m => `${m.user}: ${m.message}`).join('\n');
+    const prompt = `${RECAP_PROMPT}\n\nAnime: ${animeTitle || 'Unknown'} Episode ${episodeNumber || '?'}\n\nChat:\n${chatText}`;
+    const cacheKey = `recap:${aiCache.dedupKey('recap', roomId)}`;
+
+    const result = await generateWithFallback(prompt, 'You are a premium recap generator.', () => ({
+      title: `${animeTitle || 'Watch Party'} — Episode ${episodeNumber || '?'} Recap`,
+      epicMoments: chatMessages.slice(0, 3).map((m, i) => ({
+        description: `"${m.message.slice(0, 80)}..."`,
+        reactionCount: i === 0 ? 8 : 3,
+        timestamp: new Date(m.time).toLocaleTimeString(),
+      })),
+      partyVibe: chatMessages.length > 50 ? 'Hype' : 'Chill',
+      topReactions: Object.entries(topReactions).slice(0, 3).map(([emoji, count]) => ({
+        emoji, count,
+        description: count > 5 ? 'Everyone was feeling this!' : 'A few reactions',
+      })),
+      memorableQuotes: chatMessages.slice(0, 2).map(m => ({
+        user: m.user,
+        quote: m.message.slice(0, 100),
+        context: m.type || 'chat',
+      })),
+      funStats: {
+        totalMessages: chatMessages.length,
+        mostActiveUser: chatMessages[0]?.user || 'N/A',
+        hypeMoments: Math.min(chatMessages.length, 15),
+      },
+    }), { cacheKey, cacheTtl: 600, priority: 'quality', maxTokens: 1500, temperature: 0.8 });
+
+    res.json({ recap: result });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/health', async (_req: Request, res: Response) => {
+  try {
+    const router = getAiRouter();
+    res.json({
+      available: router.isAvailable(),
+      providers: router.getHealth(),
+      groq: router.hasProvider('groq'),
+      gemini: router.hasProvider('gemini'),
+      cloudflare: router.hasProvider('cloudflare'),
+    });
+  } catch (error) {
+    res.json({ available: false, providers: providerHealth.getStats() });
   }
 });
 

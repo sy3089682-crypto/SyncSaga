@@ -21,8 +21,10 @@ import paymentsRouter from './routes/payments';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
+import { setNotificationSocket } from './services/notification.service';
 import { supabase } from './lib/supabase';
 import { logger } from './lib/logger';
+import { AuthenticatedSocket } from './socket/middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
 import { metrics } from './services/metrics.service';
@@ -94,8 +96,9 @@ export async function createServer() {
       }
     } catch {}
 
-    res.json({
-      status: 'ok',
+    const healthy = dbPing && redisPing;
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'ok' : 'degraded',
       uptime: process.uptime(),
       dbPing,
       redisPing,
@@ -135,6 +138,8 @@ export async function createServer() {
 
   await redisService.connect();
   initializeSocketHandlers(io);
+  wsBridge.initialize(io);
+  setNotificationSocket(io);
 
   io.on('connection', (socket) => {
     metrics.setConnectedSockets(io.engine.clientsCount);
@@ -143,16 +148,20 @@ export async function createServer() {
       const { roomId, timestampSec, type, content } = data;
       if (!roomId || timestampSec === undefined || !type) return;
 
+      const authSocket = socket as AuthenticatedSocket;
+      if (!authSocket.userId) return;
+      const userId = authSocket.userId;
+
       const { data: reaction } = await supabase
         .from('timeline_reactions')
-        .insert({ room_id: roomId, user_id: (socket as any).userId, timestamp_sec: timestampSec, type, content })
+        .insert({ room_id: roomId, user_id: userId, timestamp_sec: timestampSec, type, content })
         .select('*, profiles:user_id(username, avatar_url)')
         .single();
 
       if (reaction) {
         socket.to(roomId).emit('reaction:new', reaction);
         await supabase.from('activity_feed').insert({
-          user_id: (socket as any).userId, type: 'reaction',
+          user_id: userId, type: 'reaction',
           data: { roomId, timestampSec, reactionType: type },
         });
       }
@@ -162,8 +171,6 @@ export async function createServer() {
       metrics.setConnectedSockets(io.engine.clientsCount);
     });
   });
-
-  wsBridge.initialize(httpServer, '/ws');
 
   return { app, httpServer, io };
 }

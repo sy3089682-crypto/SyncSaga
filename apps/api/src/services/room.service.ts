@@ -73,10 +73,8 @@ export class RoomService {
     // Check room capacity
     if (room.members.length >= room.max_users) return false;
 
-    // Check password for private rooms
-    if (room.is_private && password) {
-      // TODO: Implement password verification
-      // For now, allow if invited or has code
+    if (room.is_private) {
+      if (!password || password !== room.password) return false;
     }
 
     const { error } = await supabase

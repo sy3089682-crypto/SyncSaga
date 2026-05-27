@@ -188,7 +188,7 @@ export function syncHandler(
       if (!isHost) return socket.emit('error', { code: 'NOT_HOST', message: 'Only host can toggle sync lock' });
 
       await redisService.setRoomState(roomId, { ...roomState, sync_lock: enabled });
-      io.to(roomId).emit('room:update', { sync_lock: enabled } as any);
+      io.to(roomId).emit('room:update', { sync_lock: enabled });
     } catch (error) {
       logger.error('Sync lock error:', error);
     }

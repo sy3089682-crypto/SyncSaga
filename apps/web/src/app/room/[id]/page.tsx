@@ -40,7 +40,7 @@ export default function RoomPage() {
   const [activeTab, setActiveTab] = useState<'chat' | 'users' | 'anime'>('chat');
   const [playbackState, setPlaybackState] = useState<'playing' | 'paused'>('paused');
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(1440);
+  const [duration, setDuration] = useState(0);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showFeed, setShowFeed] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -110,9 +110,8 @@ export default function RoomPage() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // Simulate time during playback
   useEffect(() => {
-    if (playbackState !== 'playing') return;
+    if (playbackState !== 'playing' || duration === 0) return;
     const interval = setInterval(() => setCurrentTime(t => Math.min(t + 0.5, duration)), 500);
     return () => clearInterval(interval);
   }, [playbackState, duration]);

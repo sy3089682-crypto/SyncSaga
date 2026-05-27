@@ -493,23 +493,31 @@ class UniversalVideoSync {
       }
     });
 
-    overlay.addEventListener('mousedown', (e) => {
+    const onMouseDown = (e: MouseEvent) => {
       this.isDragging = true;
       const rect = overlay.getBoundingClientRect();
       this.dragOffsetX = e.clientX - rect.left;
       this.dragOffsetY = e.clientY - rect.top;
       overlay.style.cursor = 'grabbing';
-    });
-    document.addEventListener('mousemove', (e) => {
+    };
+    const onMouseMove = (e: MouseEvent) => {
       if (!this.isDragging) return;
       const x = Math.max(0, Math.min(window.innerWidth - overlay.offsetWidth, e.clientX - this.dragOffsetX));
       const y = Math.max(0, Math.min(window.innerHeight - overlay.offsetHeight, e.clientY - this.dragOffsetY));
       overlay.style.left = `${x}px`; overlay.style.right = 'auto';
       overlay.style.top = `${y}px`; overlay.style.bottom = 'auto';
-    });
-    document.addEventListener('mouseup', () => {
+    };
+    const onMouseUp = () => {
       this.isDragging = false;
       overlay.style.cursor = 'grab';
+    };
+    overlay.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    this.cleanupFns.push(() => {
+      overlay.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
     });
 
     this.overlay = overlay;

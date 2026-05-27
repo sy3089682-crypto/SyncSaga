@@ -9,7 +9,7 @@ const CSRF_COOKIE = 'XSRF-TOKEN';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
-export function securityMiddleware(app: any) {
+export function securityMiddleware(app: express.Application) {
   app.use(helmet({
     contentSecurityPolicy: isProduction() ? {
       directives: {
@@ -110,7 +110,7 @@ export function rateLimitMiddleware(defaultMax: number = 100, defaultWindow: num
 
 export function auditLog(action: string) {
   return async (req: Request, _res: Response, next: NextFunction) => {
-    const userId = (req as any).userId;
+    const userId = (req as Request & { userId?: string }).userId;
     if (userId) {
       logger.info({ action, userId, path: req.path, method: req.method }, 'Audit log');
     }

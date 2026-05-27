@@ -30,6 +30,9 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
       user: socket.user,
     });
 
+    // Join user-specific room for notifications
+    socket.join(`user:${uid}`);
+
     roomHandler(io, socket);
     syncHandler(io, socket);
     chatHandler(io, socket);

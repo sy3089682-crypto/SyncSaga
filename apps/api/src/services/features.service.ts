@@ -1,4 +1,4 @@
-import { getEnv } from '@syncsaga/config';
+import { getEnv, Env } from '@syncsaga/config';
 import { redisService } from './redis.service';
 
 export type FeatureFlag =
@@ -91,8 +91,8 @@ class FeatureService {
     if (!config.defaultEnabled) return false;
 
     if (config.requiresEnv) {
-      const env = getEnv() as any;
-      if (!env[config.requiresEnv]) return false;
+      const env = getEnv();
+      if (!(env as unknown as Record<string, string | undefined>)[config.requiresEnv]) return false;
     }
 
     return true;

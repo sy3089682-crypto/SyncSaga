@@ -8,7 +8,7 @@ import crypto from 'crypto';
 
 const router = Router();
 
-function getUser(req: any): string | null {
+function getUser(req: Request): string | null {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
   const decoded = verifyToken(auth.slice(7));

@@ -171,9 +171,10 @@ router.post('/google', async (req: Request, res: Response) => {
 
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Google auth error:', error);
-    res.status(400).json({ error: error.message || 'Authentication failed' });
+    const msg = error instanceof Error ? error.message : 'Authentication failed';
+    res.status(400).json({ error: msg });
   }
 });
 
@@ -203,9 +204,10 @@ router.post('/github', async (req: Request, res: Response) => {
 
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
-  } catch (error: any) {
+  } catch (error) {
     logger.error('GitHub auth error:', error);
-    res.status(400).json({ error: error.message || 'Authentication failed' });
+    const msg = error instanceof Error ? error.message : 'Authentication failed';
+    res.status(400).json({ error: msg });
   }
 });
 
@@ -235,9 +237,10 @@ router.post('/discord', async (req: Request, res: Response) => {
 
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Discord auth error:', error);
-    res.status(400).json({ error: error.message || 'Authentication failed' });
+    const msg = error instanceof Error ? error.message : 'Authentication failed';
+    res.status(400).json({ error: msg });
   }
 });
 

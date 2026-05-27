@@ -1,3 +1,4 @@
+import { Server as SocketIOServer } from 'socket.io';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
@@ -9,6 +10,12 @@ interface CreateNotification {
   title: string;
   body?: string;
   data?: Record<string, unknown>;
+}
+
+let io: SocketIOServer | null = null;
+
+export function setNotificationSocket(socketIO: SocketIOServer) {
+  io = socketIO;
 }
 
 export class NotificationService {
@@ -23,6 +30,11 @@ export class NotificationService {
       }).select().single();
 
       if (error) throw error;
+
+      if (io) {
+        io.to(`user:${notification.userId}`).emit('notification:new', data);
+      }
+
       return data;
     } catch (error) {
       logger.error({ ...notification, error }, 'Failed to create notification');

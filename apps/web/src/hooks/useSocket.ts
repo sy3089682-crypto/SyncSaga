@@ -46,7 +46,14 @@ export function useSocket(token?: string | null) {
       updatePresence(event);
     });
 
-    return () => {};
+    return () => {
+      socket.off('room:state');
+      socket.off('room:user_joined');
+      socket.off('room:user_left');
+      socket.off('chat:message');
+      socket.off('sync:state');
+      socket.off('presence:update');
+    };
   }, [token]);
 }
 

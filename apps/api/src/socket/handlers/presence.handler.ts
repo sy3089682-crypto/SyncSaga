@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
 import { redisService } from '../../services/redis.service';
-import { ServerToClientEvents, ClientToServerEvents, PresenceEvent } from '@syncsaga/shared';
+import { ServerToClientEvents, ClientToServerEvents, PresenceEvent, User } from '@syncsaga/shared';
 import { logger } from '../../lib/logger';
 
 export function presenceHandler(
@@ -45,7 +45,8 @@ export function presenceHandler(
             status: data.status || 'online',
             current_room_id: data.currentRoomId || null,
             activity: data.activity || null,
-          } as any);
+            user: { id: userId, username: userId } as Partial<User>,
+          });
         }
       }
     } catch (error) {

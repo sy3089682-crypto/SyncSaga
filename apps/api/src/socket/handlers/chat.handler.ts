@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
-import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
+import { ServerToClientEvents, ClientToServerEvents, Message, User } from '@syncsaga/shared';
 import { redisService } from '../../services/redis.service';
 import { logger } from '../../lib/logger';
 import { validate, chatMessageSchema, chatReactionSchema, chatTypingSchema } from '../../middleware/validators';
@@ -59,19 +59,19 @@ export function chatHandler(
         return socket.emit('error', { code: 'INVALID_GIF', message: 'Only Tenor/Giphy URLs are allowed' });
       }
 
-      const message = {
+      const message: Message & { sender: Partial<User> } = {
         id: `${Date.now()}-${socket.userId}-${Math.random().toString(36).slice(2, 8)}`,
         room_id: roomId,
         sender_id: socket.userId,
         recipient_id: null,
         content: sanitized,
-        type: type || 'text',
+        type: (type as Message['type']) || 'text',
         reactions: {},
         created_at: new Date().toISOString(),
         sender: socket.user,
       };
 
-      io.to(roomId).emit('chat:message', message as any);
+      io.to(roomId).emit('chat:message', message);
       logger.debug(`Chat message from ${socket.userId} in ${roomId}`);
     } catch (error) {
       logger.error('Chat handler error:', error);
@@ -102,14 +102,19 @@ export function chatHandler(
       if (!socket.userId) return;
       const { messageId, emoji } = validation.data;
 
-      io.to(data.roomId || '').emit('chat:reaction', {
+      const reactionMsg: Message & { sender: Partial<User> } = {
         id: messageId,
         sender_id: socket.userId,
         content: emoji,
         type: 'reaction',
+        reactions: {},
+        room_id: null,
+        recipient_id: null,
         created_at: new Date().toISOString(),
         sender: socket.user,
-      } as any);
+      };
+
+      io.to(data.roomId || '').emit('chat:reaction', reactionMsg);
     } catch (error) {
       logger.error('Chat reaction error:', error);
     }

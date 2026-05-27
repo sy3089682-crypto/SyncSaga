@@ -1,24 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { useAppStore } from '@/store/useAppStore';
-import { analytics } from '@/lib/analytics';
+import { analytics, trackPageview } from '@/lib/analytics';
 
-export function useAnalytics() {
+export function useAnalytics(userId?: string | null) {
   const pathname = usePathname();
-  const user = useAppStore(s => s.user);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!user) return;
-    analytics.init(user.id);
-    analytics.identify(user.id, {
-      username: user.username,
-      email: user.email,
-    });
-  }, [user?.id]);
+    if (userId && !initialized.current) {
+      initialized.current = true;
+      analytics.init(userId);
+      analytics.capture('session_start', { userId });
+    }
+  }, [userId]);
 
   useEffect(() => {
-    if (pathname) analytics.pageview(pathname);
+    if (pathname) {
+      trackPageview(pathname);
+    }
   }, [pathname]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      analytics.capture('session_end');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 }

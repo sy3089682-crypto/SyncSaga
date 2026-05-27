@@ -5,24 +5,33 @@ import { ServerToClientEvents, ClientToServerEvents, SyncEvent } from '@syncsaga
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabase';
 
-// Track RTT for each client per room
 const rttMap = new Map<string, { pingTime: number; rtt: number }>();
-
-// Track client logical clocks for vector clock sync
 const logicalClocks = new Map<string, number>();
+const heartbeatIntervals = new Map<string, ReturnType<typeof setInterval>>();
+const recentEvents = new Map<string, number>();
+
+function isDuplicate(eventKey: string): boolean {
+  const now = Date.now();
+  const last = recentEvents.get(eventKey);
+  if (last && now - last < 500) return true;
+  recentEvents.set(eventKey, now);
+  if (recentEvents.size > 1000) {
+    const keys = [...recentEvents.keys()].slice(0, 500);
+    keys.forEach(k => recentEvents.delete(k));
+  }
+  return false;
+}
 
 export function syncHandler(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
   socket: AuthenticatedSocket
 ) {
-  // Ping/pong for RTT measurement
   socket.on('sync:ping', ({ clientTime }) => {
     const serverTime = Date.now();
     socket.emit('sync:pong', { clientTime, serverTime, rtt: 0 });
     rttMap.set(socket.id, { pingTime: clientTime, rtt: serverTime - clientTime });
   });
 
-  // Track drift per user and emit status
   async function emitDriftStatus(roomId: string, drift: number) {
     let status: 'synced' | 'slight' | 'desynced';
     if (drift < 0.5) status = 'synced';
@@ -31,12 +40,9 @@ export function syncHandler(
     io.to(roomId).emit('sync:drift_update', { userId: socket.userId, drift, status });
   }
 
-  // Periodic host heartbeat - send authoritative state every 5s
-  let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-
   async function startHostHeartbeat(roomId: string) {
-    stopHostHeartbeat();
-    heartbeatInterval = setInterval(async () => {
+    stopHostHeartbeat(roomId);
+    const interval = setInterval(async () => {
       const state = await redisService.getRoomState(roomId);
       if (state) {
         io.to(roomId).emit('sync:state', {
@@ -47,17 +53,19 @@ export function syncHandler(
           episode_number: state.current_episode_number || null,
         });
       }
-    }, 5000);
+    }, 3000);
+    heartbeatIntervals.set(socket.id, interval);
   }
 
-  function stopHostHeartbeat() {
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
+  function stopHostHeartbeat(socketId?: string) {
+    const id = socketId || socket.id;
+    const interval = heartbeatIntervals.get(id);
+    if (interval) {
+      clearInterval(interval);
+      heartbeatIntervals.delete(id);
     }
   }
 
-  // Increment logical clock
   function tickClock() {
     const current = logicalClocks.get(socket.id) || 0;
     const next = current + 1;
@@ -70,15 +78,22 @@ export function syncHandler(
       if (!socket.userId) return;
 
       const roomId = event.room_id;
-      
+
+      const dupKey = `${roomId}:${socket.userId}:${event.type}:${event.timestamp}`;
+      if (isDuplicate(dupKey)) return;
+
       const roomUsers = await redisService.getRoomUsers(roomId);
       if (!roomUsers.includes(socket.userId)) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 
       const roomState = await redisService.getRoomState(roomId);
-      const isHost = roomState?.host_id === socket.userId || 
+      const isHost = roomState?.host_id === socket.userId ||
                      roomState?.co_hosts?.includes(socket.userId);
+
+      if (roomState?.sync_lock && !isHost) {
+        return;
+      }
 
       const clock = tickClock();
       const serverTime = Date.now();
@@ -95,7 +110,7 @@ export function syncHandler(
         updates.current_episode = event.episode;
         updates.current_episode_number = parseInt(event.episode?.replace(/\D/g, '') || '0') || null;
       }
-      
+
       await redisService.setRoomState(roomId, {
         ...roomState,
         ...updates,
@@ -112,14 +127,11 @@ export function syncHandler(
           episode_number: updates.current_episode_number || roomState?.current_episode_number || null,
         });
       }
-
-      logger.debug(`Sync event from ${socket.userId} in ${roomId}: ${event.type}`);
     } catch (error) {
       logger.error('Sync event error:', error);
     }
   });
 
-  // Handle anime:set_episode
   socket.on('anime:set_episode', async ({ roomId, mediaId, episode }) => {
     try {
       if (!socket.userId) return;
@@ -164,7 +176,6 @@ export function syncHandler(
     }
   });
 
-  // Handle sync lock
   socket.on('sync:lock', async ({ enabled }) => {
     try {
       if (!socket.userId) return;
@@ -183,20 +194,23 @@ export function syncHandler(
     }
   });
 
-  // Handle host takeover
   socket.on('sync:takeover', async ({ roomId }) => {
     try {
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
-      
-      // Verify current host disconnected
+
       const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(roomState.host_id)) {
-        io.to(roomId).emit('sync:takeover', { newHostId: socket.userId, timestamp: Date.now() });
-        await redisService.setRoomState(roomId, { ...roomState, host_id: socket.userId });
-        await supabase.from('rooms').update({ host_id: socket.userId }).eq('id', roomId);
-        io.to(roomId).emit('room:new_host', { newHostId: socket.userId });
-        startHostHeartbeat(roomId);
+      const isHostDisconnected = !roomUsers.includes(roomState.host_id);
+
+      if (isHostDisconnected) {
+        const hostSocketId = await redisService.getUserSocketId(roomId, roomState.host_id);
+        if (!hostSocketId) {
+          io.to(roomId).emit('sync:takeover', { newHostId: socket.userId, timestamp: Date.now() });
+          await redisService.setRoomState(roomId, { ...roomState, host_id: socket.userId });
+          await supabase.from('rooms').update({ host_id: socket.userId }).eq('id', roomId);
+          io.to(roomId).emit('room:new_host', { newHostId: socket.userId });
+          startHostHeartbeat(roomId);
+        }
       }
     } catch (error) {
       logger.error('Takeover error:', error);
@@ -220,7 +234,6 @@ export function syncHandler(
     }
   });
 
-  // Cleanup on disconnect
   socket.on('disconnect', () => {
     stopHostHeartbeat();
     rttMap.delete(socket.id);

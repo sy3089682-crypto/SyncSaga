@@ -4,59 +4,53 @@ const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || '';
 
 type EventProperties = Record<string, string | number | boolean | null | undefined>;
 
+let posthogInstance: any = null;
+let sentryInitialized = false;
+
 class Analytics {
   private userId: string | null = null;
-  private posthogInitialized = false;
 
   init(userId?: string) {
     this.userId = userId || null;
-    this.initPostHog();
-    this.initSentry();
+    this.initPostHog(userId);
+    this.initSentry(userId);
   }
 
-  private initPostHog() {
+  private initPostHog(userId?: string) {
     if (typeof window === 'undefined') return;
-    if (!POSTHOG_KEY || this.posthogInitialized) return;
-    try {
-      const w = window as any;
-      w.posthog = w.posthog || [];
-      if (!w.posthog.__loaded) {
-        w.posthog.init?.(POSTHOG_KEY, {
-          api_host: POSTHOG_HOST,
-          capture_pageview: false,
-          loaded: (ph: any) => {
-            if (this.userId) ph.identify(this.userId);
-          },
-        });
-      }
-      this.posthogInitialized = true;
-    } catch {}
+    if (!POSTHOG_KEY || posthogInstance) return;
+    import('posthog-js').then((posthog) => {
+      posthogInstance = posthog.default.init(POSTHOG_KEY, {
+        api_host: POSTHOG_HOST,
+        capture_pageview: false,
+        loaded: (ph: any) => {
+          if (userId) ph.identify(userId);
+        },
+      });
+    }).catch(() => {});
   }
 
-  private initSentry() {
+  private initSentry(userId?: string) {
     if (typeof window === 'undefined') return;
-    if (!SENTRY_DSN) return;
-    try {
-      const w = window as any;
-      if (!w.Sentry) {
-        const script = document.createElement('script');
-        script.src = 'https://browser.sentry-cdn.com/7.x/bundle.min.js';
-        script.crossOrigin = 'anonymous';
-        script.onload = () => {
-          w.Sentry?.init({ dsn: SENTRY_DSN, environment: process.env.NODE_ENV });
-          if (this.userId) w.Sentry?.setUser({ id: this.userId });
-        };
-        document.head.appendChild(script);
-      }
-    } catch {}
+    if (!SENTRY_DSN || sentryInitialized) return;
+    import('@sentry/nextjs').then((Sentry) => {
+      Sentry.init({
+        dsn: SENTRY_DSN,
+        environment: process.env.NODE_ENV,
+        tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 0.0,
+        replaysSessionSampleRate: 0.1,
+        replaysOnErrorSampleRate: 1.0,
+      });
+      sentryInitialized = true;
+      if (userId) Sentry.setUser({ id: userId });
+    }).catch(() => {});
   }
 
   capture(event: string, properties?: EventProperties) {
     if (typeof window === 'undefined') return;
     try {
-      const w = window as any;
-      if (w.posthog?.capture) {
-        w.posthog.capture(event, properties);
+      if (posthogInstance?.capture) {
+        posthogInstance.capture(event, properties);
       }
     } catch {}
   }
@@ -64,9 +58,7 @@ class Analytics {
   identify(userId: string, traits?: EventProperties) {
     this.userId = userId;
     try {
-      const w = window as any;
-      if (w.posthog?.identify) w.posthog.identify(userId, traits);
-      if (w.Sentry?.setUser) w.Sentry.setUser({ id: userId });
+      if (posthogInstance?.identify) posthogInstance.identify(userId, traits);
     } catch {}
   }
 
@@ -96,6 +88,14 @@ class Analytics {
 
   trackAchievementUnlocked(achievementId: string, name: string) {
     this.capture('achievement_unlocked', { achievementId, name });
+  }
+
+  trackOnboardingStep(step: string) {
+    this.capture('onboarding_step', { step });
+  }
+
+  trackRoomDuration(roomId: string, durationMinutes: number) {
+    this.capture('room_duration', { roomId, durationMinutes });
   }
 }
 

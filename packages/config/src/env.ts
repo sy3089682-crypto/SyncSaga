@@ -23,13 +23,7 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
-  EXTENSION_WS_PORT: z.coerce.number().default(4001),
   EXTENSION_WS_URL: z.string().default('ws://localhost:4000/ws'),
-
-  DISCORD_BOT_TOKEN: z.string().optional(),
-  DISCORD_CLIENT_ID: z.string().optional(),
-  SYNCSAGA_API_URL: z.string().default('http://localhost:4000'),
-  SYNCSAGA_API_TOKEN: z.string().optional(),
 
   AI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().default('claude-3-haiku-20240307'),

@@ -20,8 +20,6 @@
     "db:generate": "npm run generate --workspace=packages/db",
     "db:migrate": "npm run migrate --workspace=packages/db",
     "db:studio": "npm run studio --workspace=packages/db",
-    "docker:build": "docker compose -f infra/docker/docker-compose.prod.yml build",
-    "docker:up": "docker compose -f infra/docker/docker-compose.prod.yml up -d",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -37,5 +35,5 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": ["eslint --fix"],
     "*.{ts,tsx,js,jsx,json,css,md}": ["prettier --write"]
-  },
+  }
 }

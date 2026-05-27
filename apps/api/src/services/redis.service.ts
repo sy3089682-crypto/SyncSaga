@@ -6,16 +6,34 @@ class RedisService {
   private pubClient: RedisClientType | null = null;
   private subClient: RedisClientType | null = null;
 
-  async connect() {
+  private createConnectedClient(): RedisClientType {
     const url = process.env.REDIS_URL || 'redis://localhost:6379';
-    
-    this.client = createClient({ url });
-    this.pubClient = createClient({ url });
-    this.subClient = createClient({ url });
+    const isUpstash = url.startsWith('rediss://');
+    return createClient({
+      url,
+      socket: {
+        tls: isUpstash,
+        reconnectStrategy: (retries) => Math.min(retries * 100, 5000),
+      },
+      pingInterval: 30000,
+    });
+  }
 
-    await this.client.connect();
-    await this.pubClient.connect();
-    await this.subClient.connect();
+  async connect() {
+    this.client = this.createConnectedClient();
+    this.pubClient = this.createConnectedClient();
+    this.subClient = this.createConnectedClient();
+
+    await Promise.all([
+      this.client.connect(),
+      this.pubClient.connect(),
+      this.subClient.connect(),
+    ]);
+
+    const errorHandler = (err: Error) => logger.error({ err }, 'Redis connection error');
+    this.client.on('error', errorHandler);
+    this.pubClient.on('error', errorHandler);
+    this.subClient.on('error', errorHandler);
 
     logger.info('Redis connected');
   }

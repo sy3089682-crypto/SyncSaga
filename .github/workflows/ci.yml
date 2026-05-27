@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -82,54 +82,3 @@ jobs:
         run: npm run build --workspace=@syncsaga/api 2>&1 || echo "API build issues"
       - name: Build Web
         run: npm run build --workspace=@syncsaga/web 2>&1 || echo "Web build issues"
-
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push API
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          tags: ghcr.io/${{ github.repository }}-api:latest,ghcr.io/${{ github.repository }}-api:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Build & Push Web
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: ghcr.io/${{ github.repository }}-web:latest,ghcr.io/${{ github.repository }}-web:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    needs: [docker]
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
-    steps:
-      - name: Deploy to Railway
-        run: |
-          if [ -n "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}" ]; then
-            curl -X POST ${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}
-          fi
-      - name: Deploy to Vercel
-        run: |
-          if [ -n "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
-            curl -X POST ${{ secrets.VERCEL_DEPLOY_HOOK }}
-          fi

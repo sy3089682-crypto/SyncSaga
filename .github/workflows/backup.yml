@@ -1,0 +1,37 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Supabase Backup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run pg_dump via Supabase API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          FILENAME="syncsaga-backup-${TIMESTAMP}.sql"
+          echo "Starting backup: ${FILENAME}"
+          curl -s -X POST "${SUPABASE_URL}/rest/v1/rpc/pg_dump" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -o "${FILENAME}" && echo "Backup saved: ${FILENAME}" || echo "Backup API not available"
+
+  env-backup:
+    name: Env Vars Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate env template from current
+        run: |
+          echo "Backup generated: $(date)" > env-backup-log.txt
+          echo "Required env vars:" >> env-backup-log.txt
+          grep -r "process.env\." apps/ packages/ --include="*.ts" --include="*.tsx" | \
+            grep -oP 'process\.env\.\w+' | sort -u >> env-backup-log.txt

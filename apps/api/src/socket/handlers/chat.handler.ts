@@ -2,20 +2,29 @@ import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
 import { ServerToClientEvents, ClientToServerEvents, Message, User } from '@syncsaga/shared';
 import { redisService } from '../../services/redis.service';
+import { moderationService } from '../../services/moderation.service';
 import { logger } from '../../lib/logger';
 import { validate, chatMessageSchema, chatReactionSchema, chatTypingSchema } from '../../middleware/validators';
+import { supabase } from '../../lib/supabase';
 
 function sanitizeContent(text: string): string {
-  return text
+  let result = text
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '')
-    .replace(/data:/gi, '')
-    .slice(0, 2000);
+    .replace(/\//g, '&#x2F;');
+
+  let prev = '';
+  while (prev !== result) {
+    prev = result;
+    result = result
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+=/gi, '')
+      .replace(/data:/gi, '')
+      .replace(/vbscript:/gi, '');
+  }
+  return result.slice(0, 2000);
 }
 
 function isValidGifUrl(url: string): boolean {
@@ -40,14 +49,14 @@ export function chatHandler(
       }
 
       const { roomId, content, type } = validation.data;
-      if (!socket.userId) return;
+      if (!socket.userId || !roomId) return;
 
       const roomUsers = await redisService.getRoomUsers(roomId);
       if (!roomUsers.includes(socket.userId)) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 
-      const allowed = await redisService.checkRateLimit(`chat:${socket.userId}`, 30, 60);
+      const allowed = await redisService.checkRateLimit(`chat:${roomId}:${socket.userId}`, 30, 60);
       if (!allowed) {
         return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
       }
@@ -59,7 +68,15 @@ export function chatHandler(
         return socket.emit('error', { code: 'INVALID_GIF', message: 'Only Tenor/Giphy URLs are allowed' });
       }
 
-      const message: Message & { sender: Partial<User> } = {
+      const moderationResult = moderationService.checkMessage(sanitized);
+      if (moderationResult.hasPII) {
+        return socket.emit('error', { code: 'PII_DETECTED', message: 'Message contains personal information' });
+      }
+      if (moderationResult.isSpam && !socket.user?.is_mod) {
+        return socket.emit('error', { code: 'SPAM_DETECTED', message: 'Message flagged as spam' });
+      }
+
+      const message: Message & { sender: Partial<User> } & Record<string, any> = {
         id: `${Date.now()}-${socket.userId}-${Math.random().toString(36).slice(2, 8)}`,
         room_id: roomId,
         sender_id: socket.userId,
@@ -69,6 +86,7 @@ export function chatHandler(
         reactions: {},
         created_at: new Date().toISOString(),
         sender: socket.user,
+        has_profanity: moderationResult.hasProfanity,
       };
 
       io.to(roomId).emit('chat:message', message);
@@ -78,13 +96,24 @@ export function chatHandler(
     }
   });
 
+  let typingThrottle = new Map<string, number>();
+
   socket.on('chat:typing', async (data) => {
     try {
       const validation = validate(chatTypingSchema, data);
       if (!validation.success) return;
 
       const { roomId, isTyping } = validation.data;
-      if (!socket.userId) return;
+      if (!socket.userId || !roomId) return;
+
+      if (isTyping) {
+        const last = typingThrottle.get(socket.userId) || 0;
+        const now = Date.now();
+        if (now - last < 2000) return;
+        typingThrottle.set(socket.userId, now);
+      } else {
+        typingThrottle.delete(socket.userId);
+      }
 
       socket.to(roomId).emit('chat:typing', { userId: socket.userId, isTyping });
     } catch (error) {
@@ -118,5 +147,29 @@ export function chatHandler(
     } catch (error) {
       logger.error('Chat reaction error:', error);
     }
+  });
+
+  socket.on('chat:message:react', async (data) => {
+    try {
+      if (!socket.userId || !data.roomId || !data.messageId || !data.emoji) return;
+
+      const roomUsers = await redisService.getRoomUsers(data.roomId);
+      if (!roomUsers.includes(socket.userId)) return;
+
+      io.to(data.roomId).emit('chat:reaction', {
+        id: data.messageId,
+        sender_id: socket.userId,
+        content: data.emoji,
+        type: 'reaction',
+        created_at: new Date().toISOString(),
+        sender: socket.user,
+      } as any);
+    } catch (error) {
+      logger.error('Chat reaction error:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    typingThrottle.delete(socket.userId);
   });
 }

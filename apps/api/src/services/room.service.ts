@@ -34,11 +34,24 @@ export class RoomService {
       return null;
     }
 
-    // Add host as member
-    await supabase.from('room_members').insert({
+    const { error: memberError } = await supabase.from('room_members').insert({
       room_id: room.id,
       user_id: data.hostId,
       role: 'host',
+    });
+
+    if (memberError) {
+      logger.error('Failed to add host as member:', memberError);
+      await supabase.from('rooms').delete().eq('id', room.id);
+      return null;
+    }
+
+    await redisService.setRoomState(room.id, {
+      host_id: data.hostId,
+      current_timestamp: 0,
+      playback_state: 'paused',
+      playback_speed: 1,
+      sync_lock: false,
     });
 
     return room as Room;
@@ -62,30 +75,31 @@ export class RoomService {
     return { ...room, members: members || [] } as Room & { members: RoomMember[] };
   }
 
-  async joinRoom(roomId: string, userId: string, password?: string): Promise<boolean> {
+  async joinRoom(roomId: string, userId: string, password?: string): Promise<{ success: boolean; error?: string }> {
     const room = await this.getRoom(roomId);
-    if (!room) return false;
+    if (!room) return { success: false, error: 'Room not found' };
 
-    // Check if already member
+    const isBanned = (room as any).banned_users?.includes(userId);
+    if (isBanned) return { success: false, error: 'BANNED' };
+
     const isMember = room.members.some(m => m.user_id === userId);
-    if (isMember) return true;
+    if (isMember) return { success: true };
 
-    // Check room capacity
-    if (room.members.length >= room.max_users) return false;
+    if (room.members.length >= room.max_users) return { success: false, error: 'ROOM_FULL' };
 
     if (room.is_private) {
-      if (!password || password !== room.password) return false;
+      if (!password) return { success: false, error: 'PASSWORD_REQUIRED' };
+      if (password !== room.password) return { success: false, error: 'INVALID_PASSWORD' };
     }
 
     const { error } = await supabase
       .from('room_members')
-      .insert({
-        room_id: roomId,
-        user_id: userId,
-        role: 'member',
-      });
+      .insert({ room_id: roomId, user_id: userId, role: 'member' });
 
-    return !error;
+    if (error) return { success: false, error: error.message };
+
+    await redisService.addUserToRoom(roomId, userId);
+    return { success: true };
   }
 
   async leaveRoom(roomId: string, userId: string): Promise<void> {
@@ -94,17 +108,26 @@ export class RoomService {
       .delete()
       .eq('room_id', roomId)
       .eq('user_id', userId);
-
     await redisService.removeUserFromRoom(roomId, userId);
   }
 
   async updateRoomState(roomId: string, state: Partial<Room>): Promise<void> {
-    await supabase
-      .from('rooms')
-      .update(state)
-      .eq('id', roomId);
+    const existingState = await redisService.getRoomState(roomId) || {};
 
-    await redisService.setRoomState(roomId, state);
+    await redisService.setRoomState(roomId, { ...existingState, ...state });
+
+    const supabaseFields: any = {};
+    if (state.name !== undefined) supabaseFields.name = state.name;
+    if (state.description !== undefined) supabaseFields.description = state.description;
+    if (state.is_private !== undefined) supabaseFields.is_private = state.is_private;
+    if (state.max_users !== undefined) supabaseFields.max_users = state.max_users;
+    if (state.current_episode !== undefined) supabaseFields.current_episode = state.current_episode;
+    if (state.current_episode_number !== undefined) supabaseFields.current_episode_number = state.current_episode_number;
+    if (state.host_id !== undefined) supabaseFields.host_id = state.host_id;
+
+    if (Object.keys(supabaseFields).length > 0) {
+      await supabase.from('rooms').update(supabaseFields).eq('id', roomId);
+    }
   }
 
   async getPublicRooms(limit = 20): Promise<Room[]> {

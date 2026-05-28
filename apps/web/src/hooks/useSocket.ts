@@ -3,11 +3,11 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { getSocket, disconnectSocket } from '@/lib/socket';
-import { useRouter } from 'next/navigation';
 
 export function useSocket(token?: string | null) {
   const { setCurrentRoom, addMessage, updatePresence, addRoomMember, removeRoomMember, setRoomMembers, updateRoomState } = useAppStore();
   const initialized = useRef(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!token || initialized.current) return;
@@ -15,17 +15,86 @@ export function useSocket(token?: string | null) {
 
     const socket = getSocket(token);
 
-    socket.on('room:state', (room) => {
-      setCurrentRoom(room);
-      setRoomMembers(room.members || []);
+    const onRoomState = (room: any) => {
+      try {
+        setCurrentRoom(room);
+        setRoomMembers(room.members || []);
+      } catch {}
+    };
+
+    const onUserJoined = (user: any) => {
+      try {
+        addRoomMember({ id: '', room_id: '', user_id: user.id, role: 'member', joined_at: new Date().toISOString() });
+        updatePresence({ user_id: user.id, status: 'online' });
+      } catch {}
+    };
+
+    const onUserLeft = (userId: string) => {
+      try { removeRoomMember(userId); } catch {}
+    };
+
+    const onChatMessage = (message: any) => {
+      try { addMessage(message); } catch {}
+    };
+
+    const onSyncState = (state: any) => {
+      try {
+        updateRoomState({
+          current_timestamp: state.timestamp,
+          playback_state: state.playback_state as any,
+          playback_speed: state.speed,
+          current_episode: state.episode,
+        });
+      } catch {}
+    };
+
+    const onPresenceUpdate = (event: any) => {
+      try { updatePresence(event); } catch {}
+    };
+
+    const onSyncDrift = (data: any) => {
+      try {
+        useAppStore.getState().setDriftStatus(data.userId, { drift: data.drift, status: data.status });
+      } catch {}
+    };
+
+    const onReactionNew = (reaction: any) => {
+      try { useAppStore.getState().addTimelineReaction?.(reaction); } catch {}
+    };
+
+    socket.on('room:state', onRoomState);
+    socket.on('room:user_joined', onUserJoined);
+    socket.on('room:user_left', onUserLeft);
+    socket.on('chat:message', onChatMessage);
+    socket.on('sync:state', onSyncState);
+    socket.on('sync:drift_update', onSyncDrift);
+    socket.on('presence:update', onPresenceUpdate);
+    socket.on('reaction:new', onReactionNew);
+    socket.on('disconnect', () => {
+      try { useAppStore.getState().setConnectionStatus?.('disconnected'); } catch {}
+    });
+    socket.on('connect', () => {
+      try { useAppStore.getState().setConnectionStatus?.('connected'); } catch {}
+    });
+    socket.on('reconnect_attempt', () => {
+      try { useAppStore.getState().setConnectionStatus?.('reconnecting'); } catch {}
     });
 
-    socket.on('room:user_joined', (user) => {
-      addRoomMember({ id: '', room_id: '', user_id: user.id, role: 'member', joined_at: new Date().toISOString() });
-      updatePresence({ user_id: user.id, status: 'online' });
-    });
+    cleanupRef.current = () => {
+      socket.off('room:state', onRoomState);
+      socket.off('room:user_joined', onUserJoined);
+      socket.off('room:user_left', onUserLeft);
+      socket.off('chat:message', onChatMessage);
+      socket.off('sync:state', onSyncState);
+      socket.off('sync:drift_update', onSyncDrift);
+      socket.off('presence:update', onPresenceUpdate);
+      socket.off('reaction:new', onReactionNew);
+      socket.off('disconnect');
+      socket.off('connect');
+      socket.off('reconnect_attempt');
+    };
 
-    socket.on('room:user_left', (userId) => {
+    socket.on('room:user_left', (userId: string) => {
       removeRoomMember(userId);
     });
 
@@ -33,7 +102,7 @@ export function useSocket(token?: string | null) {
       addMessage(message);
     });
 
-    socket.on('sync:state', (state) => {
+    socket.on('sync:state', (state: any) => {
       updateRoomState({
         current_timestamp: state.timestamp,
         playback_state: state.playback_state as any,
@@ -47,19 +116,14 @@ export function useSocket(token?: string | null) {
     });
 
     return () => {
-      socket.off('room:state');
-      socket.off('room:user_joined');
-      socket.off('room:user_left');
-      socket.off('chat:message');
-      socket.off('sync:state');
-      socket.off('presence:update');
+      if (cleanupRef.current) cleanupRef.current();
+      cleanupRef.current = null;
+      initialized.current = false;
     };
-  }, [token]);
+  }, [token, setCurrentRoom, addMessage, updatePresence, addRoomMember, removeRoomMember, setRoomMembers, updateRoomState]);
 }
 
 export function useSocketConnection(token: string | null) {
-  const router = useRouter();
-
   useEffect(() => {
     if (!token) return;
 

@@ -1,0 +1,54 @@
+-- SyncSaga Rollback 009: Drop All Indexes
+-- Idempotent: YES
+
+DROP INDEX IF EXISTS idx_user_achievements_user;
+DROP INDEX IF EXISTS idx_fingerprints_anime;
+DROP INDEX IF EXISTS idx_fingerprints_hash;
+DROP INDEX IF EXISTS idx_anime_metadata_anilist;
+DROP INDEX IF EXISTS idx_anime_metadata_mal;
+DROP INDEX IF EXISTS idx_anime_metadata_search;
+DROP INDEX IF EXISTS idx_extension_telemetry_user;
+DROP INDEX IF EXISTS idx_room_metrics_room_date;
+DROP INDEX IF EXISTS idx_room_metrics_date;
+DROP INDEX IF EXISTS idx_analytics_events_session;
+DROP INDEX IF EXISTS idx_analytics_events_user;
+DROP INDEX IF EXISTS idx_analytics_events_event;
+DROP INDEX IF EXISTS idx_presence_log_user;
+DROP INDEX IF EXISTS idx_audit_logs_created;
+DROP INDEX IF EXISTS idx_audit_logs_action;
+DROP INDEX IF EXISTS idx_audit_logs_user;
+DROP INDEX IF EXISTS idx_subscriptions_user;
+DROP INDEX IF EXISTS idx_activity_feed_created;
+DROP INDEX IF EXISTS idx_activity_feed_user;
+DROP INDEX IF EXISTS idx_bans_user;
+DROP INDEX IF EXISTS idx_scheduled_rooms_time;
+DROP INDEX IF EXISTS idx_watch_events_completed;
+DROP INDEX IF EXISTS idx_watch_events_anime;
+DROP INDEX IF EXISTS idx_watch_events_user;
+DROP INDEX IF EXISTS idx_clips_anime;
+DROP INDEX IF EXISTS idx_clips_user;
+DROP INDEX IF EXISTS idx_timeline_reactions_room;
+DROP INDEX IF EXISTS idx_conversations_p2;
+DROP INDEX IF EXISTS idx_conversations_p1;
+DROP INDEX IF EXISTS idx_notifications_user;
+DROP INDEX IF EXISTS idx_message_reactions_message;
+DROP INDEX IF EXISTS idx_messages_recipient;
+DROP INDEX IF EXISTS idx_messages_sender;
+DROP INDEX IF EXISTS idx_messages_room_created;
+DROP INDEX IF EXISTS idx_room_members_user;
+DROP INDEX IF EXISTS idx_room_members_room;
+DROP INDEX IF EXISTS idx_rooms_host;
+DROP INDEX IF EXISTS idx_rooms_created;
+DROP INDEX IF EXISTS idx_rooms_is_public;
+DROP INDEX IF EXISTS idx_friendships_status;
+DROP INDEX IF EXISTS idx_friendships_addressee;
+DROP INDEX IF EXISTS idx_friendships_requester;
+DROP INDEX IF EXISTS idx_profiles_username;
+DROP INDEX IF EXISTS idx_profiles_status;
+
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.notifications;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.activity_feed;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.timeline_reactions;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.messages;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.room_members;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.rooms;

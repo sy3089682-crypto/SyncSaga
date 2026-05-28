@@ -40,7 +40,7 @@ export const rooms = pgTable('rooms', {
   coHosts: uuid('co_hosts').array().default('{}'),
   currentEpisode: text('current_episode'),
   currentEpisodeNumber: integer('current_episode_number'),
-  currentTimestamp: float8('current_timestamp').default(0),
+  playbackPosition: float8('playback_position').default(0),
   playbackState: text('playback_state').default('paused'),
   playbackSpeed: float8('playback_speed').default(1.0),
   animeTitle: text('anime_title'),

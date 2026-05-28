@@ -38,7 +38,7 @@ export function roomHandler(
       // Send room state to joining user
       socket.emit('room:state', {
         ...room,
-        current_timestamp: state?.current_timestamp ?? room.current_timestamp,
+        playback_position: state?.playback_position ?? room.playback_position,
         playback_state: state?.playback_state ?? room.playback_state,
         playback_speed: state?.playback_speed ?? room.playback_speed,
       });

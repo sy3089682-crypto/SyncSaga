@@ -29,7 +29,7 @@ export interface Room {
   co_hosts: string[];
   current_episode: string | null;
   current_episode_number: number | null;
-  current_timestamp: number;
+  playback_position: number;
   playback_state: 'playing' | 'paused' | 'buffering';
   playback_speed: number;
   created_at: string;

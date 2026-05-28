@@ -40,7 +40,7 @@ export function useSocket(token?: string | null) {
     const onSyncState = (state: any) => {
       try {
         updateRoomState({
-          current_timestamp: state.timestamp,
+          playback_position: state.timestamp,
           playback_state: state.playback_state as any,
           playback_speed: state.speed,
           current_episode: state.episode,
@@ -104,7 +104,7 @@ export function useSocket(token?: string | null) {
 
     socket.on('sync:state', (state: any) => {
       updateRoomState({
-        current_timestamp: state.timestamp,
+        playback_position: state.timestamp,
         playback_state: state.playback_state as any,
         playback_speed: state.speed,
         current_episode: state.episode,

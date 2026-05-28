@@ -48,7 +48,7 @@ export class RoomService {
 
     await redisService.setRoomState(room.id, {
       host_id: data.hostId,
-      current_timestamp: 0,
+      playback_position: 0,
       playback_state: 'paused',
       playback_speed: 1,
       sync_lock: false,

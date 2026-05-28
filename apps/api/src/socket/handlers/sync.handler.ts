@@ -38,7 +38,7 @@ export function syncHandler(
         const state = await redisService.getRoomState(roomId);
         if (state) {
           io.to(roomId).emit('sync:state', {
-            timestamp: state.current_timestamp || 0,
+            timestamp: state.playback_position || 0,
             playback_state: state.playback_state || 'paused',
             speed: state.playback_speed || 1,
             episode: state.current_episode || null,
@@ -92,7 +92,7 @@ export function syncHandler(
 
       const updates: any = { last_sync_at: serverTime };
       if (event.type === 'seek') {
-        updates.current_timestamp = event.timestamp;
+        updates.playback_position = event.timestamp;
         updates.playback_state = 'playing';
       }
       if (event.type === 'play') updates.playback_state = 'playing';
@@ -110,7 +110,7 @@ export function syncHandler(
       if (['play', 'seek', 'episode'].includes(event.type)) {
         const merged = { ...roomState, ...updates };
         socket.to(roomId).emit('sync:state', {
-          timestamp: event.type === 'seek' ? (event.timestamp ?? (merged.current_timestamp || 0)) : (merged.current_timestamp || 0),
+          timestamp: event.type === 'seek' ? (event.timestamp ?? (merged.playback_position || 0)) : (merged.playback_position || 0),
           playback_state: merged.playback_state || 'paused',
           speed: merged.playback_speed || 1,
           episode: merged.current_episode || null,
@@ -134,7 +134,7 @@ export function syncHandler(
       const updates = {
         current_episode: `Episode ${episode}`,
         current_episode_number: episode,
-        current_timestamp: 0,
+        playback_position: 0,
         anime_media_id: mediaId,
       };
 
@@ -208,7 +208,7 @@ export function syncHandler(
       const state = await redisService.getRoomState(roomId);
       if (state) {
         socket.emit('sync:state', {
-          timestamp: state.current_timestamp || 0,
+          timestamp: state.playback_position || 0,
           playback_state: state.playback_state || 'paused',
           speed: state.playback_speed || 1,
           episode: state.current_episode || null,

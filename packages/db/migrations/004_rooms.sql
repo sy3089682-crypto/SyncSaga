@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.rooms (
     co_hosts UUID[] DEFAULT '{}',
     current_episode TEXT,
     current_episode_number INTEGER,
-    current_timestamp FLOAT DEFAULT 0,
+    playback_position FLOAT DEFAULT 0,
     playback_state TEXT DEFAULT 'paused' CHECK (playback_state IN ('playing', 'paused', 'buffering')),
     playback_speed FLOAT DEFAULT 1.0,
     anime_title TEXT,

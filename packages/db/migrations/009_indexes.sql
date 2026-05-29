@@ -137,13 +137,3 @@ CREATE INDEX IF NOT EXISTS idx_fingerprints_anime ON public.episode_fingerprints
 -- USER ACHIEVEMENTS INDEXES
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON public.user_achievements(user_id);
-
--- ============================================
--- SUPABASE REALTIME: add tables to publication
--- ============================================
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.rooms;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.room_members;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.timeline_reactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.activity_feed;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS public.notifications;

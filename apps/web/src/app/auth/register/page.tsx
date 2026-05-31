@@ -27,7 +27,7 @@ export default function RegisterPage() {
     try {
       const { token, user } = await api.post('/api/auth/register', {
         email, password, username,
-      });
+      }) as any;
       setToken(token);
       setUser(user);
       router.push('/dashboard');

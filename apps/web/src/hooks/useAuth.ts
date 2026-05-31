@@ -73,5 +73,5 @@ export function useAuth() {
     storeLogout();
   };
 
-  return { user, token, loading, login, register, loginWithGoogle, loginWithDiscord, logout };
+  return { user, token, loading, login, register, loginWithGoogle, loginWithDiscord, logout, setToken, setUser };
 }

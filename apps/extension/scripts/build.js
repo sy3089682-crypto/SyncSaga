@@ -10,7 +10,7 @@ if (existsSync(dist)) {
 }
 mkdirSync(dist, { recursive: true });
 
-const define = `globalThis.WS_URL="${wsUrl}"`;
+const define = `globalThis.WS_URL=${JSON.stringify(JSON.stringify(wsUrl))}`;
 
 function build(src, out) {
   try {
@@ -18,7 +18,8 @@ function build(src, out) {
       `npx esbuild ${src} --bundle --minify --target=chrome110 --outfile=${out} --define:${define}`,
       { stdio: 'inherit', cwd: join(__dirname, '..') }
     );
-  } catch {
+  } catch (e) {
+    console.error(`Build failed for ${src}:`, e.message);
     execSync(
       `npx esbuild ${src} --bundle --minify --target=chrome110 --outfile=${out}`,
       { stdio: 'inherit', cwd: join(__dirname, '..') }

@@ -24,7 +24,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { token, user } = await api.post('/api/auth/login', { email, password });
+      const { token, user } = await api.post('/api/auth/login', { email, password }) as any;
       setToken(token);
       setUser(user);
       router.push('/dashboard');

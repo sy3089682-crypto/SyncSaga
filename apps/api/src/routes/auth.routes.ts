@@ -93,7 +93,7 @@ router.post('/register', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors });
     }
-    logger.error('Registration error:', error);
+    logger.error(error, 'Registration error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -121,7 +121,7 @@ router.post('/login', async (req: Request, res: Response) => {
     if (twoFactor?.totp_enabled) {
       const { totpToken } = req.body;
       if (!totpToken) {
-        return res.json({ requireTotp: true, tempToken: authData.access_token });
+        return res.json({ requireTotp: true, tempToken: authData.session?.access_token });
       }
     }
 
@@ -138,7 +138,7 @@ router.post('/login', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors });
     }
-    logger.error('Login error:', error);
+    logger.error(error, 'Login error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -172,7 +172,7 @@ router.post('/google', async (req: Request, res: Response) => {
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
-    logger.error('Google auth error:', error);
+    logger.error(error, 'Google auth error:');
     const msg = error instanceof Error ? error.message : 'Authentication failed';
     res.status(400).json({ error: msg });
   }
@@ -205,7 +205,7 @@ router.post('/github', async (req: Request, res: Response) => {
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
-    logger.error('GitHub auth error:', error);
+    logger.error(error, 'GitHub auth error:');
     const msg = error instanceof Error ? error.message : 'Authentication failed';
     res.status(400).json({ error: msg });
   }
@@ -238,7 +238,7 @@ router.post('/discord', async (req: Request, res: Response) => {
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
-    logger.error('Discord auth error:', error);
+    logger.error(error, 'Discord auth error:');
     const msg = error instanceof Error ? error.message : 'Authentication failed';
     res.status(400).json({ error: msg });
   }
@@ -276,7 +276,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     res.json({ token: accessToken, refreshToken: newTokens.token });
   } catch (error) {
-    logger.error('Refresh error:', error);
+    logger.error(error, 'Refresh error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -294,7 +294,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     res.clearCookie('refreshToken', { path: '/api/auth' });
     res.json({ success: true });
   } catch (error) {
-    logger.error('Logout error:', error);
+    logger.error(error, 'Logout error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -312,7 +312,7 @@ router.post('/logout-all', async (req: Request, res: Response) => {
     res.clearCookie('refreshToken', { path: '/api/auth' });
     res.json({ success: true });
   } catch (error) {
-    logger.error('Logout all error:', error);
+    logger.error(error, 'Logout all error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -334,7 +334,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid email', details: error.errors });
     }
-    logger.error('Forgot password error:', error);
+    logger.error(error, 'Forgot password error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -356,7 +356,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors });
     }
-    logger.error('Reset password error:', error);
+    logger.error(error, 'Reset password error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -396,7 +396,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors });
     }
-    logger.error('Change password error:', error);
+    logger.error(error, 'Change password error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -425,7 +425,7 @@ router.post('/2fa/setup', async (req: Request, res: Response) => {
 
     res.json({ secret, qrCode, uri: otpauth });
   } catch (error) {
-    logger.error('2FA setup error:', error);
+    logger.error(error, '2FA setup error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -463,7 +463,7 @@ router.post('/2fa/verify', async (req: Request, res: Response) => {
 
     res.json({ success: true, message: '2FA enabled' });
   } catch (error) {
-    logger.error('2FA verify error:', error);
+    logger.error(error, '2FA verify error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -500,7 +500,7 @@ router.post('/2fa/disable', async (req: Request, res: Response) => {
 
     res.json({ success: true, message: '2FA disabled' });
   } catch (error) {
-    logger.error('2FA disable error:', error);
+    logger.error(error, '2FA disable error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -521,7 +521,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
 
     res.json({ sessions });
   } catch (error) {
-    logger.error('Sessions error:', error);
+    logger.error(error, 'Sessions error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -539,7 +539,7 @@ router.post('/sessions/revoke', async (req: Request, res: Response) => {
     await revokeRefreshToken(userId, refreshId);
     res.json({ success: true, message: 'Session revoked' });
   } catch (error) {
-    logger.error('Revoke session error:', error);
+    logger.error(error, 'Revoke session error:');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, boolean, integer, float8, jsonb, timestamp, uniqueIndex, index, foreignKey, primaryKey } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTable, uuid, text, boolean, integer, doublePrecision, jsonb, timestamp, uniqueIndex, index, foreignKey, primaryKey } from 'drizzle-orm/pg-core';
 
 export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -37,12 +38,12 @@ export const rooms = pgTable('rooms', {
   passwordHash: text('password_hash'),
   maxUsers: integer('max_users').default(10),
   hostId: uuid('host_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
-  coHosts: uuid('co_hosts').array().default('{}'),
+  coHosts: uuid('co_hosts').array().notNull().default(sql`'{}'::uuid[]`),
   currentEpisode: text('current_episode'),
   currentEpisodeNumber: integer('current_episode_number'),
-  playbackPosition: float8('playback_position').default(0),
+  playbackPosition: doublePrecision('playback_position').default(0),
   playbackState: text('playback_state').default('paused'),
-  playbackSpeed: float8('playback_speed').default(1.0),
+  playbackSpeed: doublePrecision('playback_speed').default(1.0),
   animeTitle: text('anime_title'),
   animeMediaId: integer('anime_media_id'),
   animeCoverUrl: text('anime_cover_url'),
@@ -50,7 +51,7 @@ export const rooms = pgTable('rooms', {
   syncLock: boolean('sync_lock').default(false),
   allowSoundboard: boolean('allow_soundboard').default(true),
   allowReactions: boolean('allow_reactions').default(true),
-  bannedUsers: uuid('banned_users').array().default('{}'),
+  bannedUsers: uuid('banned_users').array().notNull().default(sql`'{}'::uuid[]`),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
@@ -107,8 +108,8 @@ export const clips = pgTable('clips', {
   roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
   animeTitle: text('anime_title').notNull(),
   episodeNumber: integer('episode_number'),
-  startTime: float8('start_time').notNull(),
-  endTime: float8('end_time').notNull(),
+  startTime: doublePrecision('start_time').notNull(),
+  endTime: doublePrecision('end_time').notNull(),
   title: text('title'),
   description: text('description'),
   thumbnailUrl: text('thumbnail_url'),
@@ -124,7 +125,7 @@ export const timelineReactions = pgTable('timeline_reactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
-  timestampSec: float8('timestamp_sec').notNull(),
+  timestampSec: doublePrecision('timestamp_sec').notNull(),
   type: text('type').notNull(),
   content: text('content'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -180,7 +181,7 @@ export const apiKeys = pgTable('api_keys', {
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   keyHash: text('key_hash').notNull().unique(),
-  permissions: text('permissions').array().default('{read}'),
+  permissions: text('permissions').array().notNull().default(sql`'{read}'::text[]`),
   rateLimit: integer('rate_limit').default(100),
   createdAt: timestamp('created_at').defaultNow(),
   lastUsedAt: timestamp('last_used_at'),
@@ -217,8 +218,8 @@ export const embedConfigs = pgTable('embed_configs', {
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'cascade' }),
   theme: text('theme').default('dark'),
-  features: text('features').array().default('{chat,voice,sync}'),
-  allowedOrigins: text('allowed_origins').array().default('{*}'),
+  features: text('features').array().notNull().default(sql`'{chat,voice,sync}'::text[]`),
+  allowedOrigins: text('allowed_origins').array().notNull().default(sql`'{*}'::text[]`),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({

@@ -2,7 +2,7 @@ import { logger } from '../../logger';
 
 export type ProviderName = 'groq' | 'gemini' | 'cloudflare';
 
-interface ProviderHealth {
+export interface ProviderHealth {
   available: boolean;
   lastCheck: number;
   failures: number;

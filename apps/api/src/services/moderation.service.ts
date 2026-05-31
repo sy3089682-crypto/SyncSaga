@@ -25,7 +25,7 @@ class ModerationService {
     }).select().single();
 
     if (error) {
-      logger.error('Failed to create report:', error);
+      logger.error(error, 'Failed to create report:');
       return null;
     }
 
@@ -37,12 +37,15 @@ class ModerationService {
       .eq('room_id', roomId)
       .eq('user_id', userId);
 
-    await supabase.from('rooms').update({
-      banned_users: supabase.rpc('array_append_unique', {
-        arr: supabase.ref('banned_users'),
-        element: userId,
-      }),
-    }).eq('id', roomId);
+    // Get current banned users
+    const { data: room } = await supabase.from('rooms').select('banned_users').eq('id', roomId).single();
+    const currentBanned = (room as any)?.banned_users || [];
+    
+    if (!currentBanned.includes(userId)) {
+      await supabase.from('rooms').update({
+        banned_users: [...currentBanned, userId],
+      }).eq('id', roomId);
+    }
   }
 
   async shadowBan(roomId: string, userId: string) {
@@ -63,4 +66,5 @@ class ModerationService {
   }
 }
 
+export { ModerationService };
 export const moderationService = new ModerationService();

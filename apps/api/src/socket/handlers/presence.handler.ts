@@ -29,7 +29,7 @@ export function presenceHandler(
 
       logger.debug(`Presence update: ${socket.userId} -> ${event.status}`);
     } catch (error) {
-      logger.error('Presence update error:', error);
+      logger.error(error, 'Presence update error:');
     }
   });
 
@@ -50,7 +50,7 @@ export function presenceHandler(
         }
       }
     } catch (error) {
-      logger.error('Get online users error:', error);
+      logger.error(error, 'Get online users error:');
     }
   });
 }

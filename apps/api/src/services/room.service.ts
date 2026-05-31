@@ -30,7 +30,7 @@ export class RoomService {
       .single();
 
     if (error) {
-      logger.error('Failed to create room:', error);
+      logger.error(error, 'Failed to create room:');
       return null;
     }
 
@@ -41,7 +41,7 @@ export class RoomService {
     });
 
     if (memberError) {
-      logger.error('Failed to add host as member:', memberError);
+      logger.error(memberError, 'Failed to add host as member');
       await supabase.from('rooms').delete().eq('id', room.id);
       return null;
     }
@@ -89,7 +89,7 @@ export class RoomService {
 
     if (room.is_private) {
       if (!password) return { success: false, error: 'PASSWORD_REQUIRED' };
-      if (password !== room.password) return { success: false, error: 'INVALID_PASSWORD' };
+      if (password !== (room as any).password_hash) return { success: false, error: 'INVALID_PASSWORD' };
     }
 
     const { error } = await supabase
@@ -98,7 +98,7 @@ export class RoomService {
 
     if (error) return { success: false, error: error.message };
 
-    await redisService.addUserToRoom(roomId, userId);
+    await redisService.addUserToRoom(roomId, userId, 'unknown');
     return { success: true };
   }
 

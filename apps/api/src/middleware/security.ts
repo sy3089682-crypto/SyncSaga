@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, Application } from 'express';
 import helmet from 'helmet';
 import { randomBytes } from 'crypto';
 import { isProduction } from '@syncsaga/config';
@@ -9,7 +9,7 @@ const CSRF_COOKIE = 'XSRF-TOKEN';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
-export function securityMiddleware(app: express.Application) {
+export function securityMiddleware(app: Application) {
   app.use(helmet({
     contentSecurityPolicy: isProduction() ? {
       directives: {

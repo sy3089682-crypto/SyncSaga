@@ -10,12 +10,13 @@ import { logger } from '../lib/logger';
 
 export function initializeSocketHandlers(io: Server<ClientToServerEvents, ServerToClientEvents>) {
   // Auth middleware
-  io.use(socketAuthMiddleware);
+  io.use(socketAuthMiddleware as any);
 
-  io.on('connection', async (socket: AuthenticatedSocket) => {
-    logger.info(`Socket connected: ${socket.id} - User: ${socket.userId}`);
+  io.on('connection', async (socket: any) => {
+    const authSocket = socket as AuthenticatedSocket;
+    logger.info(`Socket connected: ${authSocket.id} - User: ${authSocket.userId}`);
 
-    const uid = socket.userId;
+    const uid = authSocket.userId;
     await redisService.setUserOnline(uid, {
       socketId: socket.id,
       status: 'online',

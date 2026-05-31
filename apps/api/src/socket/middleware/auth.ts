@@ -34,7 +34,7 @@ export async function socketAuthMiddleware(socket: AuthenticatedSocket, next: (e
     
     next();
   } catch (error) {
-    logger.error('Socket auth error:', error);
+    logger.error(error, 'Socket auth error:');
     next(new Error('Authentication failed'));
   }
 }

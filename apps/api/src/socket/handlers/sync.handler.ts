@@ -46,7 +46,7 @@ export function syncHandler(
           });
         }
       } catch (e) {
-        logger.error('Heartbeat error:', e);
+        logger.error(e, 'Heartbeat error:');
       }
     }, HEARTBEAT_INTERVAL);
   }
@@ -118,7 +118,7 @@ export function syncHandler(
         });
       }
     } catch (error) {
-      logger.error('Sync event error:', error);
+      logger.error(error, 'Sync event error:');
     }
   });
 
@@ -143,7 +143,7 @@ export function syncHandler(
       try {
         await supabase.from('rooms').update(updates).eq('id', roomId);
       } catch (dbErr) {
-        logger.error('Failed to update episode in DB:', dbErr);
+        logger.error(dbErr, 'Failed to update episode in DB:');
       }
 
       io.to(roomId).emit('sync:event', {
@@ -162,7 +162,7 @@ export function syncHandler(
         episode_number: episode,
       });
     } catch (error) {
-      logger.error('Set episode error:', error);
+      logger.error(error, 'Set episode error:');
     }
   });
 
@@ -177,7 +177,7 @@ export function syncHandler(
       await redisService.setRoomState(roomId, { ...roomState, sync_lock: enabled });
       io.to(roomId).emit('room:update', { sync_lock: enabled });
     } catch (error) {
-      logger.error('Sync lock error:', error);
+      logger.error(error, 'Sync lock error:');
     }
   });
 
@@ -198,7 +198,7 @@ export function syncHandler(
         startHostHeartbeat(roomId);
       }
     } catch (error) {
-      logger.error('Takeover error:', error);
+      logger.error(error, 'Takeover error:');
     }
   });
 
@@ -216,7 +216,7 @@ export function syncHandler(
         });
       }
     } catch (error) {
-      logger.error('Sync request error:', error);
+      logger.error(error, 'Sync request error:');
     }
   });
 

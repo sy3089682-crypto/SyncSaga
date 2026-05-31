@@ -253,6 +253,7 @@ export interface ServerToClientEvents {
   'room:state': (room: Room & { members: RoomMember[] }) => void;
   'room:user_joined': (user: User) => void;
   'room:user_left': (userId: string) => void;
+  'room:update': (room: Partial<Room>) => void;
   'sync:event': (event: SyncEvent) => void;
   'sync:state': (state: { timestamp: number; playback_state: string; speed: number; episode: string | null; episode_number: number | null }) => void;
   'sync:ping': (data: { serverTime: number }) => void;

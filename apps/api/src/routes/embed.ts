@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { supabase } from '../lib/supabase';
 import { verifyToken } from '../lib/jwt';
 import { getAiRouter } from '../services/ai.service';
@@ -156,7 +156,7 @@ router.post('/search', async (req, res) => {
 
     res.json({ results: rooms || [] });
   } catch (error) {
-    logger.error('Search error:', error);
+    logger.error(error, 'Search error:');
     res.status(500).json({ error: 'Search failed' });
   }
 });

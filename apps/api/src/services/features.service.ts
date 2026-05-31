@@ -56,7 +56,7 @@ class FeatureService {
     try {
       const keys = await redisService.getClient().keys(`${OVERRIDE_PREFIX}*`);
       if (keys.length > 0) {
-        const values = await redisService.getClient().mget(keys);
+        const values = await redisService.getClient().mGet(keys);
         for (let i = 0; i < keys.length; i++) {
           const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
           if (values[i] !== null) {
@@ -110,6 +110,10 @@ class FeatureService {
       FLAGS.map(async f => ({ key: f.key, enabled: await this.isEnabled(f.key) }))
     );
     return results.filter(f => f.enabled).map(f => f.key);
+  }
+
+  getFlagConfig(flag: FeatureFlag): FlagConfig | undefined {
+    return FLAGS.find(f => f.key === flag);
   }
 }
 

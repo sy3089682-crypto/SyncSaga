@@ -32,13 +32,13 @@ async function bootstrap() {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('uncaughtException', (error) => {
-      logger.error('Uncaught exception:', error);
+      logger.error(error, 'Uncaught exception');
     });
     process.on('unhandledRejection', (reason) => {
-      logger.error('Unhandled rejection:', reason);
+      logger.error({ reason }, 'Unhandled rejection');
     });
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error(error, 'Failed to start server');
     process.exit(1);
   }
 }

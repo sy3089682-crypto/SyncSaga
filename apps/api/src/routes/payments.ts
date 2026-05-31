@@ -103,7 +103,7 @@ router.post('/create-checkout', async (req: Request, res: Response) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
-    logger.error('Stripe checkout error:', error);
+    logger.error(error, 'Stripe checkout error:');
     const msg = error instanceof Error ? error.message : 'Checkout error';
     res.status(500).json({ error: { code: 'PAYMENT_ERROR', message: msg } });
   }
@@ -164,7 +164,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     res.json({ received: true });
   } catch (error) {
-    logger.error('Stripe webhook error:', error);
+    logger.error(error, 'Stripe webhook error:');
     const msg = error instanceof Error ? error.message : 'Webhook error';
     res.status(400).json({ error: msg });
   }
@@ -198,7 +198,7 @@ router.post('/portal', async (req: Request, res: Response) => {
 
     res.json({ url: session.url });
   } catch (error) {
-    logger.error('Stripe portal error:', error);
+    logger.error(error, 'Stripe portal error:');
     const msg = error instanceof Error ? error.message : 'Portal error';
     res.status(500).json({ error: { code: 'PORTAL_ERROR', message: msg } });
   }

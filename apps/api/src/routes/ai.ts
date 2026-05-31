@@ -129,7 +129,7 @@ router.post('/summarize-session', async (req: Request, res: Response) => {
         topMoments: messages.slice(-3).reverse().map(m => ({ user: m.username, message: m.content, time: m.timestamp })),
         vibe: total > 50 ? 'Lively' : total > 20 ? 'Chatty' : total > 5 ? 'Quiet' : 'Silent',
       };
-    }, { cacheKey, cacheTtl: 300, priority: 'quality' });
+    }, { cacheKey, cacheTtl: 300 });
 
     res.json({ summary: result });
   } catch (error) {
@@ -223,7 +223,7 @@ router.post('/recap', async (req: Request, res: Response) => {
         mostActiveUser: chatMessages[0]?.user || 'N/A',
         hypeMoments: Math.min(chatMessages.length, 15),
       },
-    }), { cacheKey, cacheTtl: 600, priority: 'quality', maxTokens: 1500, temperature: 0.8 });
+    }), { cacheKey, cacheTtl: 600, maxTokens: 1500, temperature: 0.8 });
 
     res.json({ recap: result });
   } catch (error) {

@@ -48,7 +48,7 @@ export function roomHandler(
 
       logger.info(`User ${socket.userId} joined room ${roomId}`);
     } catch (error) {
-      logger.error('Room join error:', error);
+      logger.error(error, 'Room join error:');
       socket.emit('error', { code: 'INTERNAL_ERROR', message: 'Internal server error' });
     }
   });
@@ -63,7 +63,7 @@ export function roomHandler(
       socket.to(roomId).emit('room:user_left', socket.userId);
       logger.info(`User ${socket.userId} left room ${roomId}`);
     } catch (error) {
-      logger.error('Room leave error:', error);
+      logger.error(error, 'Room leave error:');
     }
   });
 
@@ -84,7 +84,7 @@ export function roomHandler(
         io.to(update.id).emit('room:state', updatedRoom);
       }
     } catch (error) {
-      logger.error('Room update error:', error);
+      logger.error(error, 'Room update error:');
     }
   });
 }

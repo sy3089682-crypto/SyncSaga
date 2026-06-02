@@ -1,0 +1,16 @@
+#!/bin/bash
+echo "=== START DIAGNOSTIC ==="
+echo "PORT=$PORT"
+echo "NODE_ENV=$NODE_ENV"
+echo "PWD=$(pwd)"
+echo "LS dist:" 
+ls -la apps/api/dist/ 2>&1 || echo "NO DIST"
+echo "LS config dist:"
+ls -la packages/config/dist/ 2>&1 || echo "NO CONFIG DIST"
+echo "LS shared dist:"
+ls -la packages/shared/dist/ 2>&1 || echo "NO SHARED DIST"
+echo "NODE MODULES:"
+ls -la node_modules/@syncsaga/ 2>&1 || echo "NO SYMLINKS"
+echo "=== BOOTING ==="
+node apps/api/dist/index.js 2>&1
+echo "EXIT CODE: $?"

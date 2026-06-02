@@ -1,46 +1,32 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { createServer } from './server';
-import { logger } from './lib/logger';
-import { getEnv } from '@syncsaga/config';
+import express from 'express';
 
-async function bootstrap() {
-  try {
-    const env = getEnv();
-    logger.info({ env: env.NODE_ENV }, 'Starting SyncSaga API server');
+const app = express();
+const PORT = parseInt(process.env.PORT || '4000', 10);
 
-    const { httpServer } = await createServer();
+app.get('/test-dynamic', async (_req, res) => {
+  const results: Record<string, any> = {};
+  try { const m = await import('@syncsaga/config'); results.config = 'ok'; } catch(e: any) { results.config = e.message; }
+  try { const m = await import('@syncsaga/shared'); results.shared = 'ok'; } catch(e: any) { results.shared = e.message; }
+  try { const m = await import('@syncsaga/db'); results.db = 'ok'; } catch(e: any) { results.db = e.message; }
+  res.json(results);
+});
 
-    httpServer.listen(env.PORT, () => {
-      logger.info(`SyncSaga API server running on port ${env.PORT}`);
-      logger.info(`WebSocket gateway ready`);
-    });
+app.get('/test-static', (_req, res) => {
+  let config: any, shared: any, db: any;
+  const results: Record<string, any> = {};
+  try { config = require('@syncsaga/config'); results.config = 'ok'; } catch(e: any) { results.config = e.message; }
+  try { shared = require('@syncsaga/shared'); results.shared = 'ok'; } catch(e: any) { results.shared = e.message; }
+  try { db = require('@syncsaga/db'); results.db = 'ok'; } catch(e: any) { results.db = e.message; }
+  res.json(results);
+});
 
-    const shutdown = (signal: string) => {
-      logger.info(`Received ${signal}. Shutting down gracefully...`);
-      httpServer.close(() => {
-        logger.info('HTTP server closed');
-        process.exit(0);
-      });
-      setTimeout(() => {
-        logger.error('Forced shutdown after timeout');
-        process.exit(1);
-      }, 10000);
-    };
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', port: PORT });
+});
 
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
-    process.on('uncaughtException', (error) => {
-      logger.error(error, 'Uncaught exception');
-    });
-    process.on('unhandledRejection', (reason) => {
-      logger.error({ reason }, 'Unhandled rejection');
-    });
-  } catch (error) {
-    logger.error(error, 'Failed to start server');
-    process.exit(1);
-  }
-}
-
-bootstrap();
+app.listen(PORT, () => {
+  console.log(`listening on port ${PORT}`);
+});

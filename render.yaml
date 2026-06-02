@@ -11,6 +11,12 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: PORT
+        value: "10000"
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY

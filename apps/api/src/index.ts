@@ -1,12 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { createServer } from './server';
-import { logger } from './lib/logger';
-import { getEnv } from '@syncsaga/config';
-
 async function bootstrap() {
   try {
+    const { createServer } = await import('./server');
+    const { logger } = await import('./lib/logger');
+    const { getEnv } = await import('@syncsaga/config');
+
     const env = getEnv();
     logger.info({ env: env.NODE_ENV }, 'Starting SyncSaga API server');
 
@@ -38,7 +38,7 @@ async function bootstrap() {
       logger.error({ reason }, 'Unhandled rejection');
     });
   } catch (error) {
-    logger.error(error, 'Failed to start server');
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }

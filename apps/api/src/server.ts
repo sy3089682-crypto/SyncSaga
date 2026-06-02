@@ -136,7 +136,11 @@ export async function createServer() {
     },
   });
 
-  await redisService.connect();
+  try {
+    await redisService.connect();
+  } catch (err) {
+    logger.warn({ err }, 'Redis connection failed, running without Redis');
+  }
   initializeSocketHandlers(io);
   wsBridge.initialize(io);
   setNotificationSocket(io);

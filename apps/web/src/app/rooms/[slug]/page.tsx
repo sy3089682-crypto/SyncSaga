@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { useRoomStore, useAuthStore, useSocketStore } from "@/store"
-import { Card } from "@syncsaga/ui"
 import { io } from "socket.io-client"
 import { VideoPlayer } from "@/components/video/VideoPlayer"
+import { ChatPanel } from "@/components/chat/ChatPanel"
+import { ReactionsOverlay } from "@/components/chat/ReactionsOverlay"
 
 export default function RoomPage() {
   const { slug } = useParams()
@@ -52,24 +53,13 @@ export default function RoomPage() {
     <div className="grid h-[calc(100vh-8rem)] grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
       {/* Video Area */}
       <Card className="flex flex-col bg-black border-border-strong overflow-hidden relative">
+        <ReactionsOverlay />
         <VideoPlayer url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" />
       </Card>
 
       {/* Sidebar Area (Chat / Members) */}
       <Card className="flex flex-col border-border-strong bg-surface">
-        <div className="border-b border-border-strong p-3 font-semibold">
-          Room Chat
-        </div>
-        <div className="flex-1 p-4 text-sm text-muted-foreground overflow-y-auto">
-          <p>Welcome to {slug}!</p>
-        </div>
-        <div className="p-3 border-t border-border-strong">
-          <input 
-            type="text" 
-            placeholder="Type a message..." 
-            className="w-full bg-elevated border border-border-strong rounded-[3px] px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-purple"
-          />
-        </div>
+        <ChatPanel />
       </Card>
     </div>
   )

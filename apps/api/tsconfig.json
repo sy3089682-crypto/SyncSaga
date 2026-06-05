@@ -13,7 +13,13 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "paths": {
+      "@syncsaga/config": ["../../packages/config/src"],
+      "@syncsaga/types": ["../../packages/types"],
+      "@syncsaga/config/*": ["../../packages/config/src/*"],
+      "@syncsaga/types/*": ["../../packages/types/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/__tests__"]

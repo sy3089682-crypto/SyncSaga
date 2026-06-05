@@ -7,6 +7,7 @@ import { io } from "socket.io-client"
 import { VideoPlayer } from "@/components/video/VideoPlayer"
 import { ChatPanel } from "@/components/chat/ChatPanel"
 import { ReactionsOverlay } from "@/components/chat/ReactionsOverlay"
+import { VoiceVideoChat } from "@/components/chat/VoiceVideoChat"
 
 export default function RoomPage() {
   const { slug } = useParams()
@@ -59,6 +60,7 @@ export default function RoomPage() {
 
       {/* Sidebar Area (Chat / Members) */}
       <Card className="flex flex-col border-border-strong bg-surface">
+        <VoiceVideoChat />
         <ChatPanel />
       </Card>
     </div>

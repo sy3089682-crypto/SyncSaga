@@ -15,9 +15,9 @@ concurrency:
 
 jobs:
   e2e-tests:
-    name: E2E Tests
+    name: E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -39,8 +39,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Build packages
-        run: npm run build
+      - name: Build shared packages
+        run: npx turbo run build --filter=@syncsaga/config --filter=@syncsaga/types
         env:
           NODE_ENV: test
           SUPABASE_URL: https://test.supabase.co
@@ -52,10 +52,6 @@ jobs:
         run: npx playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           NODE_ENV: test
-          SUPABASE_URL: https://test.supabase.co
-          SUPABASE_SERVICE_KEY: test-service-key
-          JWT_SECRET: test-jwt-secret-with-at-least-32-chars!!
-          JWT_REFRESH_SECRET: test-refresh-secret-with-at-least-32-chars!!
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

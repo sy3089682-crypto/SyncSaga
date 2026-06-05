@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Providers } from './providers';
-
+import { Providers } from '@/components/providers/Providers';
+import { AppShell } from '@/components/layout/AppShell';
 export const metadata: Metadata = {
   title: 'SyncSaga',
   description: 'Watch anime together. Anywhere.',
@@ -18,8 +18,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="antialiased">
-        <Providers>{children}</Providers>
+      <body className="antialiased bg-base text-white">
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

@@ -13,14 +13,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "moduleResolution": "node",
-    "paths": {
-      "@syncsaga/config": ["../../packages/config/src"],
-      "@syncsaga/types": ["../../packages/types"],
-      "@syncsaga/config/*": ["../../packages/config/src/*"],
-      "@syncsaga/types/*": ["../../packages/types/*"]
-    }
+    "moduleResolution": "node"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/__tests__"]
+  "exclude": ["node_modules", "dist", "src/__tests__"],
+  "references": [
+    { "path": "../../packages/config" },
+    { "path": "../../packages/types" }
+  ]
 }

@@ -85,7 +85,8 @@ export class RoomService {
     const isMember = room.members.some(m => m.user_id === userId);
     if (isMember) return { success: true };
 
-    if (room.members.length >= room.max_users) return { success: false, error: 'ROOM_FULL' };
+    const maxUsers = room.max_users ?? room.max_members ?? 50;
+    if (room.members.length >= maxUsers) return { success: false, error: 'ROOM_FULL' };
 
     if (room.is_private) {
       if (!password) return { success: false, error: 'PASSWORD_REQUIRED' };

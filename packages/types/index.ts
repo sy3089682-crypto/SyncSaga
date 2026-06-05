@@ -46,6 +46,9 @@ export interface Room {
   anime_title: string | null
   anime_image: string | null
   episode_number: number | null
+  current_episode?: string | null
+  current_episode_number?: number | null
+  anime_media_id?: number | null
   streaming_platform: string | null
   is_public: boolean
   is_locked: boolean
@@ -67,6 +70,7 @@ export interface Room {
   members?: RoomMember[]
   is_private?: boolean
   max_users?: number
+  password_hash?: string
 }
 
 export interface Message {

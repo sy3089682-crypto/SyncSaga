@@ -3,10 +3,31 @@ import path from 'path';
 
 export default defineConfig({
   test: {
+    name: 'web',
+    root: './apps/web',
+    globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: '../../coverage/web',
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx',
+        'src/**/*.spec.ts',
+        'src/**/__tests__/**',
+        'src/**/*.d.ts',
+      ],
+      thresholds: {
+        statements: 40,
+        branches: 30,
+        functions: 40,
+        lines: 40,
+      },
+    },
   },
   resolve: {
     alias: {

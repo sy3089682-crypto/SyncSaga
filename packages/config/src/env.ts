@@ -38,18 +38,23 @@ export function getEnv(): Env {
   if (_env) return _env;
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
-    const missing = result.error.errors
+    const errors = result.error.errors;
+    const missing = errors
       .filter(e => e.message.includes('Required'))
       .map(e => e.path.join('.'));
+    const invalid = errors
+      .filter(e => !e.message.includes('Required'))
+      .map(e => `${e.path.join('.')}: ${e.message}`);
+
+    const message = [];
     if (missing.length > 0) {
-      throw new Error(
-        `Missing required environment variables: ${missing.join(', ')}\n` +
-        `Full errors:\n${result.error.errors.map(e => `  ${e.path.join('.')}: ${e.message}`).join('\n')}`
-      );
+      message.push(`Missing required environment variables: ${missing.join(', ')}`);
     }
-    console.warn('Environment validation warnings:', result.error.errors.map(e => e.path.join('.')).join(', '));
-    _env = result.data as unknown as Env;
-    return _env;
+    if (invalid.length > 0) {
+      message.push(`Invalid environment variables:\n${invalid.join('\n')}`);
+    }
+
+    throw new Error(message.join('\n'));
   }
   _env = result.data;
   return _env;

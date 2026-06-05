@@ -10,6 +10,9 @@ import { getEnv } from '@syncsaga/config';
 
 import { authRouter } from './routes/auth.routes';
 import { roomRouter } from './routes/room.routes';
+import roomsRouter from './routes/rooms';
+import profilesRouter from './routes/profiles';
+import animeRouter from './routes/anime';
 import reactionsRouter from './routes/reactions';
 import clipsRouter from './routes/clips';
 import activityRouter from './routes/activity';
@@ -110,6 +113,9 @@ export async function createServer() {
 
   app.use('/api/auth', authRouter);
   app.use('/api/rooms', roomRouter);
+  app.use('/api/v2/rooms', roomsRouter);
+  app.use('/api/profiles', profilesRouter);
+  app.use('/api/anime', animeRouter);
   app.use('/api/reactions', reactionsRouter);
   app.use('/api/clips', clipsRouter);
   app.use('/api/activity', activityRouter);
@@ -118,6 +124,7 @@ export async function createServer() {
   app.use('/api/features', featuresRouter);
   app.use('/api/payments', paymentsRouter);
   app.use('/metrics', metricsRouter);
+
 
   app.use(errorHandler);
 

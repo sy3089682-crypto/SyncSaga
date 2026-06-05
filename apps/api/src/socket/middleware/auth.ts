@@ -2,7 +2,7 @@ import { Socket } from 'socket.io';
 import { verifyToken } from '../../lib/jwt';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
-import { User } from '@syncsaga/shared';
+import { User } from '@syncsaga/types';
 
 export interface AuthenticatedSocket extends Socket {
   userId: string;

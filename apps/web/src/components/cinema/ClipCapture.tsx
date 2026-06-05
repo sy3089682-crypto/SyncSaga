@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, MouseEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scissors, Film, Download, Share2, Check, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -100,7 +100,7 @@ export function ClipCapture({
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               className="bg-surface rounded-2xl border border-border p-6 w-full max-w-md mx-4"
-              onClick={e => e.stopPropagation()}
+              onClick={(e: MouseEvent) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-lg flex items-center gap-2">

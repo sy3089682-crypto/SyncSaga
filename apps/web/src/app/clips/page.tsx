@@ -5,8 +5,10 @@ import { motion } from 'framer-motion';
 import { Play, Clock, Film, Trash2, Earth } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { api } from '@/lib/api';
-import Link from 'next/link';
 import { formatTime } from '@/lib/utils';
+import Link from 'next/link';
+
+const MotionDiv = motion.div as any;
 
 export default function ClipsPage() {
   const { token, user } = useAppStore();
@@ -43,7 +45,7 @@ export default function ClipsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {clips.map((clip, i) => (
-              <motion.div
+              <MotionDiv
                 key={clip.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -79,7 +81,7 @@ export default function ClipsPage() {
                   className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors">
                   <Play className="w-4 h-4" /> Watch from here
                 </Link>
-              </motion.div>
+              </MotionDiv>
             ))}
           </div>
         )}

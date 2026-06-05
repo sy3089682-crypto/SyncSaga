@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, Room, Message, RoomMember } from '@syncsaga/shared';
+import { User, Room, Message, RoomMember } from '@syncsaga/types';
 
 interface OnlineUser {
   user_id: string;

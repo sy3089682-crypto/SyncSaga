@@ -2,104 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --primary: #8b5cf6;
-  --primary-dark: #7c3aed;
+  --bg-default: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-elevated: #181818;
+
+  --border-default: #1f1f1f;
+  --border-subtle: #161616;
+  --border-strong: #2a2a2a;
+
+  --accent-purple: #9333ea;
   --accent-cyan: #06b6d4;
   --accent-pink: #ec4899;
-  --accent-green: #10b981;
-  --bg: #0a0a0f;
-  --surface: #12121a;
-  --surface-light: #1a1a25;
-  --border: #2a2a3a;
-  --text: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --accent-orange: #f97316;
+
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
+  --text-inverse: #0a0a0a;
+
+  --status-success: #22c55e;
+  --status-warning: #f59e0b;
+  --status-error: #ef4444;
+  --status-info: #3b82f6;
+
+  --rank-newcomer: #6b7280;
+  --rank-watcher: #22c55e;
+  --rank-otaku: #3b82f6;
+  --rank-elite: #9333ea;
+  --rank-legend: #f59e0b;
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   html {
+    background-color: var(--bg-default);
+    color: var(--text-primary);
     scroll-behavior: smooth;
-    -webkit-tap-highlight-color: transparent;
   }
+
   body {
-    @apply bg-background text-text-primary antialiased;
-    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
-    overscroll-behavior: none;
+    background-color: var(--bg-default);
+    color: var(--text-primary);
+    font-family: system-ui, 'Geist', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
   ::selection {
-    background: rgba(139, 92, 246, 0.3);
-    color: white;
+    background-color: rgba(147, 51, 234, 0.2); /* #9333ea33 */
+    color: var(--text-primary);
   }
-  :focus-visible {
-    @apply outline-2 outline-primary outline-offset-2;
-  }
-}
 
-@layer components {
-  .glass {
-    background: rgba(18, 18, 26, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(42, 42, 58, 0.5);
+  /* Custom scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
   }
-  .glass-strong {
-    background: rgba(18, 18, 26, 0.95);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-  }
-  .bg-card-gradient {
-    background: linear-gradient(135deg, rgba(18, 18, 26, 0.8), rgba(26, 26, 37, 0.4));
-  }
-  .text-gradient {
-    @apply bg-gradient-to-r from-primary via-accent-pink to-accent-cyan bg-clip-text text-transparent;
-  }
-}
 
-@layer utilities {
-  .animate-float {
-    animation: float 8s ease-in-out infinite;
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-  .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 4s ease infinite;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-}
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-}
-
-@keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
-}
 
-@media (max-width: 640px) {
-  .glass {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--border-default);
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-strong);
   }
 }

@@ -155,7 +155,7 @@ export default function AnimeDetailPage() {
               <section>
                 <h2 className="text-lg font-semibold mb-3">Genres</h2>
                 <div className="flex flex-wrap gap-2">
-                  {media.genres.map(g => (
+                  {media.genres.map((g: string) => (
                     <Link key={g} href={`/search?genre=${g}`}
                       className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm hover:bg-primary/20 transition-colors">
                       {g}

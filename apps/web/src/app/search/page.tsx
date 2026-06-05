@@ -155,7 +155,7 @@ export default function SearchPage() {
         <div className="p-3 space-y-2">
           {anime.genres && anime.genres.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {anime.genres.slice(0, 3).map(g => (
+              {anime.genres.slice(0, 3).map((g: string) => (
                 <span key={g} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px]">{g}</span>
               ))}
             </div>
@@ -250,7 +250,7 @@ export default function SearchPage() {
                 <div>
                   <p className="text-xs text-text-muted uppercase tracking-wider mb-2">Genre</p>
                   <div className="flex flex-wrap gap-2">
-                    {genres.map(g => (
+                    {genres.map((g: string) => (
                       <button key={g} onClick={() => handleGenreClick(g)}
                         className={cn(
                           'px-3 py-1 rounded-full text-xs font-medium transition-colors border',

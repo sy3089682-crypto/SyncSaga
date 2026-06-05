@@ -55,7 +55,7 @@ export function useSyncEngine(roomId: string) {
 
     const socket = getSocket();
 
-    const onSyncState = (state: SyncState) => {
+    const onSyncState = (state: any) => {
       lastHostState.current = state;
       hostTimeRef.current = Date.now();
       clientTimeRef.current = state.timestamp;

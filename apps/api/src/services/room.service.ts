@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { redisService } from './redis.service';
-import { Room, RoomMember } from '@syncsaga/shared';
+import { Room, RoomMember } from '@syncsaga/types';
 import { logger } from '../lib/logger';
 
 export class RoomService {

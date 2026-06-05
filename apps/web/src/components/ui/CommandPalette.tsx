@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, MouseEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -33,7 +33,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     if (open) {
@@ -52,7 +52,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { id: 'clips', label: 'Browse Clips', icon: FileText, action: () => router.push('/clips'), shortcut: 'G C', category: 'Navigation' },
     { id: 'profile', label: 'Profile', icon: Users, action: () => router.push('/profile'), shortcut: 'G P', category: 'Navigation' },
     { id: 'create-room', label: 'Create Room', icon: Plus, action: () => router.push('/room/create'), shortcut: 'C', category: 'Actions' },
-    { id: 'signout', label: 'Sign Out', icon: LogOut, action: () => { logout(); router.push('/'); }, shortcut: '', category: 'Actions' },
+    { id: 'signout', label: 'Sign Out', icon: LogOut, action: () => { signOut(); router.push('/'); }, shortcut: '', category: 'Actions' },
   ];
 
   const filtered = query
@@ -97,7 +97,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.15 }}
             className="w-full max-w-lg mx-4 rounded-2xl bg-surface border border-border shadow-2xl overflow-hidden"
-            onClick={e => e.stopPropagation()}
+            onClick={(e: MouseEvent) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
               <Search className="w-5 h-5 text-text-muted shrink-0" />

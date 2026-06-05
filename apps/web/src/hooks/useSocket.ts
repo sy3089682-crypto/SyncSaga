@@ -43,7 +43,7 @@ export function useSocket(token?: string | null) {
           playback_position: state.timestamp,
           playback_state: state.playback_state as any,
           playback_speed: state.speed,
-          current_episode: state.episode,
+          episode_number: state.episode_number,
         });
       } catch {}
     };
@@ -59,7 +59,7 @@ export function useSocket(token?: string | null) {
     };
 
     const onReactionNew = (reaction: any) => {
-      try { useAppStore.getState().addTimelineReaction?.(reaction); } catch {}
+      try { (useAppStore.getState() as any).addTimelineReaction?.(reaction); } catch {}
     };
 
     socket.on('room:state', onRoomState);
@@ -71,13 +71,13 @@ export function useSocket(token?: string | null) {
     socket.on('presence:update', onPresenceUpdate);
     socket.on('reaction:new', onReactionNew);
     socket.on('disconnect', () => {
-      try { useAppStore.getState().setConnectionStatus?.('disconnected'); } catch {}
+      try { (useAppStore.getState() as any).setConnectionStatus?.('disconnected'); } catch {}
     });
     socket.on('connect', () => {
-      try { useAppStore.getState().setConnectionStatus?.('connected'); } catch {}
+      try { (useAppStore.getState() as any).setConnectionStatus?.('connected'); } catch {}
     });
-    socket.on('reconnect_attempt', () => {
-      try { useAppStore.getState().setConnectionStatus?.('reconnecting'); } catch {}
+    (socket as any).on('reconnect_attempt', () => {
+      try { (useAppStore.getState() as any).setConnectionStatus?.('reconnecting'); } catch {}
     });
 
     cleanupRef.current = () => {
@@ -91,7 +91,7 @@ export function useSocket(token?: string | null) {
       socket.off('reaction:new', onReactionNew);
       socket.off('disconnect');
       socket.off('connect');
-      socket.off('reconnect_attempt');
+      (socket as any).off('reconnect_attempt');
     };
 
     socket.on('room:user_left', (userId: string) => {
@@ -107,7 +107,7 @@ export function useSocket(token?: string | null) {
         playback_position: state.timestamp,
         playback_state: state.playback_state as any,
         playback_speed: state.speed,
-        current_episode: state.episode,
+        episode_number: state.episode_number,
       });
     });
 

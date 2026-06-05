@@ -1,48 +1,53 @@
-const CACHE = 'syncsaga-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/robots.txt',
-];
+const CACHE_NAME = 'syncsaga-v1'
+const STATIC_ASSETS = ['/', '/dashboard', '/discover', '/offline']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
-  self.skipWaiting();
-});
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS).catch(() => {}))
+  )
+  self.skipWaiting()
+})
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
-  );
-  self.clients.claim();
-});
+  )
+  self.clients.claim()
+})
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  if (event.request.method !== 'GET') return
+  if (event.request.url.includes('/api/') || event.request.url.includes('supabase')) return
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((response) => {
-        if (response.ok && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, clone));
+    fetch(event.request)
+      .then(response => {
+        if (response.status === 200) {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone))
         }
-        return response;
-      }).catch(() => cached);
+        return response
+      })
+      .catch(() => caches.match(event.request).then(cached => cached ?? caches.match('/offline')))
+  )
+})
 
-      return cached || fetchPromise;
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+  const data = event.data.json()
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url },
     })
-  );
-});
+  )
+})
 
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(clients.openWindow(event.notification.data?.url ?? '/'))
+})

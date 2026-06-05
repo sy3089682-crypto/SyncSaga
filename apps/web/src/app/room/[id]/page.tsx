@@ -150,10 +150,10 @@ export default function RoomPage() {
             {isHost && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-            {currentRoom?.anime_media_id && isHost && (
+            {currentRoom?.anime_id && isHost && (
               <EpisodePicker
-                mediaId={currentRoom.anime_media_id}
-                currentEpisode={currentRoom.current_episode_number}
+                mediaId={currentRoom.anime_id}
+                currentEpisode={currentRoom.episode_number}
                 onSelect={(mediaId, ep) => {
                   setEpisode(`Episode ${ep}`);
                   getSocket().emit('anime:set_episode', { roomId, mediaId, episode: ep });
@@ -172,7 +172,7 @@ export default function RoomPage() {
               </span>
             )}
             <FriendsFeed collapsed={!showFeed} onToggle={() => setShowFeed(!showFeed)} />
-            <AiRecap roomId={roomId} animeTitle={currentRoom?.anime_title} episodeNumber={currentRoom?.current_episode_number} />
+            <AiRecap roomId={roomId} animeTitle={currentRoom?.anime_title || undefined} episodeNumber={currentRoom?.episode_number || undefined} />
             <button onClick={() => setShowSidebar(!showSidebar)}
               className={cn("p-2 rounded-lg transition-colors", showSidebar ? 'bg-primary/20 text-primary' : 'hover:bg-surface-light text-text-secondary')}>
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -324,8 +324,8 @@ export default function RoomPage() {
               <div className="flex-1 overflow-y-auto min-h-0">
                 <AnimeInfoSidebar
                   animeTitle={episode}
-                  mediaId={currentRoom?.anime_media_id || null}
-                  currentEpisode={currentRoom?.current_episode_number || null}
+                  mediaId={currentRoom?.anime_id || null}
+                  currentEpisode={currentRoom?.episode_number || null}
                   onSetEpisode={(mediaId, ep) => {
                     sendSyncEvent({ type: 'episode', timestamp: 0, episode: `Episode ${ep}` });
                   }}
@@ -341,11 +341,11 @@ export default function RoomPage() {
                     <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                       <div className="flex items-start gap-2">
                         <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
-                          {msg.sender?.username?.[0]?.toUpperCase() || '?'}
+                          {msg.profile?.username?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-primary">{msg.sender?.username || 'User'}</span>
+                            <span className="text-sm font-medium text-primary">{msg.profile?.username || 'User'}</span>
                             <span className="text-[10px] text-text-muted">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                           <p className="text-sm text-text-primary break-words">{msg.content}</p>

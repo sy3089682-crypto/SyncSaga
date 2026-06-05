@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 const publicPaths = ['/', '/auth/login', '/auth/register', '/auth/callback'];
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuth();
+  const { isLoading: loading } = useAuth();
   const pathname = usePathname();
   const isAuthenticated = useAppStore(s => s.isAuthenticated);
   const router = useRouter();

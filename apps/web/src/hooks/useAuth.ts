@@ -1,77 +1,58 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useAppStore } from '@/store/useAppStore';
-import { api } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
-import { User } from '@syncsaga/shared';
+'use client'
+import { useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/store/authStore'
 
 export function useAuth() {
-  const { user, token, setUser, setToken, logout: storeLogout } = useAppStore();
-  const [loading, setLoading] = useState(true);
+  const {
+    user,
+    session,
+    isLoading,
+    isAuthenticated,
+    tier,
+    setUser,
+    setSession,
+    signOut,
+    refreshProfile,
+  } = useAuthStore()
 
   useEffect(() => {
-    const existingToken = useAppStore.getState().token;
-    if (existingToken) {
-      setLoading(false);
-      return;
-    }
+    const supabase = createClient()
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setToken(session.access_token);
-        supabase.from('profiles').select('*').eq('id', session.user.id).single()
+      setSession(session as any)
+      if (session?.user) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
           .then(({ data }) => {
-            if (data) setUser(data as User);
-          });
+            if (data) setUser(data as any)
+          })
       }
-      setLoading(false);
-    });
+      useAuthStore.setState({ isLoading: false })
+    })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setToken(session.access_token);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session as any)
+      if (session?.user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+        if (data) setUser(data as any)
       } else {
-        storeLogout();
+        setUser(null)
       }
-    });
+      useAuthStore.setState({ isLoading: false })
+    })
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => subscription.unsubscribe()
+  }, [])
 
-  const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
-  };
-
-  const register = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (data.user) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        username,
-        display_name: username,
-      });
-    }
-    return data;
-  };
-
-  const loginWithGoogle = () => supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
-  });
-
-  const loginWithDiscord = () => supabase.auth.signInWithOAuth({
-    provider: 'discord',
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
-  });
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    storeLogout();
-  };
-
-  return { user, token, loading, login, register, loginWithGoogle, loginWithDiscord, logout, setToken, setUser };
+  return { user, session, isLoading, isAuthenticated, tier, signOut, refreshProfile }
 }

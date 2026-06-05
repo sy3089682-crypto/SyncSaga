@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
-import { ServerToClientEvents, ClientToServerEvents, Message, User } from '@syncsaga/shared';
+import { ServerToClientEvents, ClientToServerEvents, Message, User } from '@syncsaga/types';
 import { redisService } from '../../services/redis.service';
 import { moderationService } from '../../services/moderation.service';
 import { logger } from '../../lib/logger';

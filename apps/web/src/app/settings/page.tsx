@@ -9,7 +9,8 @@ import { useThemeStore, Theme } from '@/store/useThemeStore';
 import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
-  const { user, token, logout } = useAuth();
+  const { user, session, signOut } = useAuth();
+  const token = session?.access_token;
   const { theme, setTheme } = useThemeStore();
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,7 @@ export default function SettingsPage() {
     if (!token) return;
     setUpdating(true);
     try {
-      const data = await api.post('/api/payments/create-checkout', {
+      const data = await api.post<any>('/api/payments/create-checkout', {
         priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_premium',
         successUrl: `${window.location.origin}/settings`,
       }, token);
@@ -66,7 +67,7 @@ export default function SettingsPage() {
                 {tab.label}
               </button>
             ))}
-            <button onClick={logout}
+            <button onClick={signOut}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10 transition-all text-left mt-4">
               <LogOut className="w-4 h-4" />
               Sign Out
@@ -84,7 +85,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="font-medium text-lg">{user?.display_name || user?.username}</p>
-                      <p className="text-sm text-text-secondary">{user?.email}</p>
+                      <p className="text-sm text-text-secondary">{session?.user?.email}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

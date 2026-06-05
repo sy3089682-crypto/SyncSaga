@@ -30,7 +30,7 @@ export default function RootError({
       </p>
       <div className="flex gap-3">
         <Button onClick={reset}>Try again</Button>
-        <Button variant="outline" onClick={() => window.location.href = '/'}>
+        <Button variant="secondary" onClick={() => window.location.href = '/'}>
           Go home
         </Button>
       </div>

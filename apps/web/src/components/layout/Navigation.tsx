@@ -16,7 +16,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   if (pathname === '/' || pathname?.startsWith('/auth/') || pathname?.startsWith('/room/')) return null;
 
@@ -51,7 +51,7 @@ export function Sidebar() {
       </nav>
 
       <div className="p-3 border-t border-border">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-light transition-colors cursor-pointer" onClick={logout}>
+        <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-light transition-colors cursor-pointer" onClick={signOut}>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent-pink flex items-center justify-center text-sm font-semibold shrink-0">
             {user?.username?.[0]?.toUpperCase() || 'U'}
           </div>

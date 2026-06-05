@@ -11,7 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@syncsaga/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@syncsaga/types': path.resolve(__dirname, '../../packages/types'),
     },
   },
 });

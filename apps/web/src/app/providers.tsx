@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState, useCallback } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { Sidebar, BottomNav } from '@/components/layout/Navigation';
@@ -9,6 +9,9 @@ import { getSocket } from '@/lib/socket';
 import { ToastProvider } from '@/hooks/useToast';
 import { CommandPalette, useCommandPalette } from '@/components/ui/CommandPalette';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from 'react-hot-toast';
 
 function SocketInitializer({ token }: { token: string | null }) {
   useEffect(() => {
@@ -27,19 +30,44 @@ function GlobalShortcuts({ onTogglePalette }: { onTogglePalette: () => void }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
+      },
+    },
+  }));
+
   return (
-    <ErrorBoundary>
-      <AuthGuard>
-        <ToastProvider>
-          <InnerProviders>{children}</InnerProviders>
-        </ToastProvider>
-      </AuthGuard>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#111111',
+              color: '#fafafa',
+              border: '1px solid #1f1f1f',
+            },
+          }}
+        />
+        <ErrorBoundary>
+          <AuthGuard>
+            <ToastProvider>
+              <InnerProviders>{children}</InnerProviders>
+            </ToastProvider>
+          </AuthGuard>
+        </ErrorBoundary>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
 function InnerProviders({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { session } = useAuth();
+  const token = session?.access_token;
   const palette = useCommandPalette();
   const { user } = useAuth();
 
@@ -51,7 +79,7 @@ function InnerProviders({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <SocketInitializer token={token} />
+      <SocketInitializer token={token || null} />
       <GlobalShortcuts onTogglePalette={palette.toggle} />
       <CommandPalette open={palette.open} onClose={palette.close} />
       <div className="flex min-h-screen bg-background">

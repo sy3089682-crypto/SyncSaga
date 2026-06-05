@@ -2,7 +2,7 @@ import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
 import { roomService } from '../../services/room.service';
 import { redisService } from '../../services/redis.service';
-import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
+import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/types';
 import { logger } from '../../lib/logger';
 
 export function roomHandler(

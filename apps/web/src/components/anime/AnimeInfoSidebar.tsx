@@ -147,7 +147,7 @@ export function AnimeInfoSidebar({
             <motion.div key="info" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-3 space-y-3">
               {media.genres && media.genres.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {media.genres.slice(0, 5).map(g => (
+                  {media.genres.slice(0, 5).map((g: string) => (
                     <span key={g} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">{g}</span>
                   ))}
                 </div>
@@ -196,7 +196,7 @@ export function AnimeInfoSidebar({
               {media.studios?.nodes && media.studios.nodes.length > 0 && (
                 <div>
                   <p className="text-[10px] uppercase text-text-muted tracking-wider mb-1">Studio</p>
-                  <p className="text-xs">{media.studios.nodes.filter(s => s.isAnimationStudio)[0]?.name || media.studios.nodes[0]?.name}</p>
+                  <p className="text-xs">{media.studios.nodes.filter((s: any) => s.isAnimationStudio)[0]?.name || media.studios.nodes[0]?.name}</p>
                 </div>
               )}
 

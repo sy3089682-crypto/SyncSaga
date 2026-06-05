@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { getSocket } from '@/lib/socket';
 
 export function useRoom(roomId: string) {
-  const { currentRoom, messages, roomMembers, setCurrentRoom, setMessages, setRoomMembers, addMessage, addRoomMember, removeRoomMember, updateRoomState } = useAppStore();
+  const { user, currentRoom, messages, roomMembers, setCurrentRoom, setMessages, setRoomMembers, addMessage, addRoomMember, removeRoomMember, updateRoomState } = useAppStore();
 
   const join = useCallback(() => {
     const socket = getSocket();
@@ -31,10 +31,10 @@ export function useRoom(roomId: string) {
     socket.emit('chat:typing', { roomId, isTyping });
   }, [roomId]);
 
-  const sendSyncEvent = useCallback((event: { type: string; timestamp: number; playback_speed?: number; episode?: string }) => {
+  const sendSyncEvent = useCallback((event: { type: 'play' | 'pause' | 'seek' | 'speed' | 'episode' | 'fullscreen' | 'buffering' | 'ready'; timestamp: number; playback_speed?: number; episode?: string }) => {
     const socket = getSocket();
-    socket.emit('sync:event', { room_id: roomId, ...event });
-  }, [roomId]);
+    socket.emit('sync:event', { room_id: roomId, user_id: user?.id || '', ...event });
+  }, [roomId, user?.id]);
 
   const sendReaction = useCallback((messageId: string, emoji: string) => {
     const socket = getSocket();

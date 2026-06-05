@@ -153,7 +153,7 @@ export default function DiscoverPage() {
             </button>
           ))}
           <div className="w-px h-6 bg-border mx-2 shrink-0" />
-          {genres.map(g => (
+          {genres.map((g: string) => (
             <button key={g} onClick={() => setGenreFilter(genreFilter === g ? null : g)}
               className={cn(
                 'px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap',

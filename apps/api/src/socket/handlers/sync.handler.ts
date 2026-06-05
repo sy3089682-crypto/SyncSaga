@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
 import { redisService } from '../../services/redis.service';
-import { ServerToClientEvents, ClientToServerEvents, SyncEvent } from '@syncsaga/shared';
+import { ServerToClientEvents, ClientToServerEvents, SyncEvent } from '@syncsaga/types';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabase';
 

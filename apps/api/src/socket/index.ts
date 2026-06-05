@@ -4,7 +4,7 @@ import { roomHandler } from './handlers/room.handler';
 import { syncHandler } from './handlers/sync.handler';
 import { chatHandler } from './handlers/chat.handler';
 import { presenceHandler } from './handlers/presence.handler';
-import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
+import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/types';
 import { redisService } from '../services/redis.service';
 import { logger } from '../lib/logger';
 

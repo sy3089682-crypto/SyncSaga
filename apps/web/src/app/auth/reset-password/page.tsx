@@ -31,7 +31,7 @@ export default function ResetPasswordPage() {
       if (token) {
         await api.post('/api/auth/reset-password', { token, newPassword });
       } else {
-        const { error: supabaseError } = await (await import('@supabase/ssr')).createClient().auth.updateUser({ password: newPassword });
+        const { error: supabaseError } = await (await import('@/lib/supabase')).supabase.auth.updateUser({ password: newPassword });
         if (supabaseError) throw new Error(supabaseError.message);
       }
       setSuccess(true);

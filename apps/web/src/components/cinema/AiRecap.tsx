@@ -90,7 +90,7 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
           <motion.div
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
-            onClick={e => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
             className="relative max-w-lg w-full max-h-[80vh] overflow-y-auto rounded-2xl bg-surface-dark border border-border p-6"
           >
             <button

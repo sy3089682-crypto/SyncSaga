@@ -40,9 +40,9 @@ export default function RoomError({
       </p>
       <div className="flex gap-3">
         {!isBanned && <Button onClick={reset}><RefreshCw className="mr-1 h-4 w-4" /> Try again</Button>}
-        <Button variant="outline" asChild>
-          <Link href="/discover">Browse rooms</Link>
-        </Button>
+        <Link href="/discover" className="inline-flex items-center justify-center rounded-xl font-medium transition-all px-4 py-2.5 text-base bg-surface-light border border-border text-text-primary hover:border-primary/50">
+          Browse rooms
+        </Link>
       </div>
     </div>
   );

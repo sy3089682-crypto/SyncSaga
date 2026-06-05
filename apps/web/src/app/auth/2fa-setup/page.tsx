@@ -9,7 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function TwoFactorSetupPage() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { session } = useAuth();
+  const token = session?.access_token;
   const [qrCode, setQrCode] = useState('');
   const [secret, setSecret] = useState('');
   const [verifyToken, setVerifyToken] = useState('');

@@ -24,7 +24,7 @@ export default function CreateRoomPage() {
     }
 
     setLoading(true)
-    const slug = \`\${name.toLowerCase().replace(/\\s+/g, '-')}-\${uuidv4().substring(0, 8)}\`
+    const slug = `${name.toLowerCase().replace(/\\s+/g, '-')}-${uuidv4().substring(0, 8)}`
     
     try {
       const { error } = await supabase.from('rooms').insert({
@@ -39,7 +39,7 @@ export default function CreateRoomPage() {
       if (error) throw error
 
       toast.success("Room created!")
-      router.push(\`/rooms/\${slug}\`)
+      router.push(`/rooms/${slug}`)
     } catch (error: any) {
       toast.error(error.message || "Failed to create room")
     } finally {

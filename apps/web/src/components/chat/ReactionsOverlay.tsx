@@ -38,7 +38,7 @@ export function ReactionsOverlay() {
         <div
           key={r.id}
           className="absolute bottom-0 text-4xl animate-float-up"
-          style={{ left: \`\${r.x}%\` }}
+          style={{ left: `${r.x}%` }}
         >
           {r.emoji}
         </div>

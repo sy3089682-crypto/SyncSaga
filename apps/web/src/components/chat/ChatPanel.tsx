@@ -70,7 +70,7 @@ export function ChatPanel() {
         {messages.map((msg) => (
           <div key={msg.id} className="flex gap-3">
             <Avatar className="w-8 h-8">
-              <AvatarImage src={\`https://api.dicebear.com/7.x/avataaars/svg?seed=\${msg.username}\`} />
+              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`} />
               <AvatarFallback>{msg.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>

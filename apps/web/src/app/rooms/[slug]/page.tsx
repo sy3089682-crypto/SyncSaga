@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { useRoomStore, useAuthStore, useSocketStore } from "@/store"
+import { Card } from "@syncsaga/ui"
 import { io } from "socket.io-client"
 import { VideoPlayer } from "@/components/video/VideoPlayer"
 import { ChatPanel } from "@/components/chat/ChatPanel"

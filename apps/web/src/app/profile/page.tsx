@@ -18,7 +18,7 @@ export default function ProfilePage() {
         <div className="h-32 bg-accent-purple/20 bg-gradient-to-r from-accent-purple/40 to-transparent" />
         <div className="px-6 pb-6 relative">
           <Avatar className="w-24 h-24 border-4 border-base absolute -top-12">
-            <AvatarImage src={profile?.avatar_url || \`https://api.dicebear.com/7.x/avataaars/svg?seed=\${profile?.username || user.email}\`} />
+            <AvatarImage src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username || user.email}`} />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
           <div className="mt-14 flex justify-between items-start">

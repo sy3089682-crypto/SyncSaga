@@ -45,7 +45,7 @@ export default function LeaderboardPage() {
               <div className="w-16 flex justify-center">{getRankIcon(u.rank)}</div>
               <div className="flex-1 flex items-center gap-3">
                 <Avatar>
-                  <AvatarImage src={\`https://api.dicebear.com/7.x/avataaars/svg?seed=\${u.avatar}\`} />
+                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${u.avatar}`} />
                   <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <span className="font-semibold text-white">{u.name}</span>

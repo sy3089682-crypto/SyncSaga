@@ -1,30 +1,20 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express from 'express';
+import { createServer } from './server';
+import { logger } from './lib/logger';
 
-const app = express();
-const PORT = parseInt(process.env.PORT || '4000', 10);
+const PORT = Number.parseInt(process.env.PORT || '4000', 10);
 
-app.get('/test-dynamic', async (_req, res) => {
-  const results: Record<string, any> = {};
-  try { const m = await import('@syncsaga/config'); results.config = 'ok'; } catch(e: any) { results.config = e.message; }
-  try { const m = await import('@syncsaga/types'); results.types = 'ok'; } catch(e: any) { results.types = e.message; }
-  res.json(results);
-});
+async function bootstrap() {
+  const { httpServer } = await createServer();
 
-app.get('/test-static', (_req, res) => {
-  let config: any, types: any;
-  const results: Record<string, any> = {};
-  try { config = require('@syncsaga/config'); results.config = 'ok'; } catch(e: any) { results.config = e.message; }
-  try { types = require('@syncsaga/types'); results.types = 'ok'; } catch(e: any) { results.types = e.message; }
-  res.json(results);
-});
+  httpServer.listen(PORT, () => {
+    logger.info({ port: PORT }, 'SyncSaga API listening');
+  });
+}
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', port: PORT });
-});
-
-app.listen(PORT, () => {
-  console.log(`listening on port ${PORT}`);
+bootstrap().catch((err) => {
+  logger.fatal({ err }, 'Failed to start SyncSaga API');
+  process.exit(1);
 });

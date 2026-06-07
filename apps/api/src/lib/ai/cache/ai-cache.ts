@@ -53,15 +53,9 @@ export class AiCache {
     try {
       const client = redisService.getClient();
       const key = `${RATE_LIMIT_PREFIX}${provider}`;
-      const current = await client.get(key);
-      if (!current) {
-        await client.setEx(key, 60, '1');
-        return true;
-      }
-      const count = parseInt(current, 10);
-      if (count >= maxPerMinute) return false;
-      await client.incr(key);
-      return true;
+      const count = await client.incr(key);
+      if (count === 1) await client.expire(key, 60);
+      return count <= maxPerMinute;
     } catch {
       return true;
     }
@@ -70,7 +64,10 @@ export class AiCache {
   async invalidatePattern(pattern: string): Promise<void> {
     try {
       const client = redisService.getClient();
-      const keys = await client.keys(`${AI_CACHE_PREFIX}${pattern}*`);
+      const keys: string[] = [];
+      for await (const key of client.scanIterator({ MATCH: `${AI_CACHE_PREFIX}${pattern}*`, COUNT: 100 })) {
+        keys.push(String(key));
+      }
       if (keys.length > 0) {
         await client.del(keys);
         logger.debug({ count: keys.length, pattern }, 'AI cache invalidated');

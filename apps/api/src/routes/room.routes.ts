@@ -1,31 +1,27 @@
 import { Router, Request, Response } from 'express';
-import { roomService } from '../services/room.service';
-import { verifyToken } from '../lib/jwt';
+import { roomService, decodeRoomCursor } from '../services/room.service';
 import { z } from 'zod';
+import { getAuthenticatedUser } from '../middleware/auth';
 
 const router = Router();
+const requireAuth = getAuthenticatedUser;
 
-function requireAuth(req: Request, res: Response): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authentication required' });
-    return null;
-  }
+const listRoomsSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  cursor: z.string().optional(),
+  animeMediaId: z.coerce.number().int().positive().optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+});
 
-  const token = authHeader.slice(7);
-  const decoded = verifyToken(token);
-  
-  if (!decoded) {
-    res.status(401).json({ error: 'Invalid token' });
-    return null;
-  }
+router.get('/', async (req, res) => {
+  const params = listRoomsSchema.safeParse(req.query);
+  if (!params.success) return res.status(400).json({ error: 'Invalid query', details: params.error.errors });
 
-  return decoded.userId;
-}
+  const cursor = decodeRoomCursor(params.data.cursor);
+  if (params.data.cursor && !cursor) return res.status(400).json({ error: 'Invalid cursor' });
 
-router.get('/', async (_req, res) => {
-  const rooms = await roomService.getPublicRooms(50);
-  res.json({ rooms });
+  const page = await roomService.getPublicRoomsPage({ ...params.data, cursor });
+  res.json(page);
 });
 
 router.get('/:id', async (req, res) => {
@@ -43,9 +39,14 @@ const createRoomSchema = z.object({
   maxUsers: z.number().min(2).max(50).optional(),
   animeTitle: z.string().optional(),
   animeMediaId: z.number().optional(),
+  password: z.string().min(8).max(128).optional(),
+}).superRefine((data, ctx) => {
+  if (data.isPrivate && !data.password) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['password'], message: 'Password is required for private rooms' });
+  }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 

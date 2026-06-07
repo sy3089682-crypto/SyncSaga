@@ -4,6 +4,7 @@ import { redisService } from '../../services/redis.service';
 import { ServerToClientEvents, ClientToServerEvents, SyncEvent } from '@syncsaga/types';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabase';
+import { formatZodError, roomIdPayloadSchema, setEpisodeSchema, syncEventSchema, syncLockSchema } from '../schemas';
 
 const rttMap = new Map<string, { pingTime: number; rtt: number }>();
 const logicalClocks = new Map<string, number>();
@@ -65,12 +66,16 @@ export function syncHandler(
     return next;
   }
 
-  socket.on('sync:event', async (event: SyncEvent) => {
+  socket.on('sync:event', async (payload: SyncEvent) => {
     try {
       if (!socket.userId) return;
+      const parsed = syncEventSchema.safeParse(payload);
+      if (!parsed.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', details: formatZodError(parsed.error) });
+      }
 
+      const event = { ...parsed.data, user_id: socket.userId } as SyncEvent;
       const roomId = event.room_id;
-      if (!roomId) return;
 
       const roomUsers = await redisService.getRoomUsers(roomId);
       if (!roomUsers.includes(socket.userId)) {
@@ -122,9 +127,14 @@ export function syncHandler(
     }
   });
 
-  socket.on('anime:set_episode', async ({ roomId, mediaId, episode }) => {
+  socket.on('anime:set_episode', async (payload) => {
     try {
-      if (!socket.userId || !roomId) return;
+      const parsed = setEpisodeSchema.safeParse(payload);
+      if (!parsed.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', details: formatZodError(parsed.error) });
+      }
+      const { roomId, mediaId, episode } = parsed.data;
+      if (!socket.userId) return;
       const roomState = await redisService.getRoomState(roomId) || {};
       const isHost = roomState.host_id === socket.userId;
       if (!isHost) {
@@ -166,9 +176,14 @@ export function syncHandler(
     }
   });
 
-  socket.on('sync:lock', async ({ roomId, enabled }) => {
+  socket.on('sync:lock', async (payload) => {
     try {
-      if (!socket.userId || !roomId) return;
+      const parsed = syncLockSchema.safeParse(payload);
+      if (!parsed.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', details: formatZodError(parsed.error) });
+      }
+      const { roomId, enabled } = parsed.data;
+      if (!socket.userId) return;
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
       const isHost = roomState.host_id === socket.userId;
@@ -181,19 +196,26 @@ export function syncHandler(
     }
   });
 
-  socket.on('sync:takeover', async ({ roomId }) => {
+  socket.on('sync:takeover', async (payload) => {
     try {
-      if (!roomId) return;
+      const parsed = roomIdPayloadSchema.safeParse(payload);
+      if (!parsed.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', details: formatZodError(parsed.error) });
+      }
+      const { roomId } = parsed.data;
+      if (!socket.userId) return;
+
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
 
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      if (roomState.host_id && !roomUsers.includes(roomState.host_id)) {
+      const acquired = await redisService.acquireHostTakeover(roomId, socket.userId, roomState.host_id);
+      if (acquired) {
         io.to(roomId).emit('sync:takeover', { newHostId: socket.userId, timestamp: Date.now() });
-        await redisService.setRoomState(roomId, { ...roomState, host_id: socket.userId });
         try {
           await supabase.from('rooms').update({ host_id: socket.userId }).eq('id', roomId);
-        } catch {}
+        } catch (dbErr) {
+          logger.error(dbErr, 'Failed to persist host takeover:');
+        }
         io.to(roomId).emit('room:new_host', { newHostId: socket.userId });
         startHostHeartbeat(roomId);
       }
@@ -202,9 +224,13 @@ export function syncHandler(
     }
   });
 
-  socket.on('sync:request', async ({ roomId }: { roomId: string }) => {
+  socket.on('sync:request', async (payload: { roomId: string }) => {
     try {
-      if (!roomId) return;
+      const parsed = roomIdPayloadSchema.safeParse(payload);
+      if (!parsed.success) {
+        return socket.emit('error', { code: 'VALIDATION_ERROR', details: formatZodError(parsed.error) });
+      }
+      const { roomId } = parsed.data;
       const state = await redisService.getRoomState(roomId);
       if (state) {
         socket.emit('sync:state', {

@@ -27,7 +27,6 @@ import { wsBridge } from './services/wsBridge';
 import { setNotificationSocket } from './services/notification.service';
 import { supabase } from './lib/supabase';
 import { logger } from './lib/logger';
-import { AuthenticatedSocket } from './socket/middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
 import { metrics } from './services/metrics.service';
@@ -58,7 +57,7 @@ export async function createServer() {
   }));
 
   app.use(cors({
-    origin: env.CORS_ORIGIN.split(',').map(s => s.trim()),
+    origin: env.CORS_ORIGIN.split(',').map((s: string) => s.trim()),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
@@ -83,33 +82,46 @@ export async function createServer() {
     next();
   });
 
-  app.get('/health', async (_req, res) => {
-    let dbPing = false;
-    let redisPing = false;
+  app.get('/health/live', (_req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+  });
+
+  app.get('/health/ready', async (_req, res) => {
+    const startedAt = Date.now();
+    const db = { ok: false, latencyMs: 0 };
+    const redis = { ok: false, latencyMs: 0 };
 
     try {
-      const { data } = await supabase.from('rooms').select('id').limit(1);
-      dbPing = true;
-    } catch {}
+      const dbStartedAt = Date.now();
+      await supabase.from('rooms').select('id').limit(1);
+      db.ok = true;
+      db.latencyMs = Date.now() - dbStartedAt;
+    } catch (err) {
+      logger.warn({ err }, 'Supabase readiness check failed');
+    }
 
     try {
-      if (redisService.getClient()) {
-        await redisService.getClient().ping();
-        redisPing = true;
-      }
-    } catch {}
+      const redisStartedAt = Date.now();
+      await redisService.getClient().ping();
+      redis.ok = true;
+      redis.latencyMs = Date.now() - redisStartedAt;
+    } catch (err) {
+      logger.warn({ err }, 'Redis readiness check failed');
+    }
 
-    const healthy = dbPing && redisPing;
+    const healthy = db.ok && redis.ok;
     res.status(healthy ? 200 : 503).json({
       status: healthy ? 'ok' : 'degraded',
       uptime: process.uptime(),
-      dbPing,
-      redisPing,
+      dependencies: { db, redis },
+      latencyMs: Date.now() - startedAt,
       version: process.env.npm_package_version || '1.0.0',
       timestamp: new Date().toISOString(),
       environment: env.NODE_ENV,
     });
   });
+
+  app.get('/health', (_req, res) => res.redirect(307, '/health/ready'));
 
   app.use('/api/auth', authRouter);
   app.use('/api/rooms', roomRouter);
@@ -130,7 +142,7 @@ export async function createServer() {
 
   const io = new Server(httpServer, {
     cors: {
-      origin: env.CORS_ORIGIN.split(',').map(s => s.trim()),
+      origin: env.CORS_ORIGIN.split(',').map((s: string) => s.trim()),
       credentials: true,
     },
     transports: ['websocket', 'polling'],
@@ -152,36 +164,6 @@ export async function createServer() {
   wsBridge.initialize(io);
   setNotificationSocket(io);
 
-  io.on('connection', (socket) => {
-    metrics.setConnectedSockets(io.engine.clientsCount);
-
-    socket.on('reaction:add', async (data) => {
-      const { roomId, timestampSec, type, content } = data;
-      if (!roomId || timestampSec === undefined || !type) return;
-
-      const authSocket = socket as AuthenticatedSocket;
-      if (!authSocket.userId) return;
-      const userId = authSocket.userId;
-
-      const { data: reaction } = await supabase
-        .from('timeline_reactions')
-        .insert({ room_id: roomId, user_id: userId, timestamp_sec: timestampSec, type, content })
-        .select('*, profiles:user_id(username, avatar_url)')
-        .single();
-
-      if (reaction) {
-        socket.to(roomId).emit('reaction:new', reaction);
-        await supabase.from('activity_feed').insert({
-          user_id: userId, type: 'reaction',
-          data: { roomId, timestampSec, reactionType: type },
-        });
-      }
-    });
-
-    socket.on('disconnect', () => {
-      metrics.setConnectedSockets(io.engine.clientsCount);
-    });
-  });
 
   return { app, httpServer, io };
 }

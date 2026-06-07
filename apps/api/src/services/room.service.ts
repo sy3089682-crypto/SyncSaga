@@ -2,6 +2,40 @@ import { supabase } from '../lib/supabase';
 import { redisService } from './redis.service';
 import { Room, RoomMember } from '@syncsaga/types';
 import { logger } from '../lib/logger';
+import { hashRoomPassword, verifyRoomPassword } from '../lib/crypto';
+
+export type PublicRoomCursor = {
+  createdAt: string;
+  id: string;
+};
+
+export type PublicRoomsOptions = {
+  limit?: number;
+  cursor?: PublicRoomCursor;
+  animeMediaId?: number;
+  search?: string;
+};
+
+function encodeCursor(room: Room): string {
+  return Buffer.from(JSON.stringify({ createdAt: room.created_at, id: room.id })).toString('base64url');
+}
+
+export function decodeRoomCursor(cursor?: string): PublicRoomCursor | undefined {
+  if (!cursor) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as PublicRoomCursor;
+    if (!parsed.createdAt || !parsed.id) return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+function redactRoom<T extends Room>(room: T): Omit<T, 'password_hash'> {
+  const safeRoom = { ...room };
+  delete safeRoom.password_hash;
+  return safeRoom;
+}
 
 export class RoomService {
   async createRoom(data: {
@@ -12,6 +46,7 @@ export class RoomService {
     hostId: string;
     animeTitle?: string;
     animeMediaId?: number;
+    password?: string;
   }): Promise<Room | null> {
     const insertData: any = {
       name: data.name,
@@ -22,6 +57,13 @@ export class RoomService {
     };
     if (data.animeTitle) insertData.anime_title = data.animeTitle;
     if (data.animeMediaId) insertData.anime_media_id = data.animeMediaId;
+    if (data.isPrivate) {
+      if (!data.password) {
+        logger.warn({ hostId: data.hostId }, 'Private room creation attempted without a password');
+        return null;
+      }
+      insertData.password_hash = await hashRoomPassword(data.password);
+    }
 
     const { data: room, error } = await supabase
       .from('rooms')
@@ -54,10 +96,28 @@ export class RoomService {
       sync_lock: false,
     });
 
-    return room as Room;
+    return redactRoom(room as Room) as Room;
   }
 
   async getRoom(roomId: string): Promise<(Room & { members: RoomMember[] }) | null> {
+    const { data: room, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('id', roomId)
+      .single();
+
+    if (error || !room) return null;
+
+    const { data: members } = await supabase
+      .from('room_members')
+      .select('*')
+      .eq('room_id', roomId)
+      .eq('is_banned', false);
+
+    return redactRoom({ ...room, members: members || [] } as Room & { members: RoomMember[] }) as Room & { members: RoomMember[] };
+  }
+
+  private async getRoomWithSecret(roomId: string): Promise<(Room & { members: RoomMember[] }) | null> {
     const { data: room, error } = await supabase
       .from('rooms')
       .select('*')
@@ -76,7 +136,7 @@ export class RoomService {
   }
 
   async joinRoom(roomId: string, userId: string, password?: string): Promise<{ success: boolean; error?: string }> {
-    const room = await this.getRoom(roomId);
+    const room = await this.getRoomWithSecret(roomId);
     if (!room) return { success: false, error: 'Room not found' };
 
     const isBanned = (room as any).banned_users?.includes(userId);
@@ -90,7 +150,9 @@ export class RoomService {
 
     if (room.is_private) {
       if (!password) return { success: false, error: 'PASSWORD_REQUIRED' };
-      if (password !== (room as any).password_hash) return { success: false, error: 'INVALID_PASSWORD' };
+      if (!room.password_hash || !(await verifyRoomPassword(password, room.password_hash))) {
+        return { success: false, error: 'INVALID_PASSWORD' };
+      }
     }
 
     const { error } = await supabase
@@ -131,15 +193,34 @@ export class RoomService {
     }
   }
 
-  async getPublicRooms(limit = 20): Promise<Room[]> {
-    const { data } = await supabase
+  async getPublicRooms(options: number | PublicRoomsOptions = 20): Promise<Room[]> {
+    const config = typeof options === 'number' ? { limit: options } : options;
+    const limit = Math.min(Math.max(config.limit ?? 20, 1), 50);
+
+    let query = supabase
       .from('rooms')
       .select('*')
       .eq('is_private', false)
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .order('id', { ascending: false })
+      .limit(limit + 1);
 
-    return (data || []) as Room[];
+    if (config.animeMediaId) query = query.eq('anime_media_id', config.animeMediaId);
+    if (config.search) query = query.ilike('name', `%${config.search}%`);
+    if (config.cursor) {
+      query = query.or(`created_at.lt.${config.cursor.createdAt},and(created_at.eq.${config.cursor.createdAt},id.lt.${config.cursor.id})`);
+    }
+
+    const { data } = await query;
+    const rows = ((data || []) as Room[]).map((room) => redactRoom(room) as Room);
+    return rows.slice(0, limit);
+  }
+
+  async getPublicRoomsPage(options: PublicRoomsOptions = {}): Promise<{ rooms: Room[]; nextCursor: string | null }> {
+    const limit = Math.min(Math.max(options.limit ?? 20, 1), 50);
+    const rooms = await this.getPublicRooms({ ...options, limit });
+    const nextCursor = rooms.length === limit ? encodeCursor(rooms[rooms.length - 1]) : null;
+    return { rooms, nextCursor };
   }
 }
 

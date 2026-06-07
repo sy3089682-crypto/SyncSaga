@@ -7,6 +7,8 @@ const REQUIRED_ENV_VARS: Record<string, string> = {
   SUPABASE_SERVICE_KEY: 'test-service-key',
   JWT_SECRET: 'test-jwt-secret-with-at-least-32-chars!!',
   JWT_REFRESH_SECRET: 'test-refresh-secret-with-at-least-32-chars!!',
+  CSRF_SECRET: 'test-csrf-secret-with-at-least-32-chars!!',
+  TOTP_ENCRYPTION_KEY: 'test-totp-secret-with-at-least-32-chars!!',
 };
 
 for (const [key, value] of Object.entries(REQUIRED_ENV_VARS)) {

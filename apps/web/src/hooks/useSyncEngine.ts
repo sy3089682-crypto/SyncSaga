@@ -30,7 +30,7 @@ export function useSyncEngine(roomId: string) {
     const clientTime = Date.now();
     socket.emit('sync:ping' as any, { clientTime });
 
-    socket.once('sync:pong' as any, (data) => {
+    socket.once('sync:pong' as any, (data: { clientTime: number }) => {
       const now = Date.now();
       const rtt = now - data.clientTime;
       rttSamples.current.push(rtt);

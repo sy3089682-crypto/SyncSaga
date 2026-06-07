@@ -31,7 +31,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
 import { metrics } from './services/metrics.service';
 
-export async function createServer() {
+export async function createServer(): Promise<{ app: any, httpServer: any, io: any }> {
   const env = getEnv();
   const app = express();
   const httpServer = createHttpServer(app);

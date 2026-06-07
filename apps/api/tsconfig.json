@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "NodeNext",
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../..",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,7 +13,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "moduleResolution": "node"
+    "moduleResolution": "NodeNext", "paths": { "@syncsaga/config": ["../../packages/config/src/index.ts"], "@syncsaga/shared": ["../../packages/shared/src/index.ts"] }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/__tests__"]

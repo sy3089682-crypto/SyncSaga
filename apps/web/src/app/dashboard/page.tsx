@@ -1,5 +1,6 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { NotificationDropdown } from '@/components/ui/NotificationDropdown';
 import Link from 'next/link'
 import type { Room } from '@syncsaga/types'
 
@@ -31,6 +32,7 @@ export default async function DashboardPage() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationDropdown />
             <span className="text-xs text-[#00d4ff] font-mono">{(profile as any)?.synccoins ?? 0} 🪙</span>
             <Link href={`/profile/${profile?.username}`}>
               {profile?.avatar_url

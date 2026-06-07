@@ -248,7 +248,7 @@ export default function RoomPage() {
                     />
                   </div>
 
-                  <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 glass-panel p-2">
                     <span className="text-xs text-text-secondary w-10 text-right shrink-0">{formatTime(currentTime)}</span>
                     <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden cursor-pointer group relative">
                       <div className="h-full bg-gradient-to-r from-primary to-accent-cyan rounded-full group-hover:h-2 transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
@@ -348,7 +348,7 @@ export default function RoomPage() {
                             <span className="text-sm font-medium text-primary">{msg.profile?.username || 'User'}</span>
                             <span className="text-[10px] text-text-muted">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
-                          <p className="text-sm text-text-primary break-words">{msg.content}</p>
+                          <p className="text-sm text-text-primary break-words mt-1 p-2 bg-surface-light rounded-r-xl rounded-bl-xl shadow-sm">{msg.content}</p>
                         </div>
                       </div>
                     </motion.div>

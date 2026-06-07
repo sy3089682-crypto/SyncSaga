@@ -48,7 +48,7 @@ export function TimelineReactions({
 
     // Show floating reaction
     const id = Math.random().toString(36).slice(2);
-    const emoji = REACTION_TYPES.find(r => r.type === type)?.label || '🔥';
+    const emoji = { 'laugh': '😂', 'cry': '😭', 'shock': '😱', 'fire': '🔥', 'heart': '❤️', 'gg': '✨' }[type] || '🔥';
     setFloatingReactions(prev => [...prev, { id, emoji, x: Math.random() * 60 + 20 }]);
     setTimeout(() => {
       setFloatingReactions(prev => prev.filter(r => r.id !== id));
@@ -71,10 +71,10 @@ export function TimelineReactions({
           <motion.div
             key={r.id}
             initial={{ opacity: 1, y: 0, x: `${r.x}%` }}
-            animate={{ opacity: 0, y: -80, x: `${r.x}%` }}
+            animate={{ opacity: 0, y: -120, x: `${r.x}%`, scale: 1.5 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 2 }}
-            className="absolute bottom-16 text-2xl pointer-events-none z-20"
+            className="absolute bottom-16 text-3xl font-emoji pointer-events-none z-20"
           >
             {r.emoji}
           </motion.div>

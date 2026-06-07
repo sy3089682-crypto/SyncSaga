@@ -37,7 +37,7 @@ export default function FriendsPage() {
     }
     setSearching(true);
     try {
-      const data = await api.get<any>(`/api/users/search?q=${encodeURIComponent(query)}`, token);
+      const data = await api.get<any><any>(`/api/users/search?q=${encodeURIComponent(query)}`, token);
       setSearchResults(data.users || []);
     } catch {} finally {
       setSearching(false);

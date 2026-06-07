@@ -19,7 +19,7 @@ export function useAuth() {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
       setSession(session as any)
       if (session?.user) {
         supabase
@@ -27,7 +27,7 @@ export function useAuth() {
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data }) => {
+          .then(({ data }: any) => {
             if (data) setUser(data as any)
           })
       }

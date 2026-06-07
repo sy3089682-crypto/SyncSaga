@@ -9,13 +9,13 @@ export function useRoom(roomId: string) {
 
   const join = useCallback(() => {
     const socket = getSocket();
-    socket.emit('room:join', { roomId });
-    socket.emit('sync:request', { roomId });
+    socket.emit('room:join' as any, { roomId });
+    socket.emit('sync:request' as any, { roomId });
   }, [roomId]);
 
   const leave = useCallback(() => {
     const socket = getSocket();
-    socket.emit('room:leave', { roomId });
+    socket.emit('room:leave' as any, { roomId });
     setCurrentRoom(null);
     setMessages([]);
     setRoomMembers([]);
@@ -23,22 +23,22 @@ export function useRoom(roomId: string) {
 
   const sendMessage = useCallback((content: string, type: 'text' | 'gif' | 'reaction' = 'text') => {
     const socket = getSocket();
-    socket.emit('chat:message', { roomId, content, type });
+    socket.emit('chat:message' as any, { roomId, content, type });
   }, [roomId]);
 
   const sendTyping = useCallback((isTyping: boolean) => {
     const socket = getSocket();
-    socket.emit('chat:typing', { roomId, isTyping });
+    socket.emit('chat:typing' as any, { roomId, isTyping });
   }, [roomId]);
 
   const sendSyncEvent = useCallback((event: { type: 'play' | 'pause' | 'seek' | 'speed' | 'episode' | 'fullscreen' | 'buffering' | 'ready'; timestamp: number; playback_speed?: number; episode?: string }) => {
     const socket = getSocket();
-    socket.emit('sync:event', { room_id: roomId, user_id: user?.id || '', ...event });
+    socket.emit('sync:event' as any, { room_id: roomId, user_id: user?.id || '', ...event });
   }, [roomId, user?.id]);
 
   const sendReaction = useCallback((messageId: string, emoji: string) => {
     const socket = getSocket();
-    socket.emit('chat:reaction', { messageId, emoji });
+    socket.emit('chat:reaction' as any, { messageId, emoji });
   }, []);
 
   return { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent, sendReaction };

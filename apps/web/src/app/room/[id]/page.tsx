@@ -128,7 +128,7 @@ export default function RoomPage() {
 
   const toggleVoice = () => {
     setIsInVoice(!isInVoice);
-    getSocket().emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId });
+    getSocket().emit(isInVoice ? 'voice:leave' : 'voice:join' as any, { roomId });
   };
 
   const isHost = currentRoom?.host_id === user?.id;
@@ -156,7 +156,7 @@ export default function RoomPage() {
                 currentEpisode={currentRoom.episode_number}
                 onSelect={(mediaId, ep) => {
                   setEpisode(`Episode ${ep}`);
-                  getSocket().emit('anime:set_episode', { roomId, mediaId, episode: ep });
+                  getSocket().emit('anime:set_episode' as any, { roomId, mediaId, episode: ep });
                 }}
               />
             )}

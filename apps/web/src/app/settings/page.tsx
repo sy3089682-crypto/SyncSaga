@@ -36,7 +36,7 @@ export default function SettingsPage() {
     if (!token) return;
     setUpdating(true);
     try {
-      const data = await api.post<any>('/api/payments/create-checkout', {
+      const data = await api.post<any><any>('/api/payments/create-checkout', {
         priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_premium',
         successUrl: `${window.location.origin}/settings`,
       }, token);

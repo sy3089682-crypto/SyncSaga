@@ -29,16 +29,16 @@ export function useMediaSession(opts: {
     navigator.mediaSession.setActionHandler('pause', opts.onPause || (() => {}));
     navigator.mediaSession.setActionHandler('seekbackward', opts.onSeekBackward || (() => {}));
     navigator.mediaSession.setActionHandler('seekforward', opts.onSeekForward || (() => {}));
-    if (opts.onSeekTo) {
+    if (opts.onSeekTo as any) {
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined) {
-          opts.onSeekTo?.(details.seekTime);
+          opts.onSeekTo as any?.(details.seekTime);
         }
       });
     } else {
       navigator.mediaSession.setActionHandler('seekto', null);
     }
-  }, [opts.title, opts.artist, opts.playbackState, opts.onPlay, opts.onPause, opts.onSeekBackward, opts.onSeekForward, opts.onSeekTo]);
+  }, [opts.title, opts.artist, opts.playbackState, opts.onPlay, opts.onPause, opts.onSeekBackward, opts.onSeekForward, opts.onSeekTo as any]);
 
   useEffect(() => { update(); }, [update]);
 }

@@ -14,7 +14,7 @@ export default function EmbedRoomPage() {
 
   useEffect(() => {
     const socket = getSocket();
-    socket.emit('room:join', { roomId });
+    socket.emit('room:join' as any, { roomId });
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
     const onJoined = () => setMemberCount(p => p + 1);
@@ -23,7 +23,7 @@ export default function EmbedRoomPage() {
     socket.on('disconnect', onDisconnect);
     socket.on('room:user_joined', onJoined);
     socket.on('room:user_left', onLeft);
-    return () => { socket.emit('room:leave', { roomId }); socket.off('connect', onConnect); };
+    return () => { socket.emit('room:leave' as any, { roomId }); socket.off('connect', onConnect); };
   }, [roomId]);
 
   return (

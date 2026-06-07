@@ -28,9 +28,9 @@ export function useSyncEngine(roomId: string) {
   const measureRTT = useCallback(() => {
     const socket = getSocket();
     const clientTime = Date.now();
-    socket.emit('sync:ping', { clientTime });
+    socket.emit('sync:ping' as any, { clientTime });
 
-    socket.once('sync:pong', (data) => {
+    socket.once('sync:pong' as any, (data) => {
       const now = Date.now();
       const rtt = now - data.clientTime;
       rttSamples.current.push(rtt);
@@ -63,7 +63,7 @@ export function useSyncEngine(roomId: string) {
       const drift = calculateDrift(state.timestamp);
 
       if (drift > HARD_SEEK_THRESHOLD) {
-        socket.emit('sync:event', {
+        socket.emit('sync:event' as any, {
           room_id: roomId,
           user_id: user.id,
           type: 'seek',
@@ -72,7 +72,7 @@ export function useSyncEngine(roomId: string) {
         });
       } else if (drift >= SPEED_ADJUST_MIN && drift <= SPEED_ADJUST_MAX) {
         const correctionSpeed = drift > 1 ? 1.05 : 0.95;
-        socket.emit('sync:event', {
+        socket.emit('sync:event' as any, {
           room_id: roomId,
           user_id: user.id,
           type: 'speed',
@@ -83,12 +83,12 @@ export function useSyncEngine(roomId: string) {
       }
     };
 
-    socket.on('sync:state', onSyncState);
+    socket.on('sync:state' as any, onSyncState as any);
 
     pingIntervalRef.current = setInterval(measureRTT, 3000);
 
     return () => {
-      socket.off('sync:state', onSyncState);
+      socket.off('sync:state' as any, onSyncState as any);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
     };
   }, [roomId, user, calculateDrift, measureRTT]);

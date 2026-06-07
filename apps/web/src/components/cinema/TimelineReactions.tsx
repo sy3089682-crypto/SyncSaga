@@ -40,7 +40,7 @@ export function TimelineReactions({
 
   const addReaction = useCallback((type: string) => {
     const socket = getSocket();
-    socket.emit('reaction:add', {
+    socket.emit('reaction:add' as any, {
       roomId,
       timestampSec: currentTime,
       type,

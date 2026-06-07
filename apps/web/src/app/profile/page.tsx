@@ -3,6 +3,7 @@
 import React from "react"
 import { useAuthStore } from "@/store"
 import { Card, CardHeader, CardTitle, CardContent, Avatar, AvatarImage, AvatarFallback, Button } from "@syncsaga/ui"
+import { WatchHistory } from '@/components/profile/WatchHistory';
 import { Trophy, Star, Clock } from "lucide-react"
 
 export default function ProfilePage() {

@@ -64,7 +64,7 @@ router.post('/login', async (req, res) => {
 
     const token = generateToken({
       userId: authData.user.id,
-      email: data.user.email!,
+      email: authData.user.email!,
     });
 
     res.json({ token, user: authData.user });
@@ -74,9 +74,13 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/google', async (req, res) => {
-  const { code } = req.body;
-  
   try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: 'Missing authorization code' });
+    }
+    
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: code,
@@ -107,7 +111,8 @@ router.post('/google', async (req, res) => {
 
     res.json({ token, user: data.user });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    console.error('Google auth error:', error);
+    res.status(400).json({ error: error.message || 'Google authentication failed' });
   }
 });
 

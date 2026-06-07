@@ -50,22 +50,22 @@ export default function SearchPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    anilist.trending(1, 12).then(({ Page }) => setTrending(Page.media));
-    anilist.popularThisSeason(1, 12).then(({ Page }) => setPopularSeason(Page.media));
+    anilist.trending(1, 12).then(({ Page }) => setTrending((Page as any).media));
+    anilist.popularThisSeason(1, 12).then(({ Page }) => setPopularSeason((Page as any).media));
   }, []);
 
   const doSearch = useCallback(async (q: string, genre?: string | null, format?: string | null, p = 1) => {
     setLoading(true);
     try {
-      const params: any = { page: p, perPage: 20 };
+      const params: Record<string, unknown> = { page: p, perPage: 20 };
       if (q) params.search = q;
       if (genre) params.genre = genre;
       if (format) params.format = format;
 
       const { Page } = await anilist.searchAdvanced(params);
-      if (p === 1) setResults(Page.media);
-      else setResults(prev => [...prev, ...Page.media]);
-      setHasMore(Page.pageInfo?.hasNextPage || false);
+      if (p === 1) setResults((Page as any).media);
+      else setResults(prev => [...prev, ...(Page as any).media]);
+      setHasMore((Page as any).pageInfo?.hasNextPage || false);
       setPage(p);
     } catch (error) {
       console.error('Search failed:', error);
@@ -194,7 +194,7 @@ export default function SearchPage() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search anime by title..."
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-surface border border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/20 text-sm outline-none transition-all placeholder:text-text-muted"
+            className="input-field pl-12 py-3.5 rounded-2xl"
           />
           {query && (
             <button onClick={() => setQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary">
@@ -210,7 +210,7 @@ export default function SearchPage() {
               'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border',
               showFilters || hasActiveFilters
                 ? 'bg-primary/20 border-primary/30 text-primary'
-                : 'bg-surface border-border text-text-secondary hover:border-primary/30'
+                : 'glass-panel-interactive border-border-default text-text-secondary'
             )}>
             <SlidersHorizontal className="w-3 h-3" />
             Filters
@@ -309,7 +309,7 @@ export default function SearchPage() {
               <div className="text-center mt-6">
                 <button onClick={() => doSearch(query, activeGenre, activeFormat, page + 1)}
                   disabled={loading}
-                  className="px-6 py-2.5 rounded-xl bg-surface border border-border text-sm font-medium hover:border-primary/30 transition-colors disabled:opacity-50">
+                  className="btn-secondary">
                   {loading ? 'Loading...' : 'Load More'}
                 </button>
               </div>

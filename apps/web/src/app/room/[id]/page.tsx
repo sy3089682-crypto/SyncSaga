@@ -8,6 +8,8 @@ import {
   Play, Pause, Settings, Crown, Volume2, WifiOff, Bell, Tv,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { LiveKitRoom, RoomAudioRenderer, VideoConference } from '@livekit/components-react';
+import '@livekit/components-styles';
 import { useRoom } from '@/hooks/useRoom';
 import { getSocket } from '@/lib/socket';
 import { cn, formatTime } from '@/lib/utils';
@@ -46,6 +48,8 @@ export default function RoomPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isInVoice, setIsInVoice] = useState(false);
+  const [liveKitToken, setLiveKitToken] = useState("");
+  const [liveKitUrl, setLiveKitUrl] = useState("");
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [timelineReactions, setTimelineReactions] = useState<TimelineReaction[]>([]);
   const [cinemaMode, setCinemaMode] = useState<'flat' | 'cinema' | 'immersive'>('flat');
@@ -126,9 +130,28 @@ export default function RoomPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const toggleVoice = () => {
-    setIsInVoice(!isInVoice);
-    getSocket().emit(isInVoice ? 'voice:leave' : 'voice:join' as any, { roomId });
+  const toggleVoice = async () => {
+    if (isInVoice) {
+      setIsInVoice(false);
+      setLiveKitToken('');
+      getSocket().emit('voice:leave' as any, { roomId });
+    } else {
+      try {
+        const { api } = await import('@/lib/api');
+        const tokenStr = localStorage.getItem('token');
+        if (!tokenStr) return;
+        const res = await api.post<{token: string; url: string}>('/api/livekit/token', {
+          roomName: roomId,
+          isHost: currentRoom?.host_id === user?.id
+        }, tokenStr);
+        setLiveKitToken(res.token);
+        setLiveKitUrl(res.url);
+        setIsInVoice(true);
+        getSocket().emit('voice:join' as any, { roomId });
+      } catch (err) {
+        console.error('Failed to join voice:', err);
+      }
+    }
   };
 
   const isHost = currentRoom?.host_id === user?.id;
@@ -275,6 +298,18 @@ export default function RoomPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {liveKitToken && liveKitUrl && (
+              <LiveKitRoom
+                serverUrl={liveKitUrl}
+                token={liveKitToken}
+                connect={isInVoice}
+                audio={!isMuted}
+                video={false}
+              >
+                <RoomAudioRenderer />
+                {/* Visual indicator of active speakers could go here */}
+              </LiveKitRoom>
+            )}
             <VirtualCinema
               isActive={true}
               mode={cinemaMode}

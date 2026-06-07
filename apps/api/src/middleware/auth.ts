@@ -36,3 +36,29 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!userId) return;
   next();
 }
+
+export type Role = 'admin' | 'moderator' | 'user' | 'guest';
+
+const ROLE_HIERARCHY: Record<Role, number> = {
+  admin: 100,
+  moderator: 50,
+  user: 10,
+  guest: 0
+};
+
+export function requireRole(requiredRole: Role) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.auth) {
+      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    }
+
+    const userRole = (authReq.auth.role as Role) || 'user';
+    
+    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[requiredRole]) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
+    }
+
+    next();
+  };
+}

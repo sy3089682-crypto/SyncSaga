@@ -12,6 +12,7 @@ const REFRESH_EXPIRES = '7d';
 export interface JwtPayload {
   userId: string;
   email: string;
+  role?: string;
 }
 
 export interface RefreshJwtPayload extends JwtPayload {

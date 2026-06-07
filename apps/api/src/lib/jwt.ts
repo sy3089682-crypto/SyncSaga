@@ -66,6 +66,9 @@ export async function revokeRefreshToken(userId: string, refreshId: string): Pro
 }
 
 export async function revokeAllRefreshTokens(userId: string): Promise<void> {
-  const keys = await redisService.getClient().keys(`refresh:${userId}:*`);
+  const keys: string[] = [];
+  for await (const key of redisService.getClient().scanIterator({ MATCH: `refresh:${userId}:*`, COUNT: 100 })) {
+    keys.push(String(key));
+  }
   if (keys.length > 0) await redisService.getClient().del(keys);
 }

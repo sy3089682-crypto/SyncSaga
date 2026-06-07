@@ -101,16 +101,51 @@ class RedisService {
   }
 
   // Rate limiting
-  async checkRateLimit(key: string, maxRequests: number, windowSeconds: number): Promise<boolean> {
-    const current = await this.client?.get(`ratelimit:${key}`);
-    if (!current) {
-      await this.client?.setEx(`ratelimit:${key}`, windowSeconds, '1');
-      return true;
+  async checkRateLimitDetailed(key: string, maxRequests: number, windowSeconds: number): Promise<{ allowed: boolean; count: number; remaining: number; resetSeconds: number }> {
+    if (!this.client) throw new Error('Redis not connected');
+
+    const redisKey = key.startsWith('ratelimit:') ? key : `ratelimit:${key}`;
+    const count = await this.client.incr(redisKey);
+    if (count === 1) {
+      await this.client.expire(redisKey, windowSeconds);
     }
-    const count = parseInt(current);
-    if (count >= maxRequests) return false;
-    await this.client?.incr(`ratelimit:${key}`);
-    return true;
+
+    const ttl = await this.client.ttl(redisKey);
+    const resetSeconds = Math.floor(Date.now() / 1000) + (ttl > 0 ? ttl : windowSeconds);
+    return {
+      allowed: count <= maxRequests,
+      count,
+      remaining: Math.max(0, maxRequests - count),
+      resetSeconds,
+    };
+  }
+
+  async checkRateLimit(key: string, maxRequests: number, windowSeconds: number): Promise<boolean> {
+    return (await this.checkRateLimitDetailed(key, maxRequests, windowSeconds)).allowed;
+  }
+
+  async acquireHostTakeover(roomId: string, requesterId: string, currentHostId?: string | null): Promise<boolean> {
+    if (!this.client) throw new Error('Redis not connected');
+
+    const lockKey = `room:${roomId}:host_takeover_lock`;
+    const lockValue = `${requesterId}:${Date.now()}`;
+    const acquired = await this.client.set(lockKey, lockValue, { NX: true, PX: 5000 });
+    if (!acquired) return false;
+
+    try {
+      const state = await this.getRoomState(roomId);
+      if (!state) return false;
+
+      const hostId = state.host_id || currentHostId;
+      const roomUsers = await this.getRoomUsers(roomId);
+      if (hostId && roomUsers.includes(hostId)) return false;
+
+      await this.setRoomState(roomId, { ...state, host_id: requesterId, host_takeover_at: Date.now() });
+      return true;
+    } finally {
+      const currentValue = await this.client.get(lockKey);
+      if (currentValue === lockValue) await this.client.del(lockKey);
+    }
   }
 }
 

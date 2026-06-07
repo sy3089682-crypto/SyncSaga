@@ -4,6 +4,7 @@ import { roomHandler } from './handlers/room.handler';
 import { syncHandler } from './handlers/sync.handler';
 import { chatHandler } from './handlers/chat.handler';
 import { presenceHandler } from './handlers/presence.handler';
+import { reactionHandler } from './handlers/reaction.handler';
 import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/types';
 import { redisService } from '../services/redis.service';
 import { logger } from '../lib/logger';
@@ -38,6 +39,7 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
     syncHandler(io, socket);
     chatHandler(io, socket);
     presenceHandler(io, socket);
+    reactionHandler(io as any, socket);
 
     socket.on('disconnect', async () => {
       logger.info(`Socket disconnected: ${socket.id}`);

@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { generateAccessToken, generateRefreshToken, storeRefreshToken, verifyRefreshToken, rotateRefreshToken, revokeRefreshToken, revokeAllRefreshTokens } from '../lib/jwt';
-import { verifyToken } from '../lib/jwt';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
 import { redisService } from '../services/redis.service';
 import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
+import { getEnv } from '@syncsaga/config';
+import { getAuthenticatedUser, getBearerToken } from '../middleware/auth';
+import { decryptTotpSecret, encryptTotpSecret, isEncryptedTotpSecret } from '../lib/crypto';
 
 const router = Router();
 
@@ -35,25 +37,12 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
-function requireAuth(req: Request, res: Response): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
-    return null;
-  }
-  const decoded = verifyToken(authHeader.slice(7));
-  if (!decoded) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
-    return null;
-  }
-  return decoded.userId;
-}
-
-function createAuthResponse(userId: string, email: string, user: any, req: Request, res: Response) {
+const requireAuth = getAuthenticatedUser;
+async function createAuthResponse(userId: string, email: string, user: any, _req: Request, res: Response) {
   const accessToken = generateAccessToken({ userId, email });
   const refreshToken = generateRefreshToken({ userId, email });
 
-  storeRefreshToken(userId, refreshToken.id);
+  await storeRefreshToken(userId, refreshToken.id);
 
   res.cookie('refreshToken', refreshToken.token, {
     httpOnly: true,
@@ -87,7 +76,7 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     }
 
-    const result = createAuthResponse(authData.user!.id, data.email, authData.user, req, res);
+    const result = await createAuthResponse(authData.user!.id, data.email, authData.user, req, res);
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -114,7 +103,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const { data: twoFactor } = await supabase
       .from('profiles')
-      .select('totp_enabled')
+      .select('totp_enabled, totp_secret')
       .eq('id', authData.user.id)
       .single();
 
@@ -123,9 +112,24 @@ router.post('/login', async (req: Request, res: Response) => {
       if (!totpToken) {
         return res.json({ requireTotp: true, tempToken: authData.session?.access_token });
       }
+
+      if (!twoFactor.totp_secret) {
+        logger.warn({ userId: authData.user.id }, 'TOTP enabled without a secret');
+        return res.status(401).json({ error: 'Invalid verification code' });
+      }
+
+      const secret = decryptTotpSecret(twoFactor.totp_secret);
+      const allowed = await redisService.checkRateLimit(`totp:${authData.user.id}`, 5, 300);
+      if (!allowed || !authenticator.verify({ token: String(totpToken), secret })) {
+        return res.status(401).json({ error: 'Invalid verification code' });
+      }
+
+      if (!isEncryptedTotpSecret(twoFactor.totp_secret)) {
+        await supabase.from('profiles').update({ totp_secret: encryptTotpSecret(secret) }).eq('id', authData.user.id);
+      }
     }
 
-    const result = createAuthResponse(
+    const result = await createAuthResponse(
       authData.user.id,
       authData.user.email!,
       authData.user,
@@ -169,7 +173,7 @@ router.post('/google', async (req: Request, res: Response) => {
       });
     }
 
-    const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
+    const result = await createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
     logger.error(error, 'Google auth error:');
@@ -202,7 +206,7 @@ router.post('/github', async (req: Request, res: Response) => {
       });
     }
 
-    const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
+    const result = await createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
     logger.error(error, 'GitHub auth error:');
@@ -235,7 +239,7 @@ router.post('/discord', async (req: Request, res: Response) => {
       });
     }
 
-    const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
+    const result = await createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
     logger.error(error, 'Discord auth error:');
@@ -301,14 +305,10 @@ router.post('/logout', async (req: Request, res: Response) => {
 
 router.post('/logout-all', async (req: Request, res: Response) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const decoded = verifyToken(authHeader.slice(7));
-    if (decoded) {
-      await revokeAllRefreshTokens(decoded.userId);
-    }
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    await revokeAllRefreshTokens(userId);
     res.clearCookie('refreshToken', { path: '/api/auth' });
     res.json({ success: true });
   } catch (error) {
@@ -321,15 +321,28 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
     const { email } = passwordResetSchema.parse(req.body);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${req.headers.origin}/auth/reset-password`,
+    const env = getEnv();
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : env.PUBLIC_APP_URL;
+    const allowedOrigins = new Set(env.CORS_ORIGIN.split(',').map((value: string) => value.trim()).filter(Boolean));
+    allowedOrigins.add(env.PUBLIC_APP_URL);
+    const redirectOrigin = allowedOrigins.has(origin) ? origin : env.PUBLIC_APP_URL;
+
+    const ipKey = req.headers['x-forwarded-for'] as string || req.ip || 'unknown';
+    const normalizedEmail = email.toLowerCase();
+    const allowed = await redisService.checkRateLimit(`password-reset:${normalizedEmail}:${ipKey}`, 3, 60 * 60);
+    if (!allowed) {
+      return res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many password reset requests' } });
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: `${redirectOrigin}/auth/reset-password`,
     });
 
     if (error) {
-      return res.status(400).json({ error: error.message });
+      logger.warn({ err: error, emailDomain: normalizedEmail.split('@')[1] }, 'Password reset request failed');
     }
 
-    res.json({ success: true, message: 'Password reset email sent' });
+    res.json({ success: true, message: 'If an account exists, a password reset email will be sent' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid email', details: error.errors });
@@ -343,9 +356,17 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = passwordUpdateSchema.parse(req.body);
 
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
+    const verifyResult = await supabase.auth.verifyOtp({ token_hash: token, type: 'recovery' });
+    if (verifyResult.error || !verifyResult.data.session?.access_token) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const userId = verifyResult.data.user?.id;
+    if (!userId) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, { password: newPassword });
 
     if (error) {
       return res.status(400).json({ error: error.message });
@@ -368,7 +389,10 @@ router.post('/change-password', async (req: Request, res: Response) => {
 
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
 
-    const { data: user } = await supabase.auth.getUser(req.headers.authorization!.slice(7));
+    const token = getBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+    const { data: user } = await supabase.auth.getUser(token);
     if (!user.user?.email) {
       return res.status(401).json({ error: 'User not found' });
     }
@@ -418,7 +442,7 @@ router.post('/2fa/setup', async (req: Request, res: Response) => {
 
     await supabase
       .from('profiles')
-      .update({ totp_secret: secret })
+      .update({ totp_secret: encryptTotpSecret(secret) })
       .eq('id', userId);
 
     const qrCode = await QRCode.toDataURL(otpauth);
@@ -450,7 +474,8 @@ router.post('/2fa/verify', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '2FA not set up' });
     }
 
-    const isValid = authenticator.verify({ token, secret: profile.totp_secret });
+    const secret = decryptTotpSecret(profile.totp_secret);
+    const isValid = authenticator.verify({ token, secret });
 
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid token' });
@@ -458,7 +483,7 @@ router.post('/2fa/verify', async (req: Request, res: Response) => {
 
     await supabase
       .from('profiles')
-      .update({ totp_enabled: true })
+      .update({ totp_enabled: true, totp_secret: encryptTotpSecret(secret) })
       .eq('id', userId);
 
     res.json({ success: true, message: '2FA enabled' });
@@ -488,7 +513,8 @@ router.post('/2fa/disable', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '2FA not set up' });
     }
 
-    const isValid = authenticator.verify({ token, secret: profile.totp_secret });
+    const secret = decryptTotpSecret(profile.totp_secret);
+    const isValid = authenticator.verify({ token, secret });
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid token' });
     }
@@ -510,7 +536,10 @@ router.get('/sessions', async (req: Request, res: Response) => {
     const userId = requireAuth(req, res);
     if (!userId) return;
 
-    const keys = await redisService.getClient().keys(`refresh:${userId}:*`);
+    const keys: string[] = [];
+    for await (const key of redisService.getClient().scanIterator({ MATCH: `refresh:${userId}:*`, COUNT: 100 })) {
+      keys.push(String(key));
+    }
     const sessions = await Promise.all(
       keys.map(async (key) => {
         const ttl = await redisService.getClient().ttl(key);

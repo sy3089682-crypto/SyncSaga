@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { supabase } from '../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
+import { hashRoomPassword } from '../lib/crypto'
 
 const router = Router()
 
@@ -62,6 +63,11 @@ router.post('/', auth, async (req: any, res) => {
     max_members, theme, password,
   } = req.body
 
+  const isLocked = is_locked ?? false
+  if (isLocked && (!password || typeof password !== 'string' || password.length < 8)) {
+    return res.status(400).json({ error: 'A room password of at least 8 characters is required for locked rooms' })
+  }
+
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return res.status(400).json({ error: 'Room name is required' })
   }
@@ -81,10 +87,10 @@ router.post('/', auth, async (req: any, res) => {
       episode_number: episode_number ?? null,
       streaming_platform: streaming_platform ?? null,
       is_public: is_public ?? true,
-      is_locked: is_locked ?? false,
+      is_locked: isLocked,
       max_members: max_members ?? 50,
       theme: theme ?? 'default',
-      password_hash: password ?? null,
+      password_hash: isLocked ? await hashRoomPassword(password) : null,
       playback_state: 'paused',
       playback_position: 0,
       playback_speed: 1,
@@ -100,7 +106,9 @@ router.post('/', auth, async (req: any, res) => {
     role: 'host',
   })
 
-  res.status(201).json({ room })
+  const safeRoom = { ...room }
+  delete safeRoom.password_hash
+  res.status(201).json({ room: safeRoom })
 })
 
 // GET /api/rooms/:id — get room by id or slug
@@ -112,7 +120,9 @@ router.get('/:id', async (req, res) => {
     .or(`id.eq.${id},slug.eq.${id}`)
     .single()
   if (error || !room) return res.status(404).json({ error: 'Room not found' })
-  res.json({ room })
+  const safeRoom = { ...room }
+  delete safeRoom.password_hash
+  res.json({ room: safeRoom })
 })
 
 // PATCH /api/rooms/:id — update room settings (host only)

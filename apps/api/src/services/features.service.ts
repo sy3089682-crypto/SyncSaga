@@ -1,4 +1,4 @@
-import { getEnv, Env } from '@syncsaga/config';
+import { getEnv } from '@syncsaga/config';
 import { redisService } from './redis.service';
 
 export type FeatureFlag =
@@ -49,16 +49,21 @@ const FLAGS: FlagConfig[] = [
 ];
 
 const OVERRIDE_PREFIX = 'feature:override:';
+const OVERRIDE_INDEX = 'feature:override:index';
 
 class FeatureService {
   async loadOverrides(): Promise<Map<FeatureFlag, boolean>> {
     const map = new Map<FeatureFlag, boolean>();
     try {
-      const keys = await redisService.getClient().keys(`${OVERRIDE_PREFIX}*`);
-      if (keys.length > 0) {
-        const values = await redisService.getClient().mGet(keys);
-        for (let i = 0; i < keys.length; i++) {
-          const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
+      const keys = new Set<string>(await redisService.getClient().sMembers(OVERRIDE_INDEX));
+      for await (const key of redisService.getClient().scanIterator({ MATCH: `${OVERRIDE_PREFIX}*`, COUNT: 100 })) {
+        keys.add(String(key));
+      }
+      if (keys.size > 0) {
+        const keyList = [...keys];
+        const values = await redisService.getClient().mGet(keyList);
+        for (let i = 0; i < keyList.length; i++) {
+          const flag = keyList[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
           if (values[i] !== null) {
             map.set(flag, values[i] === 'true');
           }
@@ -70,13 +75,17 @@ class FeatureService {
 
   async setOverride(flag: FeatureFlag, enabled: boolean) {
     try {
-      await redisService.getClient().set(`${OVERRIDE_PREFIX}${flag}`, enabled ? 'true' : 'false', { EX: 86400 * 7 });
+      const key = `${OVERRIDE_PREFIX}${flag}`;
+      await redisService.getClient().set(key, enabled ? 'true' : 'false', { EX: 86400 * 7 });
+      await redisService.getClient().sAdd(OVERRIDE_INDEX, key);
     } catch {}
   }
 
   async clearOverride(flag: FeatureFlag) {
     try {
-      await redisService.getClient().del(`${OVERRIDE_PREFIX}${flag}`);
+      const key = `${OVERRIDE_PREFIX}${flag}`;
+      await redisService.getClient().del(key);
+      await redisService.getClient().sRem(OVERRIDE_INDEX, key);
     } catch {}
   }
 

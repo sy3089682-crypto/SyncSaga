@@ -24,6 +24,13 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
       connectedAt: new Date().toISOString(),
     });
 
+    socket.on("sync:request_buffer", async ({ roomId, since }: { roomId: string, since: number }) => {
+      const bufferedEvents = await redisService.getOfflineBuffer(roomId, since);
+      bufferedEvents.forEach(event => {
+        socket.emit("sync:event", event);
+      });
+    });
+
     socket.broadcast.emit('presence:update', {
       user_id: uid,
       status: 'online',
@@ -52,6 +59,13 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
 
       await redisService.setUserOffline(uid);
       
+    socket.on("sync:request_buffer", async ({ roomId, since }: { roomId: string, since: number }) => {
+      const bufferedEvents = await redisService.getOfflineBuffer(roomId, since);
+      bufferedEvents.forEach(event => {
+        socket.emit("sync:event", event);
+      });
+    });
+
       socket.broadcast.emit('presence:update', {
         user_id: uid,
         status: 'offline',

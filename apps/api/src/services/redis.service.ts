@@ -146,6 +146,31 @@ class RedisService {
       const currentValue = await this.client.get(lockKey);
       if (currentValue === lockValue) await this.client.del(lockKey);
     }
+    }
+  async getOfflineBuffer(roomId: string, since: number): Promise<unknown[]> {
+    if (!this.client) return [];
+    try {
+      const key = `room:${roomId}:event_buffer`;
+      // Fetch events with score >= since (the timestamp)
+      const eventsRaw = await this.client.zRangeByScore(key, since, '+inf');
+      return eventsRaw.map(e => JSON.parse(e));
+    } catch (e) {
+      logger.error(e, 'Failed to fetch offline buffer');
+      return [];
+    }
+  }
+
+  async addEventToBuffer(roomId: string, event: any) {
+    if (!this.client) return;
+    try {
+      const key = `room:${roomId}:event_buffer`;
+      const score = event.server_time || Date.now();
+      await this.client.zAdd(key, [{ score, value: JSON.stringify(event) }]);
+      // Keep only last 100 events or last 5 minutes
+      await this.client.zRemRangeByScore(key, '-inf', score - 5 * 60 * 1000);
+    } catch (e) {
+      logger.error(e, 'Failed to add event to buffer');
+    }
   }
 }
 

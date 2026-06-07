@@ -27,6 +27,12 @@ export function useSyncEngine(roomId: string) {
 
   const measureRTT = useCallback(() => {
     const socket = getSocket();
+    const lastDisconnect = localStorage.getItem(`sync:last_disconnect:${roomId}`);
+    if (lastDisconnect) {
+      socket.emit("sync:request_buffer" as any, { roomId, since: parseInt(lastDisconnect, 10) });
+      localStorage.removeItem(`sync:last_disconnect:${roomId}`);
+    }
+
     const clientTime = Date.now();
     socket.emit('sync:ping' as any, { clientTime });
 
@@ -54,6 +60,12 @@ export function useSyncEngine(roomId: string) {
     if (!roomId || !user) return;
 
     const socket = getSocket();
+    const lastDisconnect = localStorage.getItem(`sync:last_disconnect:${roomId}`);
+    if (lastDisconnect) {
+      socket.emit("sync:request_buffer" as any, { roomId, since: parseInt(lastDisconnect, 10) });
+      localStorage.removeItem(`sync:last_disconnect:${roomId}`);
+    }
+
 
     const onSyncState = (state: any) => {
       lastHostState.current = state;
@@ -88,6 +100,8 @@ export function useSyncEngine(roomId: string) {
     pingIntervalRef.current = setInterval(measureRTT, 3000);
 
     return () => {
+      localStorage.setItem(`sync:last_disconnect:${roomId}`, Date.now().toString());
+
       socket.off('sync:state' as any, onSyncState as any);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
     };

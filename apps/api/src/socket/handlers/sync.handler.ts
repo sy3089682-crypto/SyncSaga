@@ -110,6 +110,7 @@ export function syncHandler(
 
 
       await redisService.setRoomState(roomId, { ...roomState, ...updates });
+      await redisService.addEventToBuffer(roomId, enrichedEvent);
       socket.to(roomId).emit('sync:event', { ...enrichedEvent, clock });
 
       if (['play', 'seek', 'episode'].includes(event.type)) {
@@ -149,6 +150,7 @@ export function syncHandler(
       };
 
       await redisService.setRoomState(roomId, { ...roomState, ...updates });
+      await redisService.addEventToBuffer(roomId, { room_id: roomId, user_id: socket.userId, type: 'episode', timestamp: 0, episode: `Episode ${episode}`, server_time: Date.now() });
 
       try {
         await supabase.from('rooms').update(updates).eq('id', roomId);

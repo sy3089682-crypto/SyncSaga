@@ -1,18 +1,74 @@
-node_modules/
-.next/
+```
+# Dependencies
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
 .env
 .env.local
-*.egg-info/
+.env.*
+.envrc
+
+# Build artifacts
 dist/
 build/
-*.db
-data/indexes/
-data/audio_chunks/
-data/frames/
+*.egg-info/
+
+# Logs
 *.log
-.pytest_cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.coverage.*
+.nyc_output
+istanbul/
 .mypy_cache/
-.ruff_cache/
-*.tsbuildinfo
+.pytest_cache/
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Compression
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```

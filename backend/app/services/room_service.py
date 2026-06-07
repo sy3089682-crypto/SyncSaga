@@ -1,6 +1,8 @@
-"""Room management service"""
+"""Room management service with password verification"""
 
+import bcrypt
 from uuid import UUID, uuid4
+from typing import Optional
 from app.core.database import Database
 from app.models.schemas import Room, User
 
@@ -11,6 +13,15 @@ class RoomService:
 
     async def create(self, name: str, host_id: UUID, **kwargs) -> Room | None:
         room_id = uuid4()
+        
+        # Hash password if provided
+        password_hash = None
+        if kwargs.get("password"):
+            password_hash = bcrypt.hashpw(
+                kwargs["password"].encode(), 
+                bcrypt.gensalt()
+            ).decode()
+        
         row = await self.db.fetchrow(
             """
             INSERT INTO rooms (
@@ -24,9 +35,10 @@ class RoomService:
                 mal_id,
                 is_private,
                 max_users,
-                host_id
+                host_id,
+                password_hash
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
             """,
             room_id,
@@ -40,6 +52,7 @@ class RoomService:
             kwargs.get("is_private", False),
             kwargs.get("max_users", 10),
             host_id,
+            password_hash,
         )
         if row:
             await self.db.execute(
@@ -48,6 +61,17 @@ class RoomService:
             )
             return await self.get(room_id)
         return None
+
+    async def verify_password(self, room_id: UUID, password: str) -> bool:
+        """Verify password for a protected room"""
+        row = await self.db.fetchrow(
+            "SELECT password_hash FROM rooms WHERE id = $1 AND is_private = true",
+            room_id,
+        )
+        if not row or not row["password_hash"]:
+            return False
+        
+        return bcrypt.checkpw(password.encode(), row["password_hash"].encode())
 
     async def get(self, room_id: UUID) -> Room | None:
         row = await self.db.fetchrow(
@@ -106,22 +130,37 @@ class RoomService:
         )
         return [User(**dict(r)) for r in rows]
 
-    async def join(self, room_id: UUID, user_id: UUID) -> bool:
+    async def join(self, room_id: UUID, user_id: UUID, password: Optional[str] = None) -> bool:
         exists = await self.db.fetchrow(
             "SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2",
             room_id, user_id,
         )
         if exists:
             return True
-        row = await self.db.fetchrow("SELECT max_users FROM rooms WHERE id = $1", room_id)
+        
+        row = await self.db.fetchrow(
+            "SELECT is_private, password_hash, max_users FROM rooms WHERE id = $1", 
+            room_id
+        )
         if not row:
             return False
+        
+        is_private, password_hash, max_users = row
+        
         count = await self.db.fetchval(
             "SELECT COUNT(*) FROM room_members WHERE room_id = $1",
             room_id,
         )
-        if count >= row["max_users"]:
+        if count >= max_users:
             return False
+        
+        # Verify password for private rooms
+        if is_private and password_hash:
+            if not password:
+                return False
+            if not bcrypt.checkpw(password.encode(), password_hash.encode()):
+                return False
+        
         await self.db.execute(
             "INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, 'member')",
             room_id, user_id,

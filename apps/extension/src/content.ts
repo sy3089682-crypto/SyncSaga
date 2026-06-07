@@ -1,5 +1,7 @@
+import { audioFingerprinter } from './audio/fingerprinter';
+
 interface ExtensionMessage {
-  type: 'CONNECT' | 'DISCONNECT' | 'GET_STATE' | 'VIDEO_DETECTED' | 'VIDEO_STATE';
+  type: 'CONNECT' | 'DISCONNECT' | 'GET_STATE' | 'VIDEO_DETECTED' | 'VIDEO_STATE' | 'START_FINGERPRINT' | 'FINGERPRINT_RESULT';
   payload?: any;
 }
 
@@ -20,6 +22,7 @@ class SyncSagaContentScript {
   private lastSyncTime: number = 0;
   private observer: MutationObserver | null = null;
   private overlay: HTMLButtonElement | null = null;
+  private isFingerprinting: boolean = false;
 
   constructor() {
     chrome.storage.local.get(['token', 'roomId'], (result) => {
@@ -43,6 +46,9 @@ class SyncSagaContentScript {
           break;
         case 'GET_STATE':
           chrome.runtime.sendMessage({ type: 'VIDEO_STATE', payload: this.getState() });
+          break;
+        case 'START_FINGERPRINT':
+          this.startFingerprintCapture();
           break;
       }
     });
@@ -114,6 +120,7 @@ class SyncSagaContentScript {
         const msg = JSON.parse(event.data);
         if (msg.type === 'SYNC_EVENT') this.applySync(msg.payload);
         if (msg.type === 'SYNC_STATE') this.applyState(msg.payload);
+        if (msg.type === 'REQUEST_FINGERPRINT') this.startFingerprintCapture();
       } catch {}
     };
 
@@ -125,6 +132,8 @@ class SyncSagaContentScript {
   private disconnect() {
     if (this.ws) { this.ws.close(); this.ws = null; }
     if (this.syncInterval) { clearInterval(this.syncInterval); this.syncInterval = null; }
+    audioFingerprinter.stop();
+    this.isFingerprinting = false;
     this.roomId = null;
     this.token = null;
     chrome.storage.local.remove(['token', 'roomId']);
@@ -187,7 +196,110 @@ class SyncSagaContentScript {
     });
     this.overlay.onmouseenter = () => { this.overlay!.style.transform = 'scale(1.05)'; };
     this.overlay.onmouseleave = () => { this.overlay!.style.transform = 'scale(1)'; };
+    
+    // Add fingerprint capture button on right-click or shift+click
+    this.overlay.onclick = (e) => {
+      if (e.shiftKey) {
+        this.startFingerprintCapture();
+      }
+    };
+    this.overlay.title = 'Click to open SyncSaga | Shift+Click to identify episode';
+    
     document.body.appendChild(this.overlay);
+  }
+
+  private async startFingerprintCapture() {
+    if (!this.video || this.isFingerprinting) return;
+    
+    this.isFingerprinting = true;
+    console.log('Starting audio fingerprint capture...');
+    
+    // Show loading indicator
+    if (this.overlay) {
+      this.overlay.textContent = '⟳ Identifying...';
+      this.overlay.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+    }
+    
+    try {
+      // Start audio capture
+      const started = await audioFingerprinter.start(this.video);
+      
+      if (!started) {
+        throw new Error('Failed to start audio capture');
+      }
+      
+      // Capture for 3 seconds
+      const { fingerprints, duration } = await audioFingerprinter.captureForDuration(3000);
+      
+      if (fingerprints.length === 0) {
+        throw new Error('No fingerprints captured');
+      }
+      
+      // Send to backend for matching
+      const response = await fetch('http://localhost:8000/api/ai/match-episode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio_base64: btoa(String.fromCharCode(...new Uint8Array(
+            new Float32Array(fingerprints.map(f => f * 32768)).buffer)
+          )),
+          duration_sec: duration,
+          source_url: window.location.href
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.matched) {
+        console.log(`Matched: ${result.title} Episode ${result.episode_number}`);
+        chrome.runtime.sendMessage({
+          type: 'FINGERPRINT_RESULT',
+          payload: {
+            matched: true,
+            anime: result.title,
+            episode: result.episode_number,
+            offset: result.offset_seconds,
+            confidence: result.confidence
+          }
+        });
+        
+        // Update overlay
+        if (this.overlay) {
+          this.overlay.textContent = `✓ ${result.title} Ep${result.episode_number}`;
+          this.overlay.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+          
+          setTimeout(() => {
+            if (this.overlay) {
+              this.overlay.textContent = '◇ SyncSaga';
+              this.overlay.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+            }
+          }, 3000);
+        }
+      } else {
+        throw new Error('No match found');
+      }
+      
+    } catch (error) {
+      console.error('Fingerprint capture failed:', error);
+      chrome.runtime.sendMessage({
+        type: 'FINGERPRINT_RESULT',
+        payload: { matched: false, error: error.message }
+      });
+      
+      if (this.overlay) {
+        this.overlay.textContent = '✗ Not Found';
+        this.overlay.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        
+        setTimeout(() => {
+          if (this.overlay) {
+            this.overlay.textContent = '◇ SyncSaga';
+            this.overlay.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+          }
+        }, 2000);
+      }
+    } finally {
+      this.isFingerprinting = false;
+    }
   }
 }
 

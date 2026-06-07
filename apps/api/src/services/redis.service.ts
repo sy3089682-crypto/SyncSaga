@@ -160,6 +160,26 @@ class RedisService {
     }
   }
 
+  async getCached<T>(key: string): Promise<T | null> {
+    if (!this.client) return null;
+    try {
+      const data = await this.client.get(key);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      logger.error(e, "Redis cache get error");
+      return null;
+    }
+  }
+
+  async setCached(key: string, value: any, ttlSeconds: number = 3600): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
+    } catch (e) {
+      logger.error(e, "Redis cache set error");
+    }
+  }
+
   async addEventToBuffer(roomId: string, event: any) {
     if (!this.client) return;
     try {

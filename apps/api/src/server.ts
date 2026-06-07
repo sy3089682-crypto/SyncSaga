@@ -15,10 +15,14 @@ import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
 import { supabase } from './lib/supabase';
 import { logger } from './lib/logger';
+import { createRateLimiters } from './middleware/rate-limiter';
 
 export async function createServer() {
   const app = express();
   const httpServer = createHttpServer(app);
+
+  // Initialize rate limiters
+  const rateLimiters = createRateLimiters(redisService.client);
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({
@@ -28,32 +32,45 @@ export async function createServer() {
 
   app.use(express.json({ limit: '1mb' }));
 
+  // Health check - no rate limiting
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // REST API routes
-  app.use('/api/auth', authRouter);
-  app.use('/api/rooms', roomRouter);
-  app.use('/api/reactions', reactionsRouter);
-  app.use('/api/clips', clipsRouter);
-  app.use('/api/activity', activityRouter);
-  app.use('/api/embed', embedRouter);
-  app.use('/api', embedRouter); // /api/api-keys, /api/embed/room/:id, /api/embed/widget/:id
+  // Apply rate limiting to API routes
+  app.use('/api/auth', rateLimiters.auth.middleware(), authRouter);
+  app.use('/api/rooms', rateLimiters.rooms.middleware(), roomRouter);
+  app.use('/api/reactions', rateLimiters.chat.middleware(), reactionsRouter);
+  app.use('/api/clips', rateLimiters.upload.middleware(), clipsRouter);
+  app.use('/api/activity', rateLimiters.api.middleware(), activityRouter);
+  app.use('/api/embed', rateLimiters.api.middleware(), embedRouter);
+  app.use('/api', rateLimiters.api.middleware(), embedRouter); // /api/api-keys, /api/embed/room/:id, /api/embed/widget/:id
+  app.use('/api/ai', rateLimiters.ai.middleware());
 
-  // AI matching endpoint (stub — you'll implement the model inference)
+  // AI matching endpoint
   app.post('/api/ai/match-episode', async (req, res) => {
     const { fingerprints, duration, sourceUrl } = req.body;
     if (!fingerprints || !duration) {
       return res.status(400).json({ error: 'Missing fingerprints or duration' });
     }
-    // TODO: Implement actual fingerprint matching against episode_fingerprints table
-    // For now, return a stub response
-    res.json({
-      matched: false,
-      message: 'AI matching engine not yet deployed. Use the browser extension for now.',
-      hint: 'Train the fingerprint model using docs/AI-ARCHITECTURE.md',
-    });
+    
+    try {
+      // Forward to Python backend for actual matching
+      const response = await fetch(`${process.env.AI_BACKEND_URL || 'http://localhost:8000'}/api/ai/match-episode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fingerprints, duration, sourceUrl })
+      });
+      
+      const result = await response.json();
+      res.json(result);
+    } catch (error) {
+      logger.error('AI matching failed:', error);
+      res.status(503).json({
+        matched: false,
+        error: 'AI service temporarily unavailable'
+      });
+    }
   });
 
   const io = new Server(httpServer, {

@@ -26,7 +26,7 @@ export function EpisodePicker({ mediaId, currentEpisode, onSelect, disabled }: E
     setLoading(true);
     (async () => {
       try {
-        const { Media } = await anilist.detail(mediaId);
+        const data = await anilist.detail(mediaId) as any; const Media = data.Media;
         setMediaTitle(Media.title?.english || Media.title?.romaji || '');
         if (Media.idMal) {
           const eps = await jikan.episodes(Media.idMal).catch(() => []);

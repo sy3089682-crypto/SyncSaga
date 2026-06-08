@@ -6,23 +6,25 @@ import { openDB } from 'idb';
 export function useYjsRoom(roomId: string) {
   const [doc, setDoc] = useState<Y.Doc | null>(null);
   const [playbackState, setPlaybackState] = useState({ timestamp: 0, state: 'paused', speed: 1, episode: null as string | null });
+  const [polls, setPolls] = useState<Record<string, any>>({});
+  const [whiteboardElements, setWhiteboardElements] = useState<unknown[]>([]);
+
   const providerRef = useRef<WebrtcProvider | null>(null);
 
   useEffect(() => {
     if (!roomId) return;
     
     const ydoc = new Y.Doc();
-    // Connect to WebRTC signaling servers for decentralized sync
     const provider = new WebrtcProvider(`syncsaga-room-${roomId}`, ydoc, {
       signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com']
     });
     
     providerRef.current = provider;
     
-    // Shared state map
-    const yMap = ydoc.getMap('playback');
+    const yPlayback = ydoc.getMap('playback');
+    const yPolls = ydoc.getMap('polls');
+    const yWhiteboard = ydoc.getArray('whiteboard');
 
-    // Offline persistence
     const setupIDB = async () => {
       const db = await openDB('syncsaga-offline', 1, {
         upgrade(db) {
@@ -34,22 +36,28 @@ export function useYjsRoom(roomId: string) {
         Y.applyUpdate(ydoc, offlineData);
       }
 
-      // Save to IDB whenever document updates
-      ydoc.on('update', async (update) => {
+      ydoc.on('update', async () => {
         const state = Y.encodeStateAsUpdate(ydoc);
         await db.put('rooms', state, roomId);
       });
     };
     setupIDB();
 
-    // Listen to changes
-    yMap.observe(() => {
+    yPlayback.observe(() => {
       setPlaybackState({
-        timestamp: yMap.get('timestamp') as number || 0,
-        state: yMap.get('state') as string || 'paused',
-        speed: yMap.get('speed') as number || 1,
-        episode: yMap.get('episode') as string | null || null,
+        timestamp: yPlayback.get('timestamp') as number || 0,
+        state: yPlayback.get('state') as string || 'paused',
+        speed: yPlayback.get('speed') as number || 1,
+        episode: yPlayback.get('episode') as string | null || null,
       });
+    });
+
+    yPolls.observe(() => {
+      setPolls(yPolls.toJSON());
+    });
+
+    yWhiteboard.observe(() => {
+      setWhiteboardElements(yWhiteboard.toArray());
     });
 
     setDoc(ydoc);
@@ -62,14 +70,54 @@ export function useYjsRoom(roomId: string) {
 
   const updateSharedState = (updates: Partial<typeof playbackState>) => {
     if (!doc) return;
-    const yMap = doc.getMap('playback');
+    const yPlayback = doc.getMap('playback');
     doc.transact(() => {
-      if (updates.timestamp !== undefined) yMap.set('timestamp', updates.timestamp);
-      if (updates.state !== undefined) yMap.set('state', updates.state);
-      if (updates.speed !== undefined) yMap.set('speed', updates.speed);
-      if (updates.episode !== undefined) yMap.set('episode', updates.episode);
+      if (updates.timestamp !== undefined) yPlayback.set('timestamp', updates.timestamp);
+      if (updates.state !== undefined) yPlayback.set('state', updates.state);
+      if (updates.speed !== undefined) yPlayback.set('speed', updates.speed);
+      if (updates.episode !== undefined) yPlayback.set('episode', updates.episode);
     });
   };
 
-  return { doc, playbackState, updateSharedState };
+  const createPoll = (pollId: string, question: string, options: string[]) => {
+    if (!doc) return;
+    const yPolls = doc.getMap('polls');
+    yPolls.set(pollId, { question, options, votes: {} });
+  };
+
+  const votePoll = (pollId: string, userId: string, optionIndex: number) => {
+    if (!doc) return;
+    const yPolls = doc.getMap('polls');
+    const poll = yPolls.get(pollId) as { question: string, options: string[], votes: Record<string, number> };
+    if (poll) {
+      doc.transact(() => {
+        const newPoll = { ...poll, votes: { ...poll.votes, [userId]: optionIndex } };
+        yPolls.set(pollId, newPoll);
+      });
+    }
+  };
+
+  const addWhiteboardElement = (element: unknown) => {
+    if (!doc) return;
+    const yWhiteboard = doc.getArray('whiteboard');
+    yWhiteboard.push([element]);
+  };
+
+  const clearWhiteboard = () => {
+    if (!doc) return;
+    const yWhiteboard = doc.getArray('whiteboard');
+    yWhiteboard.delete(0, yWhiteboard.length);
+  };
+
+  return { 
+    doc, 
+    playbackState, 
+    updateSharedState,
+    polls,
+    createPoll,
+    votePoll,
+    whiteboardElements,
+    addWhiteboardElement,
+    clearWhiteboard
+  };
 }

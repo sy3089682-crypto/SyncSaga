@@ -139,10 +139,42 @@ export default function RoomPage() {
   }, [playbackState, duration]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim()) return;
-    sendMessage(input.trim());
+    const text = input.trim();
+    if (!text) return;
+
+    // Command Parser
+    if (text.startsWith('/')) {
+      const parts = text.split(' ');
+      const command = parts[0].toLowerCase();
+      
+      switch (command) {
+        case '/shrug':
+          sendMessage(text.replace('/shrug', '¯\\_(ツ)_/¯'));
+          break;
+        case '/me':
+          sendMessage(`_${text.substring(4)}_`);
+          break;
+        case '/tableflip':
+          sendMessage(text.replace('/tableflip', '(╯°□°）╯︵ ┻━┻'));
+          break;
+        case '/poll':
+          // In a real implementation this would trigger a modal to set options
+          // For now, we simulate sending a system-level command if host
+          if (currentRoom?.host_id === user?.id) {
+            sendMessage(`*Poll created: ${text.substring(6)}*`);
+          } else {
+            sendMessage(`*Error: Only hosts can create polls.*`);
+          }
+          break;
+        default:
+          sendMessage(`*Error: Unknown command ${command}*`);
+      }
+    } else {
+      sendMessage(text);
+    }
+    
     setInput('');
-  }, [input, sendMessage]);
+  }, [input, sendMessage, currentRoom, user]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }

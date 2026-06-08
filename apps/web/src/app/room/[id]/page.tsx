@@ -10,6 +10,7 @@ import {
 import { useAppStore } from '@/store/useAppStore';
 import { LiveKitRoom, RoomAudioRenderer, VideoConference } from '@livekit/components-react';
 import '@livekit/components-styles';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRoom } from '@/hooks/useRoom';
 import { getSocket } from '@/lib/socket';
 import { cn, formatTime } from '@/lib/utils';
@@ -55,6 +56,20 @@ export default function RoomPage() {
   const [cinemaMode, setCinemaMode] = useState<'flat' | 'cinema' | 'immersive'>('flat');
   const [episode, setEpisode] = useState<string | null>('Attack on Titan S4 E5');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  const rowVirtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => chatContainerRef.current,
+    estimateSize: () => 60,
+    overscan: 5,
+  });
+
+  useEffect(() => {
+    if (chatContainerRef.current && messages.length > 0) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     join();
@@ -368,28 +383,42 @@ export default function RoomPage() {
               </div>
             ) : activeTab === 'chat' ? (
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3">
                   {messages.length === 0 && (
                     <div className="text-center text-text-muted text-sm py-8">No messages yet. Say hello!</div>
                   )}
-                  {messages.map(msg => (
-                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                      <div className="flex items-start gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
-                          {msg.profile?.username?.[0]?.toUpperCase() || '?'}
+                  <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const msg = messages[virtualRow.index];
+                      return (
+                        <div
+                          key={msg.id}
+                          className="absolute top-0 left-0 w-full mb-2"
+                          style={{
+                            height: `${virtualRow.size}px`,
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                            <div className="flex items-start gap-2 pr-2">
+                              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
+                                {msg.profile?.username?.[0]?.toUpperCase() || '?'}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-primary">{msg.profile?.username || 'User'}</span>
+                                  <span className="text-[10px] text-text-muted">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <p className="text-sm text-text-primary break-words mt-1 p-2 bg-surface-light rounded-r-xl rounded-bl-xl shadow-sm">{msg.content}</p>
+                              </div>
+                            </div>
+                          </motion.div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-primary">{msg.profile?.username || 'User'}</span>
-                            <span className="text-[10px] text-text-muted">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          <p className="text-sm text-text-primary break-words mt-1 p-2 bg-surface-light rounded-r-xl rounded-bl-xl shadow-sm">{msg.content}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      );
+                    })}
+                  </div>
                   {typingUsers.length > 0 && (
-                    <div className="text-xs text-text-muted italic">{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</div>
+                    <div className="text-xs text-text-muted italic mt-2">{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</div>
                   )}
                   <div ref={chatEndRef} />
                 </div>

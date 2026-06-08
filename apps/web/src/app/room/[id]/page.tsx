@@ -331,7 +331,7 @@ export default function RoomPage() {
               onModeChange={setCinemaMode}
               participantCount={totalMembers}
             />
-            <button onClick={() => setIsMuted(!isMuted)}
+            <button aria-label={isMuted ? "Unmute" : "Mute"} aria-pressed={isMuted} onClick={() => setIsMuted(!isMuted)}
               className={cn("p-2.5 sm:p-3 rounded-xl transition-colors", isMuted ? 'bg-red-500/20 text-red-500' : 'bg-surface-light hover:bg-surface text-text-secondary')}>
               {isMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>

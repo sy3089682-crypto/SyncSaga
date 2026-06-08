@@ -1,15 +1,10 @@
 /** @type {import('next').NextConfig} */
-const cspHeader = `
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://app.posthog.com;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https:;
-  connect-src 'self' wss: https: http://localhost:4000 ws://localhost:4000;
-  font-src 'self' data: https: fonts.gstatic.com;
-  object-src 'none';
-  media-src 'self' blob:;
-  frame-src 'self' https://js.stripe.com https://hooks.stripe.com;
-`;
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  skipWaiting: true,
+});
 
 const nextConfig = {
   reactStrictMode: true,
@@ -44,10 +39,11 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-DNS-Prefetch-Control', value: 'on' },
         ],
       },
       {
@@ -61,18 +57,4 @@ const nextConfig = {
   },
 };
 
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-XSS-Protection", value: "1; mode=block" },
-          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        ],
-      },
-    ];
-  },
-module.exports = nextConfig;
+module.exports = withPWA(nextConfig);

@@ -320,6 +320,11 @@ export default function RoomPage() {
                 connect={isInVoice}
                 audio={!isMuted}
                 video={false}
+                onDisconnected={() => {
+                  console.warn("LiveKit Voice Disconnected");
+                  setIsInVoice(false);
+                  setLiveKitToken("");
+                }}
               >
                 <RoomAudioRenderer />
                 {/* Visual indicator of active speakers could go here */}

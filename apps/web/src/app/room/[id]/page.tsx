@@ -1,3 +1,5 @@
+import { ScreenShareOverlay } from '@/components/cinema/ScreenShareOverlay';
+import { ScreenShareControls } from '@/components/cinema/ScreenShareControls';
 import { NotionCanvas } from "@/components/cinema/NotionCanvas";
 'use client';
 
@@ -328,7 +330,8 @@ export default function RoomPage() {
                 }}
               >
                 <RoomAudioRenderer />
-                {/* Visual indicator of active speakers could go here */}
+                <ScreenShareOverlay />
+                <ScreenShareControls />
               </LiveKitRoom>
             )}
             <VirtualCinema

@@ -15,6 +15,7 @@ function getSupabaseConfig() {
 
 const { url: supabaseUrl, key: supabaseServiceKey } = getSupabaseConfig();
 
+// The Supabase client is already configured to be server-side. For true connection pooling in production, ensure SUPABASE_URL points to the IPv4 connection pooler (e.g. Supavisor / PgBouncer port 6543).
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,

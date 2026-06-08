@@ -8,7 +8,7 @@ import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
   Users, MessageSquare, Mic, MicOff, PhoneOff, Send, Smile,
-  Play, Pause, Settings, Crown, Volume2, WifiOff, Bell, Tv,
+  Play, Pause, Settings, Paperclip, Crown, Volume2, WifiOff, Bell, Tv,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { LiveKitRoom, RoomAudioRenderer, VideoConference } from '@livekit/components-react';
@@ -468,13 +468,13 @@ export default function RoomPage() {
                   <div ref={chatEndRef} />
                 </div>
                 <div className="p-3 border-t border-border shrink-0">
-                  <div className="flex items-center gap-2 bg-surface-light rounded-xl px-3 py-2">
-                    <button className="text-text-muted hover:text-text-secondary transition-colors shrink-0"><Smile className="w-5 h-5" /></button>
+                  <div className="flex items-center gap-2 bg-surface-light rounded-xl px-3 py-2 mt-2">
+                    <button className="text-text-muted hover:text-accent-cyan transition-colors shrink-0" title="Attach Media"><Paperclip className="w-5 h-5" /></button>
                     <input type="text" value={input} onChange={e => { setInput(e.target.value); sendTyping(e.target.value.length > 0); }}
-                      onKeyDown={handleKeyDown} placeholder="Type a message..." maxLength={2000}
+                      onKeyDown={handleKeyDown} placeholder="Type a message or drop files..." maxLength={2000}
                       className="flex-1 bg-transparent text-sm outline-none placeholder:text-text-muted min-w-0" />
                     <button onClick={handleSend} disabled={!input.trim()}
-                      className="text-primary hover:text-primary-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0">
+                      className="text-primary hover:text-accent-cyan disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0">
                       <Send className="w-5 h-5" />
                     </button>
                   </div>

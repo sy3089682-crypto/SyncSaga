@@ -23,6 +23,7 @@ import metricsRouter from './routes/metrics';
 import paymentsRouter from './routes/payments';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
+import './services/queue.service';
 import { wsBridge } from './services/wsBridge';
 import { setNotificationSocket } from './services/notification.service';
 import { supabase } from './lib/supabase';

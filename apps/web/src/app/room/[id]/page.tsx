@@ -1,3 +1,4 @@
+import { NotionCanvas } from "@/components/cinema/NotionCanvas";
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -40,7 +41,7 @@ export default function RoomPage() {
   const { driftStatuses, setDriftStatus } = useAppStore();
 
   const [input, setInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'chat' | 'users' | 'anime'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'users' | 'anime' | 'notes'>('chat');
   const [playbackState, setPlaybackState] = useState<'playing' | 'paused'>('paused');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -362,12 +363,12 @@ export default function RoomPage() {
           >
             <LayoutGroup>
               <div className="flex border-b border-border shrink-0">
-                {(['chat', 'users', 'anime'] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
+                {(['chat', 'users', 'anime', 'notes'] as const).map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab as any)}
                     className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-primary' : 'text-text-secondary hover:text-text-primary')}>
                     <span className="flex items-center justify-center gap-1.5">
-                      {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : tab === 'users' ? <Users className="w-4 h-4" /> : <Tv className="w-4 h-4" />}
-                      {tab === 'chat' ? 'Chat' : tab === 'users' ? `Users (${totalMembers})` : 'Anime'}
+                      {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : tab === 'users' ? <Users className="w-4 h-4" /> : tab === 'anime' ? <Tv className="w-4 h-4" /> : <span className="w-4 h-4">📝</span>}
+                      {tab === 'chat' ? 'Chat' : tab === 'users' ? `Users (${totalMembers})` : tab === 'anime' ? 'Anime' : 'Notes'}
                     </span>
                     {activeTab === tab && <motion.div layoutId="room-sidebar-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                   </button>
@@ -375,7 +376,11 @@ export default function RoomPage() {
               </div>
             </LayoutGroup>
 
-            {activeTab === 'anime' ? (
+            {activeTab === 'notes' ? (
+              <div className="flex-1 overflow-y-auto min-h-0 bg-bg-surface">
+                <NotionCanvas roomId={roomId} />
+              </div>
+            ) : activeTab === 'anime' ? (
               <div className="flex-1 overflow-y-auto min-h-0">
                 <AnimeInfoSidebar
                   animeTitle={episode}

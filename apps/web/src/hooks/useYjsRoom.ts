@@ -109,7 +109,7 @@ export function useYjsRoom(roomId: string) {
     yWhiteboard.delete(0, yWhiteboard.length);
   };
 
-  return { 
+  return { provider: providerRef.current, 
     doc, 
     playbackState, 
     updateSharedState,

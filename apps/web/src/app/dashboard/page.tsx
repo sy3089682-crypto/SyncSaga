@@ -67,7 +67,7 @@ export default async function DashboardPage() {
                   <Link
                     key={room.id}
                     href={`/room/${room.slug ?? room.id}`}
-                    className="flex gap-3 p-3 bg-[#0a0a0a] border border-[#1a1a1a] hover:border-[#00d4ff]/30 transition-colors group"
+                    className="flex gap-3 p-3 glass-panel-interactive stagger-item group"
                   >
                     {room.anime_image && (
                       <img src={room.anime_image} alt="" className="w-12 h-16 object-cover flex-shrink-0"/>

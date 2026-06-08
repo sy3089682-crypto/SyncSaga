@@ -99,3 +99,58 @@
     background-color: var(--border-strong);
   }
 }
+
+@layer components {
+  /* Enhanced Glassmorphism and Hover Animations */
+  .glass-panel {
+    @apply bg-bg-surface/80 backdrop-blur-md border border-border-default shadow-lg rounded-xl;
+  }
+  
+  .glass-panel-interactive {
+    @apply glass-panel transition-all duration-300 ease-out hover:border-accent-cyan/40 hover:bg-bg-elevated/90 hover:shadow-[0_8px_30px_rgb(0,212,255,0.15)] hover:-translate-y-1;
+  }
+
+  /* Smooth Staggered List Animations */
+  .stagger-item {
+    @apply opacity-0 translate-y-4 animate-[slideUp_0.4s_ease-out_forwards];
+  }
+  .stagger-item:nth-child(1) { animation-delay: 50ms; }
+  .stagger-item:nth-child(2) { animation-delay: 100ms; }
+  .stagger-item:nth-child(3) { animation-delay: 150ms; }
+  .stagger-item:nth-child(4) { animation-delay: 200ms; }
+  .stagger-item:nth-child(5) { animation-delay: 250ms; }
+  .stagger-item:nth-child(6) { animation-delay: 300ms; }
+
+  /* Buttons */
+  .btn-primary {
+    @apply relative overflow-hidden inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg text-bg-DEFAULT bg-accent-cyan transition-all duration-300 shadow-[0_0_15px_rgba(0,212,255,0.4)] hover:shadow-[0_0_25px_rgba(0,212,255,0.6)] hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-accent-cyan/50 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  
+  /* Add a sweeping shine effect to primary buttons */
+  .btn-primary::after {
+    content: '';
+    @apply absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] transition-all duration-700 ease-in-out;
+  }
+  .btn-primary:hover::after {
+    left: 200%;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg text-text-primary bg-bg-elevated border border-border-default hover:border-accent-cyan/50 hover:bg-bg-highlight hover:shadow-[0_0_15px_rgba(0,212,255,0.1)] transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-border-strong active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Input fields with focus animations */
+  .input-field {
+    @apply block w-full px-3 py-2 border border-border-strong rounded-lg bg-bg-elevated text-text-primary placeholder-text-muted transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-accent-cyan/50 focus:border-accent-cyan/50 focus:bg-bg-surface focus:shadow-[0_0_15px_rgba(0,212,255,0.15)];
+  }
+}
+
+/* Keyframes missing from config but used in globals */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 15px rgba(0, 212, 255, 0.5); }
+  50% { opacity: 0.7; box-shadow: 0 0 5px rgba(0, 212, 255, 0.2); }
+}

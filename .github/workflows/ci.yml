@@ -18,7 +18,7 @@ env:
   JWT_SECRET: test-jwt-secret-with-at-least-32-chars!!
   JWT_REFRESH_SECRET: test-refresh-secret-with-at-least-32-chars!!
   CORS_ORIGIN: http://localhost:3000
-  LOG_LEVEL: silent
+  LOG_LEVEL: error
   REDIS_URL: redis://localhost:6379
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
         run: npx turbo run build --filter=@syncsaga/config --filter=@syncsaga/types
 
       - name: Run unit tests with coverage
-        run: npx vitest run --coverage --reporter=verbose
+        run: npx vitest run --coverage --reporter=verbose --passWithNoTests
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

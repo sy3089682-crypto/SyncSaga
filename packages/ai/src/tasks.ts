@@ -109,6 +109,6 @@ Respond with JUST the question.`
 }
 
 export function generateImage(prompt: string, style?: string): string {
-  const finalPrompt = style ? \`\${prompt} in \${style} style\` : prompt
+  const finalPrompt = style ? `${prompt} in ${style} style` : prompt
   return generatePollinationsImage(finalPrompt)
 }

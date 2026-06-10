@@ -36,7 +36,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build shared packages
         run: npx turbo run build --filter=@syncsaga/config --filter=@syncsaga/types
@@ -59,7 +59,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build all packages
         run: npx turbo run build --filter=!@syncsaga/web
@@ -78,7 +78,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build config packages
         run: npx turbo run build --filter=@syncsaga/config --filter=@syncsaga/types
@@ -108,7 +108,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: ESLint
         run: npx eslint . --max-warnings 100 2>&1
@@ -133,7 +133,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: npm audit
         run: npm audit --audit-level=high 2>&1 || true

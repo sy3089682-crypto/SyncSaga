@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npx turbo run build --filter=@syncsaga/web",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
+  "outputDirectory": "apps/web/.next"
+}

@@ -1,9 +1,9 @@
 {
   "framework": "nextjs",
-  "regions": ["nrt1"],
+  "regions": ["hnd1"],
   "crons": [
-    { "path": "/api/cron/update-trending", "schedule": "0 * * * *" },
-    { "path": "/api/cron/cleanup-ended-rooms", "schedule": "0 0 * * *" }
+    { "path": "/api/cron/update-trending", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/cleanup-ended-rooms", "schedule": "30 0 * * *" }
   ],
   "headers": [
     {

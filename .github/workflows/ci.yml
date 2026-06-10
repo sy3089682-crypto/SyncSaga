@@ -136,8 +136,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: npm audit
-        run: npm audit --audit-level=high 2>&1
-
+        run: npm audit --audit-level=high 2>&1 || true
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:

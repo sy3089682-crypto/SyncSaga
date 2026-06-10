@@ -17,10 +17,10 @@ env:
   SUPABASE_SERVICE_KEY: test-service-key
   JWT_SECRET: test-jwt-secret-with-at-least-32-chars!!
   JWT_REFRESH_SECRET: test-refresh-secret-with-at-least-32-chars!!
-  CORS_ORIGIN: http://localhost:3000
+  CORS_ORIGIN: http://127.0.0.1:3000
   LOG_LEVEL: silent
-  NEXT_PUBLIC_API_URL: http://localhost:4000
-  NEXT_PUBLIC_SOCKET_URL: http://localhost:4000
+  NEXT_PUBLIC_API_URL: http://127.0.0.1:4000
+  NEXT_PUBLIC_SOCKET_URL: http://127.0.0.1:4000
 
 jobs:
   e2e-tests:
@@ -57,21 +57,21 @@ jobs:
       - name: Build shared packages
         run: npx turbo run build --filter=@syncsaga/config --filter=@syncsaga/types
         env:
-          REDIS_URL: redis://localhost:6379
+          REDIS_URL: redis://127.0.0.1:6379
 
       - name: Start API server
         run: |
           npx tsx apps/api/src/index.ts &
           echo "API_PID=$!"
           sleep 3
-          curl -s http://localhost:4000/health || echo "API health check failed"
+          curl -s http://127.0.0.1:4000/health || echo "API health check failed"
         env:
-          REDIS_URL: redis://localhost:6379
+          REDIS_URL: redis://127.0.0.1:6379
 
       - name: Run Playwright tests
         run: npx playwright test --reporter=list
         env:
-          REDIS_URL: redis://localhost:6379
+          REDIS_URL: redis://127.0.0.1:6379
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

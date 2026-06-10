@@ -1,7 +1,8 @@
+'use client';
+
 import { ScreenShareOverlay } from '@/components/cinema/ScreenShareOverlay';
 import { ScreenShareControls } from '@/components/cinema/ScreenShareControls';
 import { NotionCanvas } from "@/components/cinema/NotionCanvas";
-'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';

@@ -10,3 +10,5 @@ coverage/
 *.tsbuildinfo
 apps/extension/dist/
 apps/extension/icons/
+playwright-report/
+test-results/

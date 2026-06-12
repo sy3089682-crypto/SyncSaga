@@ -14,14 +14,16 @@ interface Message {
 }
 
 // ⚡ Bolt: Extracted ChatInput to prevent re-rendering the entire message list on every keystroke
-const ChatInput = React.memo(({ onSend }: { onSend: (content: string) => void }) => {
+const ChatInput = React.memo(({ onSend }: { onSend: (content: string) => boolean }) => {
   const [input, setInput] = useState("")
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
-    onSend(input)
-    setInput("")
+    const success = onSend(input)
+    if (success) {
+      setInput("")
+    }
   }
 
   return (
@@ -68,7 +70,7 @@ export function ChatPanel() {
 
   // ⚡ Bolt: Wrapped in useCallback so ChatInput memoization works properly
   const handleSend = React.useCallback((content: string) => {
-    if (!socket || !roomId || !user) return
+    if (!socket || !roomId || !user) return false
 
     const msg: Message = {
       id: Math.random().toString(),
@@ -81,6 +83,7 @@ export function ChatPanel() {
     // Optimistic update
     setMessages((prev) => [...prev, msg])
     socket.emit("send_message", { roomId, message: msg })
+    return true
   }, [socket, roomId, user, profile])
 
   return (

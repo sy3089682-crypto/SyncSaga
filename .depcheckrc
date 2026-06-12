@@ -1,0 +1,6 @@
+ignores:
+  - esbuild
+  - vite
+  - tailwindcss
+  - "@vitest/coverage-v8"
+  - tsx

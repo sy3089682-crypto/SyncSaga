@@ -1,0 +1,3 @@
+## 2024-05-24 - Zustand Full Store Subscription Re-renders
+**Learning:** Destructuring from a Zustand store (e.g., `const { roomId } = useRoomStore()`) subscribes the component to the ENTIRE store. Because `useRoomStore` contains frequently updated state like `playbackPosition` (which updates multiple times a second during video playback), it causes unrelated components like `ChatPanel` and `VoiceVideoChat` to constantly re-render on every video frame.
+**Action:** Always use specific state selectors (`useRoomStore(state => state.roomId)`) when consuming Zustand stores, especially stores that contain high-frequency data like scroll positions, playback times, or mouse coordinates.

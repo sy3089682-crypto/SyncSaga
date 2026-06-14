@@ -1,6 +1,4 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { verifyToken } from '../lib/jwt';
-import { redisService } from './redis.service';
 import { logger } from '../lib/logger';
 
 interface ExtensionMessage {

@@ -32,7 +32,7 @@ class ModerationService {
     return data;
   }
 
-  async banUser(roomId: string, userId: string, bannedById: string, reason?: string) {
+  async banUser(roomId: string, userId: string, _bannedById: string, _reason?: string) {
     await supabase.from('room_members').update({ is_banned: true })
       .eq('room_id', roomId)
       .eq('user_id', userId);

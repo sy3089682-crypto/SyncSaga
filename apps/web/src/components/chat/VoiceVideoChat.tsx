@@ -8,9 +8,15 @@ import { Button } from "@syncsaga/ui"
 import { Mic, MicOff, Video, VideoOff } from "lucide-react"
 
 export function VoiceVideoChat() {
-  const { token, serverUrl, isMicEnabled, isCameraEnabled, toggleMic, toggleCamera, setConnectionDetails } = useLiveKitStore()
-  const { roomId } = useRoomStore()
-  const { user } = useAuthStore()
+  const token = useLiveKitStore((state) => state.token)
+  const serverUrl = useLiveKitStore((state) => state.serverUrl)
+  const isMicEnabled = useLiveKitStore((state) => state.isMicEnabled)
+  const isCameraEnabled = useLiveKitStore((state) => state.isCameraEnabled)
+  const toggleMic = useLiveKitStore((state) => state.toggleMic)
+  const toggleCamera = useLiveKitStore((state) => state.toggleCamera)
+  const setConnectionDetails = useLiveKitStore((state) => state.setConnectionDetails)
+  const roomId = useRoomStore((state) => state.roomId)
+  const user = useAuthStore((state) => state.user)
   const [connecting, setConnecting] = useState(false)
 
   // In a real app, you would fetch the token from your API: /api/livekit/token

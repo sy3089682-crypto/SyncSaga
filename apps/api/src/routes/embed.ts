@@ -77,7 +77,6 @@ router.get('/room/:roomId', async (req, res) => {
 });
 
 router.get('/widget/:roomId', async (req, res) => {
-  const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:4000';
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.send(`

@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const roomStatus = $('roomStatus') as HTMLDivElement;
   const currentRoomName = $('currentRoomName') as HTMLDivElement;
   const currentRoomMeta = $('currentRoomMeta') as HTMLDivElement;
-  const memberAvatars = $('memberAvatars') as HTMLDivElement;
   const currentUrl = $('currentUrl') as HTMLInputElement;
   const createRoomBtn = $('createRoomBtn') as HTMLButtonElement;
   const inviteLink = $('inviteLink') as HTMLInputElement;

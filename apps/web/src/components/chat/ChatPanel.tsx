@@ -13,10 +13,30 @@ interface Message {
   timestamp: string
 }
 
+const MessageItem = React.memo(({ msg }: { msg: Message }) => (
+  <div className="flex gap-3">
+    <Avatar className="w-8 h-8">
+      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`} />
+      <AvatarFallback>{msg.username.charAt(0).toUpperCase()}</AvatarFallback>
+    </Avatar>
+    <div>
+      <div className="flex items-baseline gap-2">
+        <span className="font-semibold text-sm">{msg.username}</span>
+        <span className="text-xs text-muted-foreground">
+          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+      <p className="text-sm text-zinc-300 break-words">{msg.content}</p>
+    </div>
+  </div>
+))
+MessageItem.displayName = "MessageItem"
+
 export function ChatPanel() {
-  const { socket } = useSocketStore()
-  const { user, profile } = useAuthStore()
-  const { roomId } = useRoomStore()
+  const socket = useSocketStore((state) => state.socket)
+  const user = useAuthStore((state) => state.user)
+  const profile = useAuthStore((state) => state.profile)
+  const roomId = useRoomStore((state) => state.roomId)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -68,21 +88,7 @@ export function ChatPanel() {
           </div>
         )}
         {messages.map((msg) => (
-          <div key={msg.id} className="flex gap-3">
-            <Avatar className="w-8 h-8">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`} />
-              <AvatarFallback>{msg.username.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-semibold text-sm">{msg.username}</span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <p className="text-sm text-zinc-300 break-words">{msg.content}</p>
-            </div>
-          </div>
+          <MessageItem key={msg.id} msg={msg} />
         ))}
         <div ref={bottomRef} />
       </div>

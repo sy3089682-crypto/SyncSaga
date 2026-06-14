@@ -13,7 +13,6 @@ let video: HTMLVideoElement | null = null
 let roomId: string | null = null
 let isHost = false
 let isSyncing = false
-let syncTimeout: ReturnType<typeof setTimeout> | null = null
 
 const SYNC_DEBOUNCE_MS = 300
 

@@ -1,14 +1,11 @@
 import { Router } from 'express';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
-import { supabase } from '../lib/supabase';
-import { z } from 'zod';
+import { requireAuth } from '../middleware/auth';
 import { logger } from '../lib/logger';
 
 const router = Router();
 
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, async (_req, res) => {
   try {
-    const userId = (req as AuthenticatedRequest).userId;
     // In a full implementation, we'd fetch from a 'notifications' table
     res.json({ notifications: [] });
   } catch (error) {

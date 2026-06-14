@@ -7,8 +7,11 @@ import { Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react"
 
 export function VideoPlayer({ url }: { url?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const { playbackState, playbackPosition, updatePlayback, roomId } = useRoomStore()
-  const { socket } = useSocketStore()
+  const playbackState = useRoomStore((state) => state.playbackState)
+  const playbackPosition = useRoomStore((state) => state.playbackPosition)
+  const updatePlayback = useRoomStore((state) => state.updatePlayback)
+  const roomId = useRoomStore((state) => state.roomId)
+  const socket = useSocketStore((state) => state.socket)
   const [isMuted, setIsMuted] = React.useState(false)
 
   // Sync incoming state

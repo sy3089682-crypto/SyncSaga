@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../middleware/auth';
-import { ServerToClientEvents, ClientToServerEvents, Message, User } from '@syncsaga/types';
+import { ServerToClientEvents, ClientToServerEvents, Message } from '@syncsaga/types';
 import { redisService } from '../../services/redis.service';
 import { moderationService } from '../../services/moderation.service';
 import { logger } from '../../lib/logger';
@@ -100,7 +100,7 @@ export function chatHandler(
     }
   });
 
-  let typingThrottle = new Map<string, number>();
+  const typingThrottle = new Map<string, number>();
 
   socket.on('chat:typing', async (data) => {
     try {

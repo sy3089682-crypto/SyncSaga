@@ -139,7 +139,6 @@ router.post('/webhook', async (req: Request, res: Response) => {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        const userId = subscription.metadata.userId;
 
         await supabase.from('subscriptions').update({
           status: subscription.status === 'active' ? 'active' : 'cancelled',
@@ -153,7 +152,6 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        const userId = invoice.metadata.userId;
 
         await supabase.from('subscriptions').update({
           status: 'past_due',

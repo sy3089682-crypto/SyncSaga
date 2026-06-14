@@ -9,8 +9,6 @@ import { formatZodError, roomIdPayloadSchema, setEpisodeSchema, syncEventSchema,
 const rttMap = new Map<string, { pingTime: number; rtt: number }>();
 const logicalClocks = new Map<string, number>();
 const HEARTBEAT_INTERVAL = parseInt(process.env.SYNC_HEARTBEAT_INTERVAL || '5000', 10);
-const DRIFT_SYNCED = parseFloat(process.env.DRIFT_SYNCED_THRESHOLD || '0.5');
-const DRIFT_SLIGHT = parseFloat(process.env.DRIFT_SLIGHT_THRESHOLD || '2.0');
 
 export function syncHandler(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
@@ -21,14 +19,6 @@ export function syncHandler(
     socket.emit('sync:pong', { clientTime, serverTime, rtt: 0 });
     rttMap.set(socket.id, { pingTime: clientTime, rtt: serverTime - clientTime });
   });
-
-  async function emitDriftStatus(roomId: string, drift: number) {
-    let status: 'synced' | 'slight' | 'desynced';
-    if (drift < DRIFT_SYNCED) status = 'synced';
-    else if (drift <= DRIFT_SLIGHT) status = 'slight';
-    else status = 'desynced';
-    io.to(roomId).emit('sync:drift_update', { userId: socket.userId, drift, status });
-  }
 
   let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 

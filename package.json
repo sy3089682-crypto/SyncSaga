@@ -2,6 +2,7 @@
   "name": "syncsaga",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@10.2.4",
   "description": "SyncSaga - Realtime anime watch-party platform",
   "workspaces": [
     "apps/*",

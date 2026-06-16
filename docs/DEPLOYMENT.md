@@ -74,7 +74,13 @@ Render free supports WebSockets natively. No special config needed.
 
 1. Create project at supabase.com
 2. Run schema from `packages/db/schema.sql`
-3. Enable Auth with Email + Google + GitHub + Discord
+3. Enable Auth with Email + Google + GitHub + Discord:
+   - **Google OAuth Setup**:
+     a. Go to Google Cloud Console, create a project, and create OAuth 2.0 Client credentials.
+     b. Set Authorized Redirect URI to: `https://<your-supabase-project-id>.supabase.co/auth/v1/callback`
+     c. Copy Client ID and Client Secret.
+     d. In Supabase Dashboard -> Auth -> Providers -> Google: Enable provider, paste Client ID and Client Secret, and save.
+     e. In Supabase Dashboard -> Auth -> URL Configuration: Add `https://<your-vercel-app>.vercel.app/auth/callback` to **Additional Redirect URIs**.
 4. Copy URL and anon key
 
 ## Cloudflare

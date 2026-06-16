@@ -48,7 +48,7 @@ export function getEnv(): Env {
       );
     }
     console.warn('Environment validation warnings:', result.error.errors.map(e => e.path.join('.')).join(', '));
-    _env = result.data as Env;
+    _env = (result.data || process.env) as unknown as Env;
     return _env;
   }
   _env = result.data;

@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 let currentToken: string | null = null;

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { KeyRound, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function ResetPasswordPage() {
       if (token) {
         await api.post('/api/auth/reset-password', { token, newPassword });
       } else {
-        const { error: supabaseError } = await (await import('@supabase/ssr')).createClient().auth.updateUser({ password: newPassword });
+        const { error: supabaseError } = await supabase.auth.updateUser({ password: newPassword });
         if (supabaseError) throw new Error(supabaseError.message);
       }
       setSuccess(true);

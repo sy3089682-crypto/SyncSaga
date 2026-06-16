@@ -1,4 +1,4 @@
-import { getAiRouter } from '../../services/ai.service';
+import { getAiRouter } from '../../../services/ai.service';
 import { aiCache } from '../cache/ai-cache';
 import { providerHealth } from '../router/provider-health';
 import { logger } from '../../logger';

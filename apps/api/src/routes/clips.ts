@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { supabase } from '../lib/supabase';
 import { verifyToken } from '../lib/jwt';
 

@@ -29,7 +29,7 @@ type FlagConfig = {
 };
 
 const FLAGS: FlagConfig[] = [
-  { key: 'ai_recommendations', description: 'AI-powered anime recommendations', defaultEnabled: true },
+  { key: 'ai_recommendations', description: 'AI-powered anime recommendations', defaultEnabled: true, requiresSubscription: 'premium' },
   { key: 'ai_moderation', description: 'AI content moderation', defaultEnabled: true },
   { key: 'ai_recaps', description: 'AI watch party recaps', defaultEnabled: true },
   { key: 'ai_room_names', description: 'AI room name generation', defaultEnabled: true },
@@ -110,6 +110,23 @@ class FeatureService {
       FLAGS.map(async f => ({ key: f.key, enabled: await this.isEnabled(f.key) }))
     );
     return results.filter(f => f.enabled).map(f => f.key);
+  }
+
+  async isAvailableForPlan(flag: FeatureFlag, plan: 'free' | 'premium' | 'pro'): Promise<boolean> {
+    const isFlagEnabled = await this.isEnabled(flag);
+    if (!isFlagEnabled) return false;
+
+    const config = FLAGS.find(f => f.key === flag);
+    if (!config) return false;
+
+    if (config.requiresSubscription === 'pro') {
+      return plan === 'pro';
+    }
+    if (config.requiresSubscription === 'premium') {
+      return plan === 'premium' || plan === 'pro';
+    }
+
+    return true;
   }
 }
 

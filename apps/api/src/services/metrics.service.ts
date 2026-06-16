@@ -41,7 +41,14 @@ class MetricsService {
     this.connectedSockets = count;
   }
 
-  async getMetrics() {
+  recordSyncDrift(driftMs: number) {
+    const key = 'sync:drift';
+    if (!this.latencies[key]) this.latencies[key] = [];
+    this.latencies[key].push(driftMs);
+    if (this.latencies[key].length > 100) this.latencies[key].shift();
+  }
+
+  getJsonMetrics() {
     const avgLatencies: Record<string, number> = {};
     for (const [key, vals] of Object.entries(this.latencies)) {
       avgLatencies[key] = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
@@ -54,6 +61,18 @@ class MetricsService {
       sockets: { connected: this.connectedSockets },
       uptime: process.uptime(),
     };
+  }
+
+  getHealth() {
+    return {
+      initialized: true,
+      uptime: process.uptime(),
+      connectedSockets: this.connectedSockets,
+    };
+  }
+
+  async getMetrics() {
+    return this.getJsonMetrics();
   }
 }
 

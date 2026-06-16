@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import { randomBytes } from 'crypto';
 import { isProduction } from '@syncsaga/config';

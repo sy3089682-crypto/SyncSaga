@@ -1,10 +1,10 @@
-import { aiCache } from '../lib/ai/cache/ai-cache';
+import { redisService } from './redis.service';
 import { logger } from '../lib/logger';
 
 export class CacheService {
   async get<T>(key: string): Promise<T | null> {
     try {
-      const data = await aiCache.get(key);
+      const data = await redisService.getClient().get(`cache:${key}`);
       if (!data) return null;
       return JSON.parse(data) as T;
     } catch (error) {
@@ -15,7 +15,7 @@ export class CacheService {
 
   async set(key: string, value: unknown, ttlSeconds = 300): Promise<void> {
     try {
-      await aiCache.set(key, JSON.stringify(value), ttlSeconds);
+      await redisService.getClient().setEx(`cache:${key}`, ttlSeconds, JSON.stringify(value));
     } catch (error) {
       logger.error({ key, error }, 'Cache set error');
     }
@@ -23,13 +23,16 @@ export class CacheService {
 
   async delete(key: string): Promise<void> {
     try {
-      await aiCache.invalidatePattern(key);
+      await redisService.getClient().del(`cache:${key}`);
     } catch {}
   }
 
   async deletePattern(pattern: string): Promise<void> {
     try {
-      await aiCache.invalidatePattern(pattern);
+      const keys = await redisService.getClient().keys(pattern);
+      if (keys.length > 0) {
+        await redisService.getClient().del(keys);
+      }
     } catch {}
   }
 

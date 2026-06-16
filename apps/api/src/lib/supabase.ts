@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getEnv } from '@syncsaga/config';
+import WebSocket from 'ws';
 
 const env = getEnv();
 const supabaseUrl = env.SUPABASE_URL;
@@ -9,5 +10,8 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
+  },
+  realtime: {
+    transport: WebSocket,
   },
 });

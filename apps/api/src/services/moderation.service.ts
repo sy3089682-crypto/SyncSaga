@@ -9,7 +9,7 @@ interface ModerationResult {
   explanation?: string;
 }
 
-class ModerationService {
+export class ModerationService {
   async checkMessage(content: string): Promise<ModerationResult> {
     return checkMessage(content);
   }

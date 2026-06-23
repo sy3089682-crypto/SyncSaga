@@ -1,0 +1,3 @@
+## 2024-05-24 - [React Anti-Pattern: Component declared inside Render]
+**Learning:** In `apps/web/src/app/search/page.tsx`, an entire child component (`AnimeCardComponent`) was declared *inside* the parent component (`SearchPage`). This is a critical React anti-pattern because on every state change (e.g. typing in the search bar), React creates a completely new function reference for the child component, forcing it to unmount and remount the DOM entirely, rather than just reconciling updates.
+**Action:** Always declare components at the top level, outside of other components. If a component needs to be extracted, pass necessary context via props or hooks (like `useRouter()`) instead of relying on the parent's closure.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, TrendingUp, Star, Tv, Film, Clock, AlertCircle,
@@ -34,6 +34,81 @@ const genres = [
 ];
 
 const formats = ['TV', 'MOVIE', 'OVA', 'ONA', 'SPECIAL', 'MUSIC'];
+
+const AnimeCardComponent = memo(({ anime, index = 0 }: { anime: AnimeCard; index?: number }) => {
+  const router = useRouter();
+  const title = anime.title?.english || anime.title?.romaji || 'Unknown';
+  const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
+  const coverColor = anime.coverImage?.color || '#8b5cf6';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.03 }}
+      className="group relative rounded-2xl overflow-hidden bg-surface border border-border hover:border-primary/40 transition-all hover:-translate-y-1 duration-300"
+    >
+      <div className="aspect-[3/4] relative overflow-hidden">
+        <img
+          src={anime.coverImage?.large || anime.coverImage?.medium}
+          alt={title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+
+        {score && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-sm text-xs">
+            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+            <span className="text-white font-semibold">{score}</span>
+          </div>
+        )}
+
+        {anime.format && (
+          <div className="absolute top-2 left-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-sm text-[10px] text-white uppercase">
+            {anime.format}
+          </div>
+        )}
+
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <h3 className="text-sm font-semibold text-white truncate drop-shadow-lg">{title}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            {anime.episodes && (
+              <span className="text-[10px] text-text-secondary">{anime.episodes} eps</span>
+            )}
+            {anime.season && anime.seasonYear && (
+              <span className="text-[10px] text-text-secondary">
+                {anime.season.charAt(0) + anime.season.slice(1).toLowerCase()} {anime.seasonYear}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3 space-y-2">
+        {anime.genres && anime.genres.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {anime.genres.slice(0, 3).map(g => (
+              <span key={g} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px]">{g}</span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Link href={`/room/create?animeId=${anime.id}&title=${encodeURIComponent(title)}`}
+            className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-colors text-center">
+            Create Room
+          </Link>
+          <button onClick={() => router.push(`/search/${anime.id}`)}
+            className="px-3 py-2 rounded-lg bg-surface-light text-text-secondary hover:text-text-primary text-xs transition-colors">
+            Info
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+AnimeCardComponent.displayName = 'AnimeCardComponent';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -103,78 +178,6 @@ export default function SearchPage() {
   };
 
   const hasActiveFilters = activeGenre || activeFormat;
-
-  const AnimeCardComponent = ({ anime, index = 0 }: { anime: AnimeCard; index?: number }) => {
-    const title = anime.title?.english || anime.title?.romaji || 'Unknown';
-    const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
-    const coverColor = anime.coverImage?.color || '#8b5cf6';
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.03 }}
-        className="group relative rounded-2xl overflow-hidden bg-surface border border-border hover:border-primary/40 transition-all hover:-translate-y-1 duration-300"
-      >
-        <div className="aspect-[3/4] relative overflow-hidden">
-          <img
-            src={anime.coverImage?.large || anime.coverImage?.medium}
-            alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-          {score && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-sm text-xs">
-              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-              <span className="text-white font-semibold">{score}</span>
-            </div>
-          )}
-
-          {anime.format && (
-            <div className="absolute top-2 left-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-sm text-[10px] text-white uppercase">
-              {anime.format}
-            </div>
-          )}
-
-          <div className="absolute bottom-0 left-0 right-0 p-3">
-            <h3 className="text-sm font-semibold text-white truncate drop-shadow-lg">{title}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              {anime.episodes && (
-                <span className="text-[10px] text-text-secondary">{anime.episodes} eps</span>
-              )}
-              {anime.season && anime.seasonYear && (
-                <span className="text-[10px] text-text-secondary">
-                  {anime.season.charAt(0) + anime.season.slice(1).toLowerCase()} {anime.seasonYear}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="p-3 space-y-2">
-          {anime.genres && anime.genres.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {anime.genres.slice(0, 3).map(g => (
-                <span key={g} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px]">{g}</span>
-              ))}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <Link href={`/room/create?animeId=${anime.id}&title=${encodeURIComponent(title)}`}
-              className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-colors text-center">
-              Create Room
-            </Link>
-            <button onClick={() => router.push(`/search/${anime.id}`)}
-              className="px-3 py-2 rounded-lg bg-surface-light text-text-secondary hover:text-text-primary text-xs transition-colors">
-              Info
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-background text-text-primary pb-20 lg:pb-0">

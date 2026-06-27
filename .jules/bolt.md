@@ -1,0 +1,3 @@
+## 2025-06-27 - O(N) Array Reduction on Video Player State Changes
+**Learning:** Found an unused O(N) array reduction (`reactions.reduce`) in `TimelineReactions` that was running on every render (including every tick of `currentTime`). Also found another instance in `ReactionBar`. Video player components trigger many frequent re-renders due to time updates, meaning any non-memoized O(N) calculation in these components will rapidly degrade performance.
+**Action:** Always verify that expensive operations (like `reduce`) in frequently re-rendering components (like those tied to video `currentTime`) are either memoized using `useMemo` or moved outside the render cycle if they don't depend on changing state. Dead code elimination is also a key performance win.

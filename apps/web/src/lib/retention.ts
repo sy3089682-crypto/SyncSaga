@@ -87,58 +87,60 @@ export function getDefaultStats(): UserStats {
 export function checkAchievements(stats: UserStats): string[] {
   const newlyUnlocked: string[] = [];
 
-  for (const achievement of ALL_ACHIEVEMENTS) {
-    const existing = stats.achievements.find(a => a.id === achievement.id);
-    if (existing?.unlockedAt) continue;
+  // Iterate over stats.achievements instead of ALL_ACHIEVEMENTS
+  // since stats.achievements should have all tracking initialized.
+  // This removes the need for O(N) lookup.
+  for (const existing of stats.achievements) {
+    if (existing.unlockedAt) continue;
 
-    switch (achievement.id) {
+    switch (existing.id) {
       case 'first_room':
-        if (stats.totalRoomsJoined >= 1) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalRoomsJoined >= 1) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'first_message':
-        if (stats.totalMessagesSent >= 1) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalMessagesSent >= 1) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'first_reaction':
-        if (stats.totalReactionsSent >= 1) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalReactionsSent >= 1) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'streak_3':
-        if (stats.currentStreak >= 3) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.currentStreak >= 3) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'streak_7':
-        if (stats.currentStreak >= 7) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.currentStreak >= 7) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'streak_30':
-        if (stats.currentStreak >= 30) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.currentStreak >= 30) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'messages_100':
-        if (stats.totalMessagesSent >= 100) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalMessagesSent >= 100) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'messages_1000':
-        if (stats.totalMessagesSent >= 1000) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalMessagesSent >= 1000) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'rooms_10':
-        if (stats.totalRoomsJoined >= 10) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalRoomsJoined >= 10) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'hours_10':
-        if (stats.totalWatchMinutes >= 600) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalWatchMinutes >= 600) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'hours_50':
-        if (stats.totalWatchMinutes >= 3000) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalWatchMinutes >= 3000) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'friends_5':
-        if (stats.totalFriends >= 5) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalFriends >= 5) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'friends_20':
-        if (stats.totalFriends >= 20) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalFriends >= 20) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'first_clip':
-        if (stats.totalClipsCreated >= 1) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalClipsCreated >= 1) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'clips_10':
-        if (stats.totalClipsCreated >= 10) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalClipsCreated >= 10) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
       case 'reactions_50':
-        if (stats.totalReactionsSent >= 50) { markUnlocked(stats, achievement.id, newlyUnlocked); }
+        if (stats.totalReactionsSent >= 50) { markUnlocked(existing, existing.id, newlyUnlocked); }
         break;
     }
   }
@@ -146,8 +148,7 @@ export function checkAchievements(stats: UserStats): string[] {
   return newlyUnlocked;
 }
 
-function markUnlocked(stats: UserStats, id: string, newly: string[]) {
-  const a = stats.achievements.find(ach => ach.id === id);
+function markUnlocked(a: Achievement | undefined, id: string, newly: string[]) {
   if (a && !a.unlockedAt) {
     a.unlockedAt = new Date().toISOString();
     a.progress = a.maxProgress;

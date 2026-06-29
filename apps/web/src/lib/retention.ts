@@ -80,6 +80,8 @@ const ALL_ACHIEVEMENTS: Achievement[] = [
   { id: 'reactions_50', name: 'Reactive', description: 'Send 50 timeline reactions', icon: '⚡', category: 'social', progress: 0, maxProgress: 50 },
 ];
 
+export const ACHIEVEMENTS_MAP = new Map(ALL_ACHIEVEMENTS.map(a => [a.id, a]));
+
 export function getDefaultStats(): UserStats {
   return { ...DEFAULT_STATS, achievements: ALL_ACHIEVEMENTS.map(a => ({ ...a })) };
 }

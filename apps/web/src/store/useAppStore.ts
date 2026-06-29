@@ -48,6 +48,7 @@ interface SocialSlice {
   onlineUsers: Map<string, OnlineUser>;
   setFriends: (friends: User[]) => void;
   updatePresence: (presence: { user_id: string; status: OnlineUser['status']; current_room_id?: string | null; activity?: string | null }) => void;
+  syncPresence: (presences: OnlineUser[]) => void;
 }
 
 export type AppState = AuthSlice & RoomSlice & UiSlice & SocialSlice;
@@ -134,6 +135,18 @@ export const useAppStore = create<AppState>()(
         } else {
           map.set(presence.user_id, presence as OnlineUser);
         }
+        set({ onlineUsers: map });
+      },
+
+      syncPresence: (presences) => {
+        const map = new Map(get().onlineUsers);
+        presences.forEach((presence) => {
+          if (presence.status === 'offline') {
+            map.delete(presence.user_id);
+          } else {
+            map.set(presence.user_id, presence);
+          }
+        });
         set({ onlineUsers: map });
       },
     }),

@@ -38,16 +38,18 @@ export function presenceHandler(
     try {
       const onlineUsers = await redisService.getOnlineUsers();
       
-      for (const [userId, data] of Object.entries(onlineUsers)) {
-        if (userId !== socket.userId) {
-          socket.emit('presence:update', {
-            user_id: userId,
-            status: data.status || 'online',
-            current_room_id: data.currentRoomId || null,
-            activity: data.activity || null,
-            user: { id: userId, username: userId } as Partial<User>,
-          });
-        }
+      const bulkUsers = Object.entries(onlineUsers)
+        .filter(([userId]) => userId !== socket.userId)
+        .map(([userId, data]: [string, any]) => ({
+          user_id: userId,
+          status: data.status || 'online',
+          current_room_id: data.currentRoomId || null,
+          activity: data.activity || null,
+          user: { id: userId, username: userId } as Partial<User>,
+        }));
+
+      if (bulkUsers.length > 0) {
+        socket.emit('presence:sync', bulkUsers);
       }
     } catch (error) {
       logger.error('Get online users error:', error);

@@ -6,7 +6,7 @@ import { getSocket, disconnectSocket } from '@/lib/socket';
 import { useRouter } from 'next/navigation';
 
 export function useSocket(token?: string | null) {
-  const { setCurrentRoom, addMessage, updatePresence, addRoomMember, removeRoomMember, setRoomMembers, updateRoomState } = useAppStore();
+  const { setCurrentRoom, addMessage, updatePresence, syncPresence, addRoomMember, removeRoomMember, setRoomMembers, updateRoomState } = useAppStore();
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -46,6 +46,10 @@ export function useSocket(token?: string | null) {
       updatePresence(event);
     });
 
+    socket.on('presence:sync', (users: any[]) => {
+      syncPresence(users);
+    });
+
     return () => {
       socket.off('room:state');
       socket.off('room:user_joined');
@@ -53,6 +57,7 @@ export function useSocket(token?: string | null) {
       socket.off('chat:message');
       socket.off('sync:state');
       socket.off('presence:update');
+      socket.off('presence:sync');
     };
   }, [token]);
 }

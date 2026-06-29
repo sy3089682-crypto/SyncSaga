@@ -263,6 +263,7 @@ export interface ServerToClientEvents {
   'chat:typing': (data: { userId: string; isTyping: boolean }) => void;
   'chat:reaction': (message: Message & { sender: User }) => void;
   'presence:update': (event: PresenceEvent & { user: User }) => void;
+  'presence:sync': (users: (PresenceEvent & { user: Partial<User> })[]) => void;
   'voice:participant_update': (participant: VoiceParticipant) => void;
   'reaction:new': (reaction: any) => void;
   'skip:intro_vote_update': (data: { votes: number; needed: number }) => void;

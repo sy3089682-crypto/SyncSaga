@@ -1,7 +1,7 @@
-import { createAiRouter, AiRouter } from './lib/ai/router/ai-router';
-import { aiCache } from './lib/ai/cache/ai-cache';
+import { createAiRouter, AiRouter } from '../lib/ai/router/ai-router';
+import { aiCache } from '../lib/ai/cache/ai-cache';
 import { getEnv } from '@syncsaga/config';
-import { logger } from './lib/logger';
+import { logger } from '../lib/logger';
 
 let routerInstance: AiRouter | null = null;
 
@@ -24,6 +24,10 @@ export function getAiRouter(): AiRouter {
   }, 'AI router initialized');
 
   return routerInstance;
+}
+
+export function resetAiRouter(): void {
+  routerInstance = null;
 }
 
 export { aiCache };

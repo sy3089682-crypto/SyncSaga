@@ -28,7 +28,7 @@ type FlagConfig = {
   requiresEnv?: string;
 };
 
-const FLAGS: FlagConfig[] = [
+export const FLAGS: FlagConfig[] = [
   { key: 'ai_recommendations', description: 'AI-powered anime recommendations', defaultEnabled: true, requiresSubscription: 'premium' },
   { key: 'ai_moderation', description: 'AI content moderation', defaultEnabled: true },
   { key: 'ai_recaps', description: 'AI watch party recaps', defaultEnabled: true },
@@ -51,18 +51,46 @@ const FLAGS: FlagConfig[] = [
 const OVERRIDE_PREFIX = 'feature:override:';
 
 class FeatureService {
+  private fallbackOverrides = new Map<FeatureFlag, boolean>();
+
+  private getDefaultState(flag: FeatureFlag): boolean {
+    const config = FLAGS.find(f => f.key === flag);
+    if (!config) return false;
+    if (!config.defaultEnabled) return false;
+
+    if (config.requiresEnv) {
+      try {
+         const env = getEnv();
+         if (!(env as unknown as Record<string, string | undefined>)[config.requiresEnv]) return false;
+      } catch {
+         return false; // If environment parsing fails, consider env required feature disabled
+      }
+    }
+
+    return true;
+  }
+
   async loadOverrides(): Promise<Map<FeatureFlag, boolean>> {
     const map = new Map<FeatureFlag, boolean>();
     try {
-      const keys = await redisService.getClient().keys(`${OVERRIDE_PREFIX}*`);
-      if (keys.length > 0) {
-        const values = await redisService.getClient().mget(keys);
-        for (let i = 0; i < keys.length; i++) {
-          const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
-          if (values[i] !== null) {
-            map.set(flag, values[i] === 'true');
+      const allFlags = FLAGS.map(f => f.key);
+      const keys = allFlags.map(f => `${OVERRIDE_PREFIX}${f}`);
+      let client;
+      try {
+          client = redisService.getClient();
+      } catch {
+          // Redis not connected in tests
+      }
+
+      if (client) {
+          const values = await client.mGet(keys);
+          for (let i = 0; i < allFlags.length; i++) {
+            if (values[i] !== null) {
+              map.set(allFlags[i], values[i] === 'true');
+            }
           }
-        }
+      } else {
+         return this.fallbackOverrides;
       }
     } catch {}
     return map;
@@ -70,46 +98,67 @@ class FeatureService {
 
   async setOverride(flag: FeatureFlag, enabled: boolean) {
     try {
-      await redisService.getClient().set(`${OVERRIDE_PREFIX}${flag}`, enabled ? 'true' : 'false', { EX: 86400 * 7 });
+      let client;
+      try {
+         client = redisService.getClient();
+      } catch {}
+
+      if (client) {
+         await client.set(`${OVERRIDE_PREFIX}${flag}`, enabled ? 'true' : 'false', { EX: 86400 * 7 });
+      } else {
+         this.fallbackOverrides.set(flag, enabled);
+      }
     } catch {}
   }
 
   async clearOverride(flag: FeatureFlag) {
     try {
-      await redisService.getClient().del(`${OVERRIDE_PREFIX}${flag}`);
+      let client;
+      try {
+         client = redisService.getClient();
+      } catch {}
+
+      if (client) {
+         await client.del(`${OVERRIDE_PREFIX}${flag}`);
+      } else {
+         this.fallbackOverrides.delete(flag);
+      }
     } catch {}
   }
 
   async isEnabled(flag: FeatureFlag): Promise<boolean> {
     try {
-      const overrideVal = await redisService.getClient().get(`${OVERRIDE_PREFIX}${flag}`);
-      if (overrideVal !== null) return overrideVal === 'true';
+      let client;
+      try {
+          client = redisService.getClient();
+      } catch {}
+
+      if (client) {
+          const overrideVal = await client.get(`${OVERRIDE_PREFIX}${flag}`);
+          if (overrideVal !== null) return overrideVal === 'true';
+      } else {
+          if (this.fallbackOverrides.has(flag)) {
+              return this.fallbackOverrides.get(flag)!;
+          }
+      }
     } catch {}
 
-    const config = FLAGS.find(f => f.key === flag);
-    if (!config) return false;
-    if (!config.defaultEnabled) return false;
-
-    if (config.requiresEnv) {
-      const env = getEnv();
-      if (!(env as unknown as Record<string, string | undefined>)[config.requiresEnv]) return false;
-    }
-
-    return true;
+    return this.getDefaultState(flag);
   }
 
   async getFeatureList(): Promise<(FlagConfig & { enabled: boolean })[]> {
-    const results = await Promise.all(
-      FLAGS.map(async f => ({ ...f, enabled: await this.isEnabled(f.key) }))
-    );
-    return results;
+    const overrides = await this.loadOverrides();
+    return FLAGS.map(f => ({
+      ...f,
+      enabled: overrides.has(f.key) ? overrides.get(f.key)! : this.getDefaultState(f.key)
+    }));
   }
 
   async getEnabledFeatures(): Promise<FeatureFlag[]> {
-    const results = await Promise.all(
-      FLAGS.map(async f => ({ key: f.key, enabled: await this.isEnabled(f.key) }))
-    );
-    return results.filter(f => f.enabled).map(f => f.key);
+    const overrides = await this.loadOverrides();
+    return FLAGS
+        .filter(f => overrides.has(f.key) ? overrides.get(f.key)! : this.getDefaultState(f.key))
+        .map(f => f.key);
   }
 
   async isAvailableForPlan(flag: FeatureFlag, plan: 'free' | 'premium' | 'pro'): Promise<boolean> {

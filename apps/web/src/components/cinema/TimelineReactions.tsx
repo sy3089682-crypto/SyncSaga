@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Mic, Heart, Flame, Sparkles, Laugh, Siren as Fire } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -55,13 +55,7 @@ export function TimelineReactions({
     }, 2000);
   }, [roomId, currentTime]);
 
-  // Show reactions on timeline
-  const grouped = reactions.reduce((acc, r) => {
-    const bucket = Math.floor(r.timestamp_sec / 30) * 30;
-    if (!acc[bucket]) acc[bucket] = [];
-    acc[bucket].push(r);
-    return acc;
-  }, {} as Record<number, TimelineReaction[]>);
+  // Removed unused grouped reactions variable
 
   return (
     <div className="relative">
@@ -122,11 +116,12 @@ export function TimelineReactions({
 
 // Timeline reaction indicators
 export function ReactionBar({ reactions, duration }: { reactions: TimelineReaction[]; duration: number }) {
-  const grouped = reactions.reduce((acc, r) => {
+  // Memoize grouped reactions to avoid O(N) recalculation on every render
+  const grouped = useMemo(() => reactions.reduce((acc, r) => {
     const bucket = Math.floor(r.timestamp_sec / 30) * 30;
     acc[bucket] = (acc[bucket] || 0) + 1;
     return acc;
-  }, {} as Record<number, number>);
+  }, {} as Record<number, number>), [reactions]);
 
   return (
     <div className="flex items-center gap-0.5 h-4">

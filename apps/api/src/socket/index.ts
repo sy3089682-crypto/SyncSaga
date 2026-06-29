@@ -42,12 +42,15 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
       logger.info(`Socket disconnected: ${socket.id}`);
       
       const rooms = await redisService.getClient().sMembers(`user:${uid}:rooms`);
-      for (const roomId of rooms) {
-        await redisService.removeUserFromRoom(roomId, uid);
-        socket.to(roomId).emit('room:user_left', uid);
-      }
 
-      await redisService.setUserOffline(uid);
+      // Concurrently remove user from all rooms and set offline
+      await Promise.all([
+        ...rooms.map(async (roomId) => {
+          await redisService.removeUserFromRoom(roomId, uid);
+          socket.to(roomId).emit('room:user_left', uid);
+        }),
+        redisService.setUserOffline(uid)
+      ]);
       
       socket.broadcast.emit('presence:update', {
         user_id: uid,

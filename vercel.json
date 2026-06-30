@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/web/package.json",
+      "config": {
+        "outputDirectory": ".next"
+      }
+    },
+    {
+      "src": "apps/api/package.json",
+      "config": {
+        "outputDirectory": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "apps/web/.next"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "apps/api/dist"
+    }
+  ]
+}

@@ -76,32 +76,17 @@ export function syncHandler(
   socket.on('sync:event', async (event: SyncEvent) => {
     try {
       if (!socket.userId) return;
-
       const roomId = event.room_id;
-
-      const dupKey = `${roomId}:${socket.userId}:${event.type}:${event.timestamp}`;
+      const dupKey = roomId + ':' + socket.userId + ':' + event.type + ':' + event.timestamp;
       if (isDuplicate(dupKey)) return;
-
       const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) {
-        return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
-      }
-
+      if (!roomUsers.includes(socket.userId)) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       const roomState = await redisService.getRoomState(roomId);
-      const isHost = roomState?.host_id === socket.userId ||
-                     roomState?.co_hosts?.includes(socket.userId);
-
-      if (roomState?.sync_lock && !isHost) {
-        return;
-      }
-
+      const isHost = roomState?.host_id === socket.userId || roomState?.co_hosts?.includes(socket.userId);
+      if (roomState?.sync_lock && !isHost) return;
       const clock = tickClock();
       const serverTime = Date.now();
-      const enrichedEvent: SyncEvent = {
-        ...event,
-        server_time: serverTime,
-      };
-
+      const enrichedEvent: SyncEvent = { ...event, server_time: serverTime };
       const updates: any = { last_sync_at: serverTime };
       if (event.type === 'seek') updates.current_timestamp = event.timestamp;
       if (event.type === 'play' || event.type === 'pause') updates.playback_state = event.type === 'play' ? 'playing' : 'paused';
@@ -110,14 +95,8 @@ export function syncHandler(
         updates.current_episode = event.episode;
         updates.current_episode_number = parseInt(event.episode?.replace(/\D/g, '') || '0') || null;
       }
-
-      await redisService.setRoomState(roomId, {
-        ...roomState,
-        ...updates,
-      });
-
+      await redisService.setRoomState(roomId, { ...roomState, ...updates });
       socket.to(roomId).emit('sync:event', { ...enrichedEvent, clock });
-
       if (['play', 'seek', 'episode'].includes(event.type)) {
         socket.to(roomId).emit('sync:state', {
           timestamp: event.timestamp,
@@ -128,7 +107,7 @@ export function syncHandler(
         });
       }
     } catch (error) {
-      logger.error('Sync event error:', error);
+      logger.error('Sync event error:', error as Error);
     }
   });
 
@@ -137,60 +116,36 @@ export function syncHandler(
       if (!socket.userId) return;
       const roomState = await redisService.getRoomState(roomId);
       const isHost = roomState?.host_id === socket.userId;
-      if (!isHost) {
-        return socket.emit('error', { code: 'NOT_HOST', message: 'Only host can change episodes' });
-      }
-
+      if (!isHost) return socket.emit('error', { code: 'NOT_HOST', message: 'Only host can change episodes' });
       const updates = {
-        current_episode: `Episode ${episode}`,
+        current_episode: 'Episode ' + episode,
         current_episode_number: episode,
         current_timestamp: 0,
         anime_media_id: mediaId,
       };
-
       await redisService.setRoomState(roomId, { ...roomState, ...updates });
-      await supabase.from('rooms').update({
-        current_episode: `Episode ${episode}`,
-        current_episode_number: episode,
-        current_timestamp: 0,
-        anime_media_id: mediaId,
-      }).eq('id', roomId);
-
-      io.to(roomId).emit('sync:event', {
-        room_id: roomId,
-        user_id: socket.userId,
-        type: 'episode',
-        timestamp: 0,
-        episode: `Episode ${episode}`,
-        server_time: Date.now(),
-      });
-      io.to(roomId).emit('sync:state', {
-        timestamp: 0,
-        playback_state: 'paused',
-        speed: 1,
-        episode: `Episode ${episode}`,
-        episode_number: episode,
-      });
+      await supabase.from('rooms').update({ current_episode: 'Episode ' + episode, current_episode_number: episode, current_timestamp: 0, anime_media_id: mediaId }).eq('id', roomId);
+      io.to(roomId).emit('sync:event', { room_id: roomId, user_id: socket.userId, type: 'episode', timestamp: 0, episode: 'Episode ' + episode, server_time: Date.now() });
+      io.to(roomId).emit('sync:state', { timestamp: 0, playback_state: 'paused', speed: 1, episode: 'Episode ' + episode, episode_number: episode });
     } catch (error) {
-      logger.error('Set episode error:', error);
+      logger.error('Set episode error:', error as Error);
     }
   });
 
   socket.on('sync:lock', async ({ enabled }) => {
     try {
       if (!socket.userId) return;
-      const rooms = await redisService.getClient().sMembers(`user:${socket.userId}:rooms`);
+      const rooms = await redisService.getClient().sMembers('user:' + socket.userId + ':rooms');
       if (rooms.length === 0) return;
       const roomId = rooms[0];
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
       const isHost = roomState?.host_id === socket.userId;
       if (!isHost) return socket.emit('error', { code: 'NOT_HOST', message: 'Only host can toggle sync lock' });
-
       await redisService.setRoomState(roomId, { ...roomState, sync_lock: enabled });
       io.to(roomId).emit('room:update', { sync_lock: enabled });
     } catch (error) {
-      logger.error('Sync lock error:', error);
+      logger.error('Sync lock error:', error as Error);
     }
   });
 
@@ -198,10 +153,8 @@ export function syncHandler(
     try {
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
-
       const roomUsers = await redisService.getRoomUsers(roomId);
       const isHostDisconnected = !roomUsers.includes(roomState.host_id);
-
       if (isHostDisconnected) {
         const hostSocketId = await redisService.getUserSocketId(roomId, roomState.host_id);
         if (!hostSocketId) {
@@ -213,7 +166,7 @@ export function syncHandler(
         }
       }
     } catch (error) {
-      logger.error('Takeover error:', error);
+      logger.error('Takeover error:', error as Error);
     }
   });
 
@@ -230,7 +183,7 @@ export function syncHandler(
         });
       }
     } catch (error) {
-      logger.error('Sync request error:', error);
+      logger.error('Sync request error:', error as Error);
     }
   });
 

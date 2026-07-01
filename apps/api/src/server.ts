@@ -33,7 +33,6 @@ export async function createServer() {
   const env = getEnv();
   const app = express();
   const httpServer = createHttpServer(app);
-
   metrics.init();
 
   app.use(helmet({
@@ -68,14 +67,13 @@ export async function createServer() {
   app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/metrics' } }));
 
   app.use(rateLimitMiddleware(100, 60));
-
   app.use(csrfProtection);
 
   app.use((req, _res, next) => {
     const start = Date.now();
     _res.on('finish', () => {
-      metrics.incrementHttp(req.method, req.path, _res.statusCode);
-      metrics.observeHttpDuration(req.method, req.path, Date.now() - start);
+      metrics.incrementHttp(req.method, req.url, _res.statusCode);
+      metrics.observeHttpDuration(req.method, req.url, Date.now() - start);
     });
     next();
   });
@@ -83,19 +81,16 @@ export async function createServer() {
   app.get('/health', async (_req, res) => {
     let dbPing = false;
     let redisPing = false;
-
     try {
       const { data } = await supabase.from('rooms').select('id').limit(1);
       dbPing = true;
     } catch {}
-
     try {
       if (redisService.getClient()) {
         await redisService.getClient().ping();
         redisPing = true;
       }
     } catch {}
-
     const healthy = dbPing && redisPing;
     res.status(healthy ? 200 : 503).json({
       status: healthy ? 'ok' : 'degraded',
@@ -118,7 +113,6 @@ export async function createServer() {
   app.use('/api/features', featuresRouter);
   app.use('/api/payments', paymentsRouter);
   app.use('/metrics', metricsRouter);
-
   app.use(errorHandler);
 
   const io = new Server(httpServer, {
@@ -131,9 +125,7 @@ export async function createServer() {
     pingInterval: 25000,
     connectTimeout: 30000,
     maxHttpBufferSize: 1e6,
-    perMessageDeflate: {
-      threshold: 1024,
-    },
+    perMessageDeflate: { threshold: 1024 },
   });
 
   await redisService.connect();
@@ -141,32 +133,19 @@ export async function createServer() {
   wsBridge.initialize(io);
   setNotificationSocket(io);
 
-  io.on('connection', (socket) => {
+  io.on('connection', (socket: AuthenticatedSocket) => {
     metrics.setConnectedSockets(io.engine.clientsCount);
-
     socket.on('reaction:add', async (data) => {
       const { roomId, timestampSec, type, content } = data;
       if (!roomId || timestampSec === undefined || !type) return;
-
-      const authSocket = socket as AuthenticatedSocket;
-      if (!authSocket.userId) return;
-      const userId = authSocket.userId;
-
-      const { data: reaction } = await supabase
-        .from('timeline_reactions')
-        .insert({ room_id: roomId, user_id: userId, timestamp_sec: timestampSec, type, content })
-        .select('*, profiles:user_id(username, avatar_url)')
-        .single();
-
+      if (!socket.userId) return;
+      const userId = socket.userId;
+      const { data: reaction } = await supabase.from('timeline_reactions').insert({ room_id: roomId, user_id: userId, timestamp_sec: timestampSec, type, content }).select('*, profiles:user_id(username, avatar_url)').single();
       if (reaction) {
         socket.to(roomId).emit('reaction:new', reaction);
-        await supabase.from('activity_feed').insert({
-          user_id: userId, type: 'reaction',
-          data: { roomId, timestampSec, reactionType: type },
-        });
+        await supabase.from('activity_feed').insert({ user_id: userId, type: 'reaction', data: { roomId, timestampSec, reactionType: type } });
       }
     });
-
     socket.on('disconnect', () => {
       metrics.setConnectedSockets(io.engine.clientsCount);
     });

@@ -9,32 +9,18 @@ export interface AuthenticatedSocket extends Socket {
   user: Partial<User>;
 }
 
-export async function socketAuthMiddleware(socket: AuthenticatedSocket, next: (err?: Error) => void) {
+export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void) {
   try {
     const token = socket.handshake.auth.token || socket.handshake.query.token;
-    
-    if (!token || typeof token !== 'string') {
-      return next(new Error('Authentication required'));
-    }
-
+    if (!token || typeof token !== 'string') return next(new Error('Authentication required'));
     const decoded = verifyToken(token);
-    if (!decoded) {
-      return next(new Error('Invalid token'));
-    }
-
-    // Fetch user profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', decoded.userId)
-      .single();
-
-    socket.userId = decoded.userId;
-    socket.user = profile || { id: decoded.userId, username: 'User' };
-    
+    if (!decoded) return next(new Error('Invalid token'));
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', decoded.userId).single();
+    (socket as AuthenticatedSocket).userId = decoded.userId;
+    (socket as AuthenticatedSocket).user = profile || { id: decoded.userId, username: 'User' };
     next();
   } catch (error) {
-    logger.error('Socket auth error:', error);
+    logger.error('Socket auth error:', error as Error);
     next(new Error('Authentication failed'));
   }
 }

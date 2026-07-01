@@ -54,14 +54,12 @@ class FeatureService {
   async loadOverrides(): Promise<Map<FeatureFlag, boolean>> {
     const map = new Map<FeatureFlag, boolean>();
     try {
-      const keys = await redisService.getClient().keys(`${OVERRIDE_PREFIX}*`);
+      const keys = await redisService.getClient().keys(OVERRIDE_PREFIX + '*');
       if (keys.length > 0) {
         const values = await redisService.getClient().mget(keys);
         for (let i = 0; i < keys.length; i++) {
           const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
-          if (values[i] !== null) {
-            map.set(flag, values[i] === 'true');
-          }
+          if (values[i] !== null) map.set(flag, values[i] === 'true');
         }
       }
     } catch {}
@@ -70,32 +68,33 @@ class FeatureService {
 
   async setOverride(flag: FeatureFlag, enabled: boolean) {
     try {
-      await redisService.getClient().set(`${OVERRIDE_PREFIX}${flag}`, enabled ? 'true' : 'false', { EX: 86400 * 7 });
+      await redisService.getClient().set(OVERRIDE_PREFIX + flag, enabled ? 'true' : 'false', { EX: 86400 * 7 });
     } catch {}
   }
 
   async clearOverride(flag: FeatureFlag) {
     try {
-      await redisService.getClient().del(`${OVERRIDE_PREFIX}${flag}`);
+      await redisService.getClient().del(OVERRIDE_PREFIX + flag);
     } catch {}
   }
 
   async isEnabled(flag: FeatureFlag): Promise<boolean> {
     try {
-      const overrideVal = await redisService.getClient().get(`${OVERRIDE_PREFIX}${flag}`);
+      const overrideVal = await redisService.getClient().get(OVERRIDE_PREFIX + flag);
       if (overrideVal !== null) return overrideVal === 'true';
     } catch {}
-
     const config = FLAGS.find(f => f.key === flag);
     if (!config) return false;
     if (!config.defaultEnabled) return false;
-
     if (config.requiresEnv) {
       const env = getEnv();
       if (!(env as unknown as Record<string, string | undefined>)[config.requiresEnv]) return false;
     }
-
     return true;
+  }
+
+  getFlagConfig(flag: FeatureFlag): FlagConfig | undefined {
+    return FLAGS.find(f => f.key === flag);
   }
 
   async getFeatureList(): Promise<(FlagConfig & { enabled: boolean })[]> {
@@ -115,17 +114,10 @@ class FeatureService {
   async isAvailableForPlan(flag: FeatureFlag, plan: 'free' | 'premium' | 'pro'): Promise<boolean> {
     const isFlagEnabled = await this.isEnabled(flag);
     if (!isFlagEnabled) return false;
-
     const config = FLAGS.find(f => f.key === flag);
     if (!config) return false;
-
-    if (config.requiresSubscription === 'pro') {
-      return plan === 'pro';
-    }
-    if (config.requiresSubscription === 'premium') {
-      return plan === 'premium' || plan === 'pro';
-    }
-
+    if (config.requiresSubscription === 'pro') return plan === 'pro';
+    if (config.requiresSubscription === 'premium') return plan === 'premium' || plan === 'pro';
     return true;
   }
 }

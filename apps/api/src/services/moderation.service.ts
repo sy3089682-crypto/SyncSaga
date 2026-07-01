@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import { checkMessage, sanitizeContent } from '../lib/ai/moderation/llama-guard';
+import { PostgrestError } from '@supabase/supabase-js';
 
 interface ModerationResult {
   isToxic: boolean;
@@ -24,7 +25,7 @@ export class ModerationService {
       status: 'pending',
     }).select().single();
     if (error) {
-      logger.error('Failed to create report:', error as Error);
+      logger.error('Failed to create report:', error as PostgrestError);
       return null;
     }
     return data;
@@ -32,9 +33,11 @@ export class ModerationService {
 
   async banUser(roomId: string, userId: string, bannedById: string, reason?: string) {
     await supabase.from('room_members').update({ is_banned: true }).eq('room_id', roomId).eq('user_id', userId);
-    await supabase.from('rooms').update({
-      banned_users: supabase.rpc('array_append_unique', { arr: supabase.ref('banned_users'), element: userId }),
-    }).eq('id', roomId);
+    const { data: room } = await supabase.from('rooms').select('banned_users').eq('id', roomId).single();
+    const banned = room?.banned_users || [];
+    if (!banned.includes(userId)) {
+      await supabase.from('rooms').update({ banned_users: [...banned, userId] }).eq('id', roomId);
+    }
   }
 
   async shadowBan(roomId: string, userId: string) {

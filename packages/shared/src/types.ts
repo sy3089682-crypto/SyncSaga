@@ -43,6 +43,7 @@ export interface Room {
   allow_reactions: boolean;
   skip_intro_votes: Record<string, boolean>;
   banned_users: string[];
+  password?: string;
 }
 
 export interface RoomMember {
@@ -86,139 +87,6 @@ export interface VoiceParticipant {
   is_muted: boolean;
   is_speaking: boolean;
   is_deafened: boolean;
-}
-
-export interface AnimeEpisode {
-  id: string;
-  title: string;
-  number: number;
-  source_url: string;
-  duration: number;
-  thumbnail?: string;
-  synopsis?: string;
-  airDate?: string;
-}
-
-export interface AnimeMedia {
-  id: number;
-  idMal?: number;
-  title: {
-    romaji?: string;
-    english?: string;
-    native?: string;
-  };
-  coverImage: {
-    large: string;
-    medium: string;
-    extraLarge?: string;
-    color?: string;
-  };
-  bannerImage?: string;
-  description?: string;
-  episodes?: number;
-  duration?: number;
-  status?: string;
-  season?: string;
-  seasonYear?: number;
-  format?: string;
-  genres?: string[];
-  tags?: { name: string; rank: number }[];
-  averageScore?: number;
-  meanScore?: number;
-  popularity?: number;
-  trending?: number;
-  studios?: { nodes: { id: number; name: string; isAnimationStudio: boolean }[] };
-  startDate?: { year: number; month: number; day: number };
-  endDate?: { year: number; month: number; day: number };
-  nextAiringEpisode?: {
-    airingAt: number;
-    timeUntilAiring: number;
-    episode: number;
-  };
-  airingSchedule?: {
-    nodes: { id: number; airingAt: number; episode: number }[];
-  };
-  synonyms?: string[];
-  isAdult?: boolean;
-  siteUrl?: string;
-  trailer?: {
-    id: string;
-    site: string;
-    thumbnail: string;
-  };
-  rankings?: {
-    rank: number;
-    type: string;
-    context: string;
-    year?: number;
-    season?: string;
-  }[];
-}
-
-export interface AnimeCharacter {
-  id: number;
-  role: string;
-  name: {
-    full: string;
-    native?: string;
-  };
-  image: {
-    large: string;
-    medium: string;
-  };
-  voiceActors: {
-    id: number;
-    name: { full: string; native?: string };
-    image: { large: string; medium: string };
-    language: string;
-  }[];
-}
-
-export interface AnimeStaff {
-  id: number;
-  name: { full: string; native?: string };
-  image: { large: string; medium: string };
-  primaryOccupations: string[];
-}
-
-export interface AnimeTheme {
-  type: 'opening' | 'ending';
-  text: string;
-  artist?: string;
-}
-
-export interface AnimeSong {
-  title: string;
-  artist: string;
-  type: 'opening' | 'ending';
-  episode?: number;
-  videoUrl?: string;
-}
-
-export interface RoomAnimeInfo {
-  mediaId: number | null;
-  title: string;
-  episode: number;
-  episodeTitle?: string;
-  timestamp: number;
-}
-
-export interface ScheduledRoom {
-  id: string;
-  roomId: string;
-  animeTitle: string;
-  episode: number;
-  scheduledAt: string;
-  createdBy: string;
-  inviteCode: string;
-}
-
-export interface WatchActivity {
-  user_id: string;
-  anime_title: string;
-  episode_number: number;
-  timestamp: number;
-  started_at: string;
 }
 
 export type SocketEventMap = {

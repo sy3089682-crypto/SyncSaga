@@ -11,7 +11,7 @@ function sanitizeContent(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
+    .replace(/\/g, '&#x2F;')
     .replace(/javascript:/gi, '')
     .replace(/on\w+=/gi, '')
     .replace(/data:/gi, '')
@@ -35,32 +35,18 @@ export function chatHandler(
   socket.on('chat:message', async (data) => {
     try {
       const validation = validate(chatMessageSchema, data);
-      if (!validation.success) {
-        return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
-      }
-
+      if (!validation.success) return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       const { roomId, content, type } = validation.data;
       if (!socket.userId) return;
-
       const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) {
-        return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
-      }
-
-      const allowed = await redisService.checkRateLimit(`chat:${socket.userId}`, 30, 60);
-      if (!allowed) {
-        return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
-      }
-
+      if (!roomUsers.includes(socket.userId)) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
+      const allowed = await redisService.checkRateLimit('chat:' + socket.userId, 30, 60);
+      if (!allowed) return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
       const sanitized = sanitizeContent(content);
       if (!sanitized.trim()) return;
-
-      if (type === 'gif' && !isValidGifUrl(sanitized)) {
-        return socket.emit('error', { code: 'INVALID_GIF', message: 'Only Tenor/Giphy URLs are allowed' });
-      }
-
-      const message: Message & { sender: Partial<User> } = {
-        id: `${Date.now()}-${socket.userId}-${Math.random().toString(36).slice(2, 8)}`,
+      if (type === 'gif' && !isValidGifUrl(sanitized)) return socket.emit('error', { code: 'INVALID_GIF', message: 'Only Tenor/Giphy URLs are allowed' });
+      const message: Message & { sender: User } = {
+        id: Date.now() + '-' + socket.userId + '-' + Math.random().toString(36).slice(2, 8),
         room_id: roomId,
         sender_id: socket.userId,
         recipient_id: null,
@@ -68,13 +54,12 @@ export function chatHandler(
         type: (type as Message['type']) || 'text',
         reactions: {},
         created_at: new Date().toISOString(),
-        sender: socket.user,
+        sender: socket.user as User,
       };
-
       io.to(roomId).emit('chat:message', message);
-      logger.debug(`Chat message from ${socket.userId} in ${roomId}`);
+      logger.debug('Chat message from ' + socket.userId + ' in ' + roomId);
     } catch (error) {
-      logger.error('Chat handler error:', error);
+      logger.error('Chat handler error:', error as Error);
     }
   });
 
@@ -82,27 +67,21 @@ export function chatHandler(
     try {
       const validation = validate(chatTypingSchema, data);
       if (!validation.success) return;
-
       const { roomId, isTyping } = validation.data;
       if (!socket.userId) return;
-
       socket.to(roomId).emit('chat:typing', { userId: socket.userId, isTyping });
     } catch (error) {
-      logger.error('Chat typing error:', error);
+      logger.error('Chat typing error:', error as Error);
     }
   });
 
   socket.on('chat:reaction', async (data) => {
     try {
       const validation = validate(chatReactionSchema, data);
-      if (!validation.success) {
-        return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
-      }
-
+      if (!validation.success) return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       if (!socket.userId) return;
       const { messageId, emoji } = validation.data;
-
-      const reactionMsg: Message & { sender: Partial<User> } = {
+      const reactionMsg: Message & { sender: User } = {
         id: messageId,
         sender_id: socket.userId,
         content: emoji,
@@ -111,12 +90,11 @@ export function chatHandler(
         room_id: null,
         recipient_id: null,
         created_at: new Date().toISOString(),
-        sender: socket.user,
+        sender: socket.user as User,
       };
-
       io.to(data.roomId || '').emit('chat:reaction', reactionMsg);
     } catch (error) {
-      logger.error('Chat reaction error:', error);
+      logger.error('Chat reaction error:', error as Error);
     }
   });
 }

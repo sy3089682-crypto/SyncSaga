@@ -56,10 +56,12 @@ class FeatureService {
     try {
       const keys = await redisService.getClient().keys(OVERRIDE_PREFIX + '*');
       if (keys.length > 0) {
-        const values = await redisService.getClient().mget(keys);
+        const values = await redisService.getClient().mGet(keys);
         for (let i = 0; i < keys.length; i++) {
           const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
-          if (values[i] !== null) map.set(flag, values[i] === 'true');
+          if (values[i] !== null) {
+            map.set(flag, values[i] === 'true');
+          }
         }
       }
     } catch {}

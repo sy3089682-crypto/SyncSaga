@@ -16,7 +16,12 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["packages/shared/src/*"]
+      "@syncsaga/config": ["packages/config/src"],
+      "@syncsaga/config/*": ["packages/config/src/*"],
+      "@syncsaga/db": ["packages/db/src"],
+      "@syncsaga/db/*": ["packages/db/src/*"],
+      "@syncsaga/shared": ["packages/shared/src"],
+      "@syncsaga/shared/*": ["packages/shared/src/*"]
     }
   }
 }

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { anilist } from '@/lib/anime/anilist';
 import { jikan } from '@/lib/anime/jikan';
+import DOMPurify from 'isomorphic-dompurify';
 import { cn } from '@/lib/utils';
 
 interface AnimeInfoSidebarProps {
@@ -156,7 +157,7 @@ export function AnimeInfoSidebar({
               {media.description && (
                 <div>
                   <p className={cn('text-xs text-text-secondary leading-relaxed', !showFullDescription && 'line-clamp-4')}
-                    dangerouslySetInnerHTML={{ __html: media.description.replace(/<br\s*\/?>/gi, ' ') }} />
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(media.description.replace(/<br\s*\/?>/gi, ' ')) }} />
                   {media.description.length > 200 && (
                     <button onClick={() => setShowFullDescription(!showFullDescription)}
                       className="text-xs text-primary mt-1 hover:underline">

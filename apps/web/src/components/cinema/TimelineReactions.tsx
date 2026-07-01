@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Mic, Heart, Flame, Sparkles, Laugh, Siren as Fire } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -115,7 +115,7 @@ export function TimelineReactions({
 }
 
 // Timeline reaction indicators
-export function ReactionBar({ reactions, duration }: { reactions: TimelineReaction[]; duration: number }) {
+export const ReactionBar = React.memo(function ReactionBar({ reactions, duration }: { reactions: TimelineReaction[]; duration: number }) {
   // Memoize grouped reactions to avoid O(N) recalculation on every render
   const grouped = useMemo(() => reactions.reduce((acc, r) => {
     const bucket = Math.floor(r.timestamp_sec / 30) * 30;
@@ -143,4 +143,4 @@ export function ReactionBar({ reactions, duration }: { reactions: TimelineReacti
       })}
     </div>
   );
-}
+});

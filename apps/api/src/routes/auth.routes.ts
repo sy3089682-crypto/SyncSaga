@@ -52,9 +52,7 @@ function requireAuth(req: Request, res: Response): string | null {
 function createAuthResponse(userId: string, email: string, user: any, req: Request, res: Response) {
   const accessToken = generateAccessToken({ userId, email });
   const refreshToken = generateRefreshToken({ userId, email });
-
   storeRefreshToken(userId, refreshToken.id);
-
   res.cookie('refreshToken', refreshToken.token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -62,23 +60,17 @@ function createAuthResponse(userId: string, email: string, user: any, req: Reque
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/api/auth',
   });
-
   return { token: accessToken, refreshToken: refreshToken.token, user };
 }
 
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const data = registerSchema.parse(req.body);
-
     const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
     });
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
+    if (error) return res.status(400).json({ error: error.message });
     if (authData.user) {
       await supabase.from('profiles').upsert({
         id: authData.user.id,
@@ -86,14 +78,13 @@ router.post('/register', async (req: Request, res: Response) => {
         display_name: data.username,
       });
     }
-
     const result = createAuthResponse(authData.user!.id, data.email, authData.user, req, res);
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors });
     }
-    logger.error('Registration error:', error);
+    logger.error('Registration error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -102,64 +93,44 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password: rawPassword } = req.body;
     const data = loginSchema.parse({ email, password: rawPassword });
-
     const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
-
-    if (error) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
+    if (error) return res.status(401).json({ error: 'Invalid email or password' });
     const { data: twoFactor } = await supabase
       .from('profiles')
       .select('totp_enabled')
       .eq('id', authData.user.id)
       .single();
-
     if (twoFactor?.totp_enabled) {
       const { totpToken } = req.body;
-      if (!totpToken) {
-        return res.json({ requireTotp: true, tempToken: authData.access_token });
-      }
+      if (!totpToken) return res.json({ requireTotp: true, tempToken: authData.access_token });
     }
-
-    const result = createAuthResponse(
-      authData.user.id,
-      authData.user.email!,
-      authData.user,
-      req,
-      res
-    );
-
+    const result = createAuthResponse(authData.user.id, authData.user.email!, authData.user, req, res);
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors });
     }
-    logger.error('Login error:', error);
+    logger.error('Login error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 router.post('/google', async (req: Request, res: Response) => {
   const { code } = req.body;
-
   try {
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: code,
     });
-
     if (error) throw error;
-
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
-
     if (!existingProfile) {
       await supabase.from('profiles').insert({
         id: data.user.id,
@@ -168,11 +139,10 @@ router.post('/google', async (req: Request, res: Response) => {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
     }
-
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
-    logger.error('Google auth error:', error);
+    logger.error('Google auth error:', error as Error);
     const msg = error instanceof Error ? error.message : 'Authentication failed';
     res.status(400).json({ error: msg });
   }
@@ -186,13 +156,11 @@ router.post('/github', async (req: Request, res: Response) => {
       token: code,
     });
     if (error) throw error;
-
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
-
     if (!existingProfile) {
       await supabase.from('profiles').insert({
         id: data.user.id,
@@ -201,11 +169,10 @@ router.post('/github', async (req: Request, res: Response) => {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
     }
-
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
-    logger.error('GitHub auth error:', error);
+    logger.error('GitHub auth error:', error as Error);
     const msg = error instanceof Error ? error.message : 'Authentication failed';
     res.status(400).json({ error: msg });
   }
@@ -219,13 +186,11 @@ router.post('/discord', async (req: Request, res: Response) => {
       token: code,
     });
     if (error) throw error;
-
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
-
     if (!existingProfile) {
       await supabase.from('profiles').insert({
         id: data.user.id,
@@ -234,11 +199,10 @@ router.post('/discord', async (req: Request, res: Response) => {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
     }
-
     const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
     res.json(result);
   } catch (error) {
-    logger.error('Discord auth error:', error);
+    logger.error('Discord auth error:', error as Error);
     const msg = error instanceof Error ? error.message : 'Authentication failed';
     res.status(400).json({ error: msg });
   }
@@ -247,25 +211,12 @@ router.post('/discord', async (req: Request, res: Response) => {
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const token = req.cookies?.refreshToken || req.body?.refreshToken;
-    if (!token) {
-      return res.status(401).json({ error: 'Refresh token required' });
-    }
-
+    if (!token) return res.status(401).json({ error: 'Refresh token required' });
     const decoded = verifyRefreshToken(token);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid refresh token' });
-    }
-
+    if (!decoded) return res.status(401).json({ error: 'Invalid refresh token' });
     const newTokens = await rotateRefreshToken(decoded.userId, decoded.refreshId);
-    if (!newTokens) {
-      return res.status(401).json({ error: 'Refresh token expired' });
-    }
-
-    const accessToken = generateAccessToken({
-      userId: decoded.userId,
-      email: decoded.email,
-    });
-
+    if (!newTokens) return res.status(401).json({ error: 'Refresh token expired' });
+    const accessToken = generateAccessToken({ userId: decoded.userId, email: decoded.email });
     res.cookie('refreshToken', newTokens.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -273,10 +224,9 @@ router.post('/refresh', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/api/auth',
     });
-
     res.json({ token: accessToken, refreshToken: newTokens.token });
   } catch (error) {
-    logger.error('Refresh error:', error);
+    logger.error('Refresh error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -286,15 +236,12 @@ router.post('/logout', async (req: Request, res: Response) => {
     const token = req.cookies?.refreshToken || req.body?.refreshToken;
     if (token) {
       const decoded = verifyRefreshToken(token);
-      if (decoded) {
-        await revokeRefreshToken(decoded.userId, decoded.refreshId);
-      }
+      if (decoded) await revokeRefreshToken(decoded.userId, decoded.refreshId);
     }
-
     res.clearCookie('refreshToken', { path: '/api/auth' });
     res.json({ success: true });
   } catch (error) {
-    logger.error('Logout error:', error);
+    logger.error('Logout error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -302,17 +249,13 @@ router.post('/logout', async (req: Request, res: Response) => {
 router.post('/logout-all', async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
+    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Authentication required' });
     const decoded = verifyToken(authHeader.slice(7));
-    if (decoded) {
-      await revokeAllRefreshTokens(decoded.userId);
-    }
+    if (decoded) await revokeAllRefreshTokens(decoded.userId);
     res.clearCookie('refreshToken', { path: '/api/auth' });
     res.json({ success: true });
   } catch (error) {
-    logger.error('Logout all error:', error);
+    logger.error('Logout all error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -320,21 +263,14 @@ router.post('/logout-all', async (req: Request, res: Response) => {
 router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
     const { email } = passwordResetSchema.parse(req.body);
-
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${req.headers.origin}/auth/reset-password`,
     });
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
+    if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true, message: 'Password reset email sent' });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid email', details: error.errors });
-    }
-    logger.error('Forgot password error:', error);
+    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid email', details: error.errors });
+    logger.error('Forgot password error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -342,21 +278,12 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 router.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = passwordUpdateSchema.parse(req.body);
-
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request', details: error.errors });
-    }
-    logger.error('Reset password error:', error);
+    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    logger.error('Reset password error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -365,38 +292,21 @@ router.post('/change-password', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
-
     const { data: user } = await supabase.auth.getUser(req.headers.authorization!.slice(7));
-    if (!user.user?.email) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
+    if (!user.user?.email) return res.status(401).json({ error: 'User not found' });
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user.user.email,
       password: currentPassword,
     });
-
-    if (signInError) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (updateError) {
-      return res.status(400).json({ error: updateError.message });
-    }
-
+    if (signInError) return res.status(400).json({ error: 'Current password is incorrect' });
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) return res.status(400).json({ error: updateError.message });
     await revokeAllRefreshTokens(userId);
     res.json({ success: true, message: 'Password changed. Please log in again.' });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request', details: error.errors });
-    }
-    logger.error('Change password error:', error);
+    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    logger.error('Change password error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -405,27 +315,15 @@ router.post('/2fa/setup', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-
     const secret = authenticator.generateSecret();
     const serviceName = 'SyncSaga';
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('id', userId)
-      .single();
-
+    const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
     const otpauth = authenticator.keyuri(profile?.email || userId, serviceName, secret);
-
-    await supabase
-      .from('profiles')
-      .update({ totp_secret: secret })
-      .eq('id', userId);
-
+    await supabase.from('profiles').update({ totp_secret: secret }).eq('id', userId);
     const qrCode = await QRCode.toDataURL(otpauth);
-
     res.json({ secret, qrCode, uri: otpauth });
   } catch (error) {
-    logger.error('2FA setup error:', error);
+    logger.error('2FA setup error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -434,36 +332,16 @@ router.post('/2fa/verify', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-
     const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ error: 'Token required' });
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('totp_secret')
-      .eq('id', userId)
-      .single();
-
-    if (!profile?.totp_secret) {
-      return res.status(400).json({ error: '2FA not set up' });
-    }
-
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { data: profile } = await supabase.from('profiles').select('totp_secret').eq('id', userId).single();
+    if (!profile?.totp_secret) return res.status(400).json({ error: '2FA not set up' });
     const isValid = authenticator.verify({ token, secret: profile.totp_secret });
-
-    if (!isValid) {
-      return res.status(400).json({ error: 'Invalid token' });
-    }
-
-    await supabase
-      .from('profiles')
-      .update({ totp_enabled: true })
-      .eq('id', userId);
-
+    if (!isValid) return res.status(400).json({ error: 'Invalid token' });
+    await supabase.from('profiles').update({ totp_enabled: true }).eq('id', userId);
     res.json({ success: true, message: '2FA enabled' });
   } catch (error) {
-    logger.error('2FA verify error:', error);
+    logger.error('2FA verify error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -472,35 +350,16 @@ router.post('/2fa/disable', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-
     const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ error: 'Token required' });
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('totp_secret')
-      .eq('id', userId)
-      .single();
-
-    if (!profile?.totp_secret) {
-      return res.status(400).json({ error: '2FA not set up' });
-    }
-
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { data: profile } = await supabase.from('profiles').select('totp_secret').eq('id', userId).single();
+    if (!profile?.totp_secret) return res.status(400).json({ error: '2FA not set up' });
     const isValid = authenticator.verify({ token, secret: profile.totp_secret });
-    if (!isValid) {
-      return res.status(400).json({ error: 'Invalid token' });
-    }
-
-    await supabase
-      .from('profiles')
-      .update({ totp_enabled: false, totp_secret: null })
-      .eq('id', userId);
-
+    if (!isValid) return res.status(400).json({ error: 'Invalid token' });
+    await supabase.from('profiles').update({ totp_enabled: false, totp_secret: null }).eq('id', userId);
     res.json({ success: true, message: '2FA disabled' });
   } catch (error) {
-    logger.error('2FA disable error:', error);
+    logger.error('2FA disable error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -509,7 +368,6 @@ router.get('/sessions', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-
     const keys = await redisService.getClient().keys(`refresh:${userId}:*`);
     const sessions = await Promise.all(
       keys.map(async (key) => {
@@ -518,10 +376,9 @@ router.get('/sessions', async (req: Request, res: Response) => {
         return { refreshId, device: 'Unknown', expiresIn: ttl, createdAt: new Date(Date.now() - (7 * 86400 - ttl) * 1000).toISOString() };
       })
     );
-
     res.json({ sessions });
   } catch (error) {
-    logger.error('Sessions error:', error);
+    logger.error('Sessions error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -530,16 +387,12 @@ router.post('/sessions/revoke', async (req: Request, res: Response) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-
     const { refreshId } = req.body;
-    if (!refreshId) {
-      return res.status(400).json({ error: 'Refresh ID required' });
-    }
-
+    if (!refreshId) return res.status(400).json({ error: 'Refresh ID required' });
     await revokeRefreshToken(userId, refreshId);
     res.json({ success: true, message: 'Session revoked' });
   } catch (error) {
-    logger.error('Revoke session error:', error);
+    logger.error('Revoke session error:', error as Error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

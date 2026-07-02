@@ -6,6 +6,7 @@ import { ServerToClientEvents, ClientToServerEvents, Room, User } from '@syncsag
 import { logger } from '../../lib/logger';
 import { validate, roomJoinSchema, roomLeaveSchema } from '../../middleware/validators';
 import { auditService } from '../../services/audit.service';
+import { queueService } from '../../services/queue.service';
 
 export function roomHandler(
   io: Server<ClientToServerEvents, ServerToClientEvents>,
@@ -63,6 +64,7 @@ export function roomHandler(
       socket.to(roomId).emit('room:user_joined', socket.user as User);
 
       await auditService.log('room.join', socket.userId, { roomId });
+      await queueService.audit('room.join', socket.userId, { roomId });
       logger.info({ userId: socket.userId, roomId }, 'User joined room');
     } catch (error) {
       logger.error({ err: error }, 'Room join error');
@@ -85,6 +87,7 @@ export function roomHandler(
       socket.to(roomId).emit('room:user_left', socket.userId);
 
       await auditService.log('room.leave', socket.userId, { roomId });
+      await queueService.audit('room.leave', socket.userId, { roomId });
       logger.info({ userId: socket.userId, roomId }, 'User left room');
     } catch (error) {
       logger.error({ err: error }, 'Room leave error');

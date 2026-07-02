@@ -13,7 +13,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 function SocketInitializer({ token }: { token: string | null }) {
   useEffect(() => {
     if (!token) return;
-    getSocket(token);
+    getSocket();
   }, [token]);
   return null;
 }

@@ -2,180 +2,371 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   SyncSaga Design System
+   Canvas, typography, one accent. No cards, no gradients, no grain.
+   Mobile (<640px) · Tablet (641-1024px) · Desktop (>1024px)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..600&family=Inter:wght@400;450;500;600&display=swap');
+
 :root {
-  --primary: #8b5cf6;
-  --primary-dark: #7c3aed;
-  --accent-cyan: #06b6d4;
-  --accent-pink: #ec4899;
-  --accent-green: #10b981;
-  --bg-default: #0a0a0f;
-  --bg-surface: #12121a;
-  --bg-elevated: #1a1a25;
-  --border-default: #2a2a3a;
-  --border-strong: #3a3a4a;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --canvas: #0E0E10;
+  --ink: #F4F2ED;
+  --ink-soft: #B7B5B0;
+  --ink-mute: #77767A;
+  --ink-faint: #4E4D52;
+  --coral: #FF6A5B;
+  --coral-hover: #FF8175;
+  --sync: #79E6B2;
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 32px;
+  --sp-5: 48px;
+  --sp-6: 64px;
 }
 
 @layer base {
   * {
-    border-color: var(--border-default);
+    border-color: var(--ink-faint);
   }
   html {
-    color: var(--text-primary);
+    color: var(--ink);
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    background-color: var(--bg-default);
-    color: var(--text-primary);
-    font-family: system-ui, 'Geist', sans-serif;
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv05' 1;
   }
   ::selection {
-    background-color: rgba(147, 51, 234, 0.2);
-    color: var(--text-primary);
+    background-color: rgba(255, 106, 91, 0.2);
+    color: var(--ink);
   }
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-default) transparent;
-  }
-  *::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  *::-webkit-scrollbar-thumb {
-    background-color: var(--border-default);
-    border-radius: 3px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: var(--border-strong);
-  }
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background-color: var(--ink-faint); border-radius: 3px; }
   :focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--coral);
     outline-offset: 2px;
   }
 }
 
 @layer components {
-  .glass-panel {
-    background-color: rgba(18, 18, 26, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-default);
-    border-radius: 0.75rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  /* ---- Wordmark ---- */
+  .syncsaga-wordmark {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
   }
-  .glass-panel-interactive {
-    background-color: rgba(18, 18, 26, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-default);
-    border-radius: 0.75rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transition: all 300ms ease-out;
-  }
-  .glass-panel-interactive:hover {
-    border-color: rgba(0, 212, 255, 0.4);
-    background-color: rgba(26, 26, 37, 0.9);
-    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.15);
-    transform: translateY(-0.25rem);
-  }
-  .stagger-item {
-    opacity: 0;
-    transform: translateY(1rem);
-    animation: slideUp 0.4s ease-out forwards;
-  }
-  .stagger-item:nth-child(1) { animation-delay: 50ms; }
-  .stagger-item:nth-child(2) { animation-delay: 100ms; }
-  .stagger-item:nth-child(3) { animation-delay: 150ms; }
-  .stagger-item:nth-child(4) { animation-delay: 200ms; }
-  .stagger-item:nth-child(5) { animation-delay: 250ms; }
-  .stagger-item:nth-child(6) { animation-delay: 300ms; }
-  .btn-primary {
+
+  /* ---- Still — honest dark surface, not a gradient ---- */
+  .syncsaga-still {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #1a1715;
+    border-radius: 4px;
     position: relative;
     overflow: hidden;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    box-shadow: 0 20px 60px -16px rgba(0,0,0,.5);
+    transition: box-shadow .3s var(--ease);
+  }
+  .syncsaga-stall {
+    background: #1a1715;
+  }
+
+  /* ---- Show title ---- */
+  .syncsaga-show-title {
+    font-family: 'Fraunces', serif;
+    font-size: 44px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .syncsaga-meta-line {
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin-top: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .syncsaga-people-line {
+    font-size: 14px;
+    color: var(--ink-mute);
+    margin-top: 8px;
+  }
+
+  /* ---- Join button ---- */
+  .syncsaga-join-btn {
+    background: var(--coral);
+    color: #1a0d0a;
     font-weight: 600;
-    border-radius: 0.5rem;
-    color: var(--bg-default);
-    background-color: var(--accent-cyan);
-    transition: all 300ms ease-out;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+    font-size: 14px;
+    padding: 12px 32px;
+    border-radius: 99px;
+    border: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: none;
+    transition: background .2s var(--ease), transform .18s var(--ease);
   }
-  .btn-primary:hover {
-    box-shadow: 0 0 25px rgba(0, 212, 255, 0.6);
-    transform: translateY(-0.125rem);
+  .syncsaga-join-btn:hover {
+    background: var(--coral-hover);
+    transform: translateY(-1px);
   }
-  .btn-primary:focus {
-    outline: 2px solid var(--accent-cyan);
-    outline-offset: 2px;
-  }
-  .btn-primary:active {
-    transform: scale(0.95);
-  }
-  .btn-primary:disabled {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-  .btn-primary::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
-    transition: opacity 300ms;
-  }
-}
+  .syncsaga-join-btn:active { transform: translateY(0); }
 
-@layer utilities {
-  .animate-float {
-    animation: float 8s ease-in-out infinite;
+  /* ---- Start a room ---- */
+  .syncsaga-start-link {
+    background: none;
+    border: 0;
+    color: var(--ink-mute);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color .2s var(--ease);
   }
-  .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 4s ease infinite;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-}
+  .syncsaga-start-link:hover { color: var(--coral); }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-}
+  .syncsaga-start-input {
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--ink-faint);
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 400;
+    width: 100%;
+    padding: 8px 0;
+    outline: none;
+    transition: border-color .2s var(--ease);
+  }
+  .syncsaga-start-input:focus { border-color: var(--coral); }
+  .syncsaga-start-input::placeholder { color: var(--ink-faint); font-style: italic; }
 
-@keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+  /* ---- Back button ---- */
+  .syncsaga-back-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background .2s var(--ease);
+  }
+  .syncsaga-back-btn:hover { background: rgba(255,255,255,.16); }
 
-@keyframes slideUp {
-  from {
+  /* ---- Sync status ---- */
+  .syncsaga-sync-status {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--sync);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Notifications ---- */
+  .syncsaga-notification {
+    font-size: 13px;
+    color: var(--ink-soft);
     opacity: 0;
-    transform: translateY(1rem);
+    transform: translateY(-4px);
+    transition: opacity .4s var(--ease), transform .4s var(--ease);
   }
-  to {
+  .syncsaga-notification.show {
     opacity: 1;
     transform: translateY(0);
   }
+
+  /* ---- Chat hint ---- */
+  .syncsaga-chat-hint {
+    position: absolute;
+    top: 50%;
+    right: 28px;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--ink-faint);
+    z-index: 8;
+    opacity: 0;
+    transition: opacity .5s var(--ease);
+    pointer-events: none;
+    writing-mode: vertical-rl;
+    letter-spacing: .05em;
+  }
+  .syncsaga-chat-hint.show { opacity: .6; }
+
+  /* ---- Chat overlay (desktop) ---- */
+  .syncsaga-chat-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 340px;
+    background: rgba(14,14,16,.72);
+    padding: 80px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    z-index: 12;
+  }
+
+  /* ---- Chat bottom sheet (mobile) ---- */
+  .syncsaga-chat-sheet {
+    top: auto !important;
+    right: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 60dvh;
+    background: rgba(14,14,16,.95);
+    padding: 24px 20px 20px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .syncsaga-chat-scroll::-webkit-scrollbar { width: 4px; }
+  .syncsaga-chat-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 99px; }
+
+  /* ---- Chat input ---- */
+  .syncsaga-chat-input {
+    background: rgba(255,255,255,.06);
+    border: 0;
+    border-radius: 99px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13.5px;
+    width: 100%;
+    padding: 12px 18px;
+    outline: none;
+    transition: background .2s var(--ease);
+  }
+  .syncsaga-chat-input:focus { background: rgba(255,255,255,.1); }
+  .syncsaga-chat-input::placeholder { color: var(--ink-faint); }
+
+  /* ---- Scrubber ---- */
+  .syncsaga-track {
+    height: 3px;
+    border-radius: 99px;
+    background: rgba(255,255,255,.15);
+    cursor: pointer;
+    position: relative;
+    transition: height .15s var(--ease);
+  }
+  .syncsaga-track:hover { height: 5px; }
+  .syncsaga-played {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: var(--coral);
+    border-radius: 99px;
+  }
+
+  /* ---- Mic button (desktop/tablet) ---- */
+  .syncsaga-mic-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 28px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    z-index: 11;
+    transition: background .2s var(--ease), color .2s var(--ease);
+  }
+  .syncsaga-mic-btn:hover { background: rgba(255,255,255,.16); }
+  .syncsaga-mic-btn.muted { color: var(--ink-faint); }
+
+  /* ---- Mobile bottom tabs ---- */
+  .syncsaga-mobile-tabs {
+    display: none;
+  }
+  .syncsaga-tab {
+    flex: 1;
+    background: none;
+    border: 0;
+    color: var(--ink-faint);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .2s var(--ease);
+  }
+  .syncsaga-tab.active { color: var(--ink); }
+
+  /* ---- Mobile control bar ---- */
+  .syncsaga-mobile-controls {
+    display: none;
+  }
+  .syncsaga-mc-btn {
+    background: none;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    transition: background .2s var(--ease);
+  }
+  .syncsaga-mc-btn:hover { background: rgba(255,255,255,.08); }
+  .syncsaga-mc-btn.muted { color: var(--ink-faint); }
+}
+
+@layer utilities {
+  .text-ink { color: var(--ink); }
+  .text-ink-soft { color: var(--ink-soft); }
+  .text-ink-mute { color: var(--ink-mute); }
+  .text-ink-faint { color: var(--ink-faint); }
+  .bg-canvas { background-color: var(--canvas); }
+}
+
+/* =========================================================
+   MOBILE (<640px)
+   ========================================================= */
+@media (max-width: 640px) {
+  .syncsaga-show-title { font-size: 28px; }
+  .syncsaga-mobile-tabs {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: rgba(14,14,16,.92);
+    border-top: 1px solid rgba(255,255,255,.06);
+    z-index: 20;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .syncsaga-mobile-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: rgba(14,14,16,.88);
+    z-index: 11;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .syncsaga-mic-btn { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -184,13 +375,5 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-}
-
-@media (max-width: 640px) {
-  .glass-panel,
-  .glass-panel-interactive {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 }

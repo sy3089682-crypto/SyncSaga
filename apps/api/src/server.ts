@@ -29,6 +29,8 @@ import { logger } from './lib/logger';
 import { AuthenticatedSocket } from './socket/middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
+import { queueService } from './services/queue.service';
+import { setQueueSocket } from './services/queue.service';
 import { metrics } from './services/metrics.service';
 import { initSentry, sentryErrorHandler } from './lib/sentry';
 
@@ -209,6 +211,7 @@ export async function createServer() {
   initializeSocketHandlers(io);
   wsBridge.initialize(io);
   setNotificationSocket(io);
+  setQueueSocket(io);
 
   // Socket-level reaction handler
   io.on('connection', (socket: AuthenticatedSocket) => {

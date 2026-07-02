@@ -5,6 +5,8 @@ import { createServer } from './server';
 import { logger } from './lib/logger';
 import { getEnv } from '@syncsaga/config';
 import { redisService } from './services/redis.service';
+import { queueService } from './services/queue.service';
+import type { Server as SocketIOServer } from 'socket.io';
 import type { Server as SocketIOServer } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 
@@ -44,7 +46,11 @@ async function bootstrap() {
       await redisService.disconnect();
       logger.info('Redis disconnected');
 
-      // 4. Exit
+      // 4. Shut down BullMQ workers and queues
+      await queueService.shutdown();
+      logger.info('BullMQ queues shut down');
+
+      // 5. Exit
       process.exit(0);
 
       // Force exit after timeout

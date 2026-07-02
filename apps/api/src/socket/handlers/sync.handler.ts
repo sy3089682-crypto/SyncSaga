@@ -6,6 +6,7 @@ import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabase';
 import { validate, syncEventSchema, setEpisodeSchema, syncLockSchema } from '../../middleware/validators';
 import { auditService } from '../../services/audit.service';
+import { queueService } from '../../services/queue.service';
 
 const HEARTBEAT_INTERVAL_MS = 5000;
 const DRIFT_SYNCED = 0.5;
@@ -292,6 +293,7 @@ export function syncHandler(
       });
 
       await auditService.log('sync.lock', socket.userId, { roomId, action: 'set_episode', episode, mediaId });
+      await queueService.audit('sync.set_episode', socket.userId, { roomId, episode, mediaId });
     } catch (error) {
       logger.error({ err: error }, 'Set episode error');
     }
@@ -329,6 +331,7 @@ export function syncHandler(
 
       io.to(roomId).emit('room:update', { sync_lock: enabled });
       await auditService.log('sync.lock', socket.userId, { roomId, enabled });
+      await queueService.audit('sync.lock_toggle', socket.userId, { roomId, enabled });
     } catch (error) {
       logger.error({ err: error }, 'Sync lock error');
     }
@@ -382,6 +385,7 @@ export function syncHandler(
       startHostHeartbeat(roomId);
 
       await auditService.log('sync.takeover', socket.userId, { roomId, previousHostId: hostId });
+      await queueService.audit('sync.takeover', socket.userId, { roomId, previousHostId: hostId });
       logger.info({ roomId, newHostId: socket.userId, previousHostId: hostId }, 'Host takeover completed');
     } catch (error) {
       logger.error({ err: error }, 'Takeover error');

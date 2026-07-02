@@ -1,6 +1,6 @@
 import { Router, Request } from 'express';
 import { supabase } from '../lib/supabase';
-import { verifyToken } from '../lib/jwt';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { getAiRouter } from '../services/ai.service';
 import { aiCache } from '../lib/ai/cache/ai-cache';
 import { logger } from '../lib/logger';
@@ -8,15 +8,10 @@ import crypto from 'crypto';
 
 const router = Router();
 
-function getUser(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  const decoded = verifyToken(auth.slice(7));
-  return decoded?.userId || null;
-}
+
 
 router.post('/config', async (req, res) => {
-  const userId = getUser(req);
+  const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
   const { roomId, theme, features, allowedOrigins } = req.body;
   if (!roomId) return res.status(400).json({ error: 'roomId required' });
@@ -31,7 +26,7 @@ router.post('/config', async (req, res) => {
 });
 
 router.post('/api-keys', async (req, res) => {
-  const userId = getUser(req);
+  const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
   const { name, permissions } = req.body;
   const rawKey = 'ss_' + crypto.randomBytes(32).toString('hex');

@@ -1,25 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { getEnv } from '@syncsaga/config';
 import { supabase } from '../lib/supabase';
-import { verifyToken } from '../lib/jwt';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../lib/logger';
 
 const router = Router();
 const env = getEnv();
-
-function requireAuth(req: Request, res: Response): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
-    return null;
-  }
-  const decoded = verifyToken(authHeader.slice(7));
-  if (!decoded) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
-    return null;
-  }
-  return decoded.userId;
-}
 
 const PLANS = {
   free: { name: 'Free', price: 0, maxRooms: 3, maxMembersPerRoom: 10, hdRooms: false, aiFeatures: false, clips: false },
@@ -31,18 +17,18 @@ router.get('/plans', (_req: Request, res: Response) => {
   res.json({ plans: PLANS });
 });
 
-router.get('/subscription', async (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
+router.get('/subscription', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+  const userId = req.userId;
   const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).single();
   if (!data) return res.json({ subscription: { plan: 'free', status: 'active' } });
   const plan = PLANS[data.plan as keyof typeof PLANS] || PLANS.free;
   res.json({ subscription: { ...data, planDetails: plan } });
 });
 
-router.post('/create-checkout', async (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
+router.post('/create-checkout', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+  const userId = req.userId;
   const { priceId, successUrl, cancelUrl } = req.body;
   if (!env.STRIPE_SECRET_KEY) return res.status(501).json({ error: { code: 'NOT_CONFIGURED', message: 'Payments not configured' } });
   try {
@@ -73,7 +59,7 @@ router.post('/create-checkout', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/webhook', async (req: Request, res: Response) => {
+router.post('/webhook', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
   if (!env.STRIPE_WEBHOOK_SECRET) return res.status(501).json({ error: 'Webhook not configured' });
   try {
@@ -119,9 +105,9 @@ router.post('/webhook', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/portal', async (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
+router.post('/portal', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+  const userId = req.userId;
   if (!env.STRIPE_SECRET_KEY) return res.status(501).json({ error: { code: 'NOT_CONFIGURED', message: 'Payments not configured' } });
   try {
     const stripe = require('stripe')(env.STRIPE_SECRET_KEY);
@@ -140,9 +126,9 @@ router.post('/portal', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/limits', async (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
+router.get('/limits', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+  const userId = req.userId;
   const { data } = await supabase.from('subscriptions').select('plan').eq('user_id', userId).single();
   const plan = (data?.plan as keyof typeof PLANS) || 'free';
   const limits = PLANS[plan] || PLANS.free;

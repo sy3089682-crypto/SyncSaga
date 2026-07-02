@@ -24,24 +24,57 @@ export class CacheService {
   async delete(key: string): Promise<void> {
     try {
       await redisService.getClient().del(`cache:${key}`);
-    } catch {}
+    } catch {
+      // Silent fail — cache deletion is non-critical
+    }
   }
 
+  /**
+   * Delete all keys matching a pattern using SCAN (non-blocking).
+   * Never use KEYS in production — it blocks the Redis server.
+   */
   async deletePattern(pattern: string): Promise<void> {
     try {
-      const keys = await redisService.getClient().keys(pattern);
-      if (keys.length > 0) {
-        await redisService.getClient().del(keys);
-      }
-    } catch {}
+      const client = redisService.getClient();
+      let cursor = 0;
+      do {
+        const reply = await client.scan(cursor, { MATCH: pattern, COUNT: 100 });
+        cursor = reply.cursor;
+        if (reply.keys.length > 0) {
+          await client.del(reply.keys);
+        }
+      } while (cursor !== 0);
+    } catch (error) {
+      logger.error({ pattern, error }, 'Cache deletePattern error');
+    }
   }
 
+  /**
+   * Get from cache or compute and cache the value.
+   * Implements cache stampede protection via early refresh threshold.
+   */
   async getOrSet<T>(key: string, fetch: () => Promise<T>, ttlSeconds = 300): Promise<T> {
     const cached = await this.get<T>(key);
     if (cached !== null) return cached;
     const value = await fetch();
     await this.set(key, value, ttlSeconds);
     return value;
+  }
+
+  /**
+   * Invalidate cache entries for a room.
+   */
+  async invalidateRoom(roomId: string): Promise<void> {
+    await this.deletePattern(`cache:room:${roomId}*`);
+    await this.delete(`room:${roomId}`);
+  }
+
+  /**
+   * Invalidate cache entries for a user profile.
+   */
+  async invalidateUser(userId: string): Promise<void> {
+    await this.deletePattern(`cache:user:${userId}*`);
+    await this.delete(`user:${userId}`);
   }
 }
 

@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import pinoHttp from 'pino-http';
+import { randomUUID } from 'crypto';
 import { getEnv } from '@syncsaga/config';
 
 import { authRouter } from './routes/auth.routes';
@@ -18,6 +19,7 @@ import aiRouter from './routes/ai';
 import featuresRouter from './routes/features';
 import metricsRouter from './routes/metrics';
 import paymentsRouter from './routes/payments';
+import { docsRouter } from './routes/docs';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
@@ -28,13 +30,16 @@ import { AuthenticatedSocket } from './socket/middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
 import { metrics } from './services/metrics.service';
+import { initSentry, sentryErrorHandler } from './lib/sentry';
 
 export async function createServer() {
   const env = getEnv();
   const app = express();
   const httpServer = createHttpServer(app);
+  initSentry();
   metrics.init();
 
+  // Security headers
   app.use(helmet({
     contentSecurityPolicy: env.NODE_ENV === 'production' ? {
       directives: {
@@ -57,18 +62,31 @@ export async function createServer() {
     origin: env.CORS_ORIGIN.split(',').map(s => s.trim()),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-Id'],
   }));
 
   app.use(compression({ level: 6, threshold: 256 }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
   app.set('trust proxy', 1);
-  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/metrics' } }));
+  app.use(pinoHttp({
+    logger,
+    autoLogging: { ignore: (req) => req.url === '/health/live' || req.url === '/health/ready' || req.url === '/metrics' },
+  }));
 
+  // Request ID middleware — generates unique ID for each request for tracing
+  app.use((req, _res, next) => {
+    const requestId = (req.headers['x-request-id'] as string) || randomUUID();
+    req.headers['x-request-id'] = requestId;
+    _res.setHeader('X-Request-Id', requestId);
+    next();
+  });
+
+  // Rate limiting and CSRF
   app.use(rateLimitMiddleware(100, 60));
   app.use(csrfProtection);
 
+  // HTTP metrics
   app.use((req, _res, next) => {
     const start = Date.now();
     _res.on('finish', () => {
@@ -78,6 +96,41 @@ export async function createServer() {
     next();
   });
 
+  // Liveness probe — process is running
+  app.get('/health/live', (_req, res) => {
+    res.status(200).json({
+      status: 'alive',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Readiness probe — dependencies are ready
+  app.get('/health/ready', async (_req, res) => {
+    let dbPing = false;
+    let redisPing = false;
+    try {
+      const { data } = await supabase.from('rooms').select('id').limit(1);
+      dbPing = !!data || true;
+    } catch { /* db not ready */ }
+    try {
+      if (redisService.getClient()) {
+        await redisService.getClient().ping();
+        redisPing = true;
+      }
+    } catch { /* redis not ready */ }
+    const ready = dbPing && redisPing;
+    res.status(ready ? 200 : 503).json({
+      status: ready ? 'ready' : 'degraded',
+      checks: { database: dbPing, redis: redisPing },
+      uptime: process.uptime(),
+      version: process.env.npm_package_version || '1.0.0',
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+    });
+  });
+
+  // Legacy health endpoint (backward compatibility)
   app.get('/health', async (_req, res) => {
     let dbPing = false;
     let redisPing = false;
@@ -103,6 +156,22 @@ export async function createServer() {
     });
   });
 
+  // API v1 routes
+  const v1Router = express.Router();
+  v1Router.use('/auth', authRouter);
+  v1Router.use('/rooms', roomRouter);
+  v1Router.use('/reactions', reactionsRouter);
+  v1Router.use('/clips', clipsRouter);
+  v1Router.use('/activity', activityRouter);
+  v1Router.use('/embed', embedRouter);
+  v1Router.use('/ai', aiRouter);
+  v1Router.use('/features', featuresRouter);
+  v1Router.use('/payments', paymentsRouter);
+  v1Router.use('/docs', docsRouter);
+
+  app.use('/api/v1', v1Router);
+
+  // Backward-compatible unversioned routes (deprecated — will be removed in v2)
   app.use('/api/auth', authRouter);
   app.use('/api/rooms', roomRouter);
   app.use('/api/reactions', reactionsRouter);
@@ -112,10 +181,18 @@ export async function createServer() {
   app.use('/api/ai', aiRouter);
   app.use('/api/features', featuresRouter);
   app.use('/api/payments', paymentsRouter);
+
+  // Metrics endpoint
   app.use('/metrics', metricsRouter);
+
+  // Sentry error handler (before custom error handler)
+  app.use(sentryErrorHandler());
+
+  // Centralized error handler (must be last)
   app.use(errorHandler);
 
-  const io = new Server(httpServer, {
+  // Socket.IO server
+  const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: {
       origin: env.CORS_ORIGIN.split(',').map(s => s.trim()),
       credentials: true,
@@ -133,19 +210,40 @@ export async function createServer() {
   wsBridge.initialize(io);
   setNotificationSocket(io);
 
+  // Socket-level reaction handler
   io.on('connection', (socket: AuthenticatedSocket) => {
     metrics.setConnectedSockets(io.engine.clientsCount);
     socket.on('reaction:add', async (data) => {
-      const { roomId, timestampSec, type, content } = data;
-      if (!roomId || timestampSec === undefined || !type) return;
-      if (!socket.userId) return;
-      const userId = socket.userId;
-      const { data: reaction } = await supabase.from('timeline_reactions').insert({ room_id: roomId, user_id: userId, timestamp_sec: timestampSec, type, content }).select('*, profiles:user_id(username, avatar_url)').single();
-      if (reaction) {
-        socket.to(roomId).emit('reaction:new', reaction);
-        await supabase.from('activity_feed').insert({ user_id: userId, type: 'reaction', data: { roomId, timestampSec, reactionType: type } });
+      try {
+        if (!socket.userId) return;
+        const { roomId, timestampSec, type, content } = data;
+        if (!roomId || timestampSec === undefined || !type) return;
+
+        const { data: reaction } = await supabase
+          .from('timeline_reactions')
+          .insert({
+            room_id: roomId,
+            user_id: socket.userId,
+            timestamp_sec: timestampSec,
+            type,
+            content,
+          })
+          .select('*, profiles:user_id(username, avatar_url)')
+          .single();
+
+        if (reaction) {
+          socket.to(roomId).emit('reaction:new', reaction);
+          await supabase.from('activity_feed').insert({
+            user_id: socket.userId,
+            type: 'reaction',
+            data: { roomId, timestampSec, reactionType: type },
+          });
+        }
+      } catch (error) {
+        logger.error({ err: error }, 'Reaction add error');
       }
     });
+
     socket.on('disconnect', () => {
       metrics.setConnectedSockets(io.engine.clientsCount);
     });

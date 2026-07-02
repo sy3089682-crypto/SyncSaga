@@ -8,18 +8,23 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-fraunces)', 'Georgia', 'serif'],
       },
       colors: {
-        primary: { DEFAULT: '#8b5cf6', dark: '#7c3aed' },
+        primary: { DEFAULT: '#FF6A5B', dark: '#FF8175' },
+        'accent-sync': '#79E6B2',
         'accent-cyan': '#06b6d4',
         'accent-pink': '#ec4899',
         'accent-green': '#10b981',
-        background: '#0a0a0f',
-        surface: { DEFAULT: '#12121a', light: '#1a1a25' },
-        border: '#2a2a3a',
-        'text-primary': '#f8fafc',
-        'text-secondary': '#94a3b8',
-        'text-muted': '#64748b',
+        background: '#0E0E10',
+        surface: { DEFAULT: '#16161A', light: '#1C1C22' },
+        border: 'rgba(255,255,255,.07)',
+        'text-primary': '#F4F2ED',
+        'text-secondary': '#B7B5B0',
+        'text-muted': '#77767A',
+        ink: { DEFAULT: '#F4F2ED', soft: '#B7B5B0', mute: '#77767A', faint: '#4E4D52' },
+        canvas: '#0E0E10',
+        coral: { DEFAULT: '#FF6A5B', hover: '#FF8175' },
       },
       borderRadius: {
         '2xl': '1rem',
@@ -27,7 +32,6 @@ const config: Config = {
       },
       animation: {
         float: 'float 8s ease-in-out infinite',
-        gradient: 'gradient 4s ease infinite',
         'fade-in': 'fadeIn 0.3s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
       },
@@ -35,11 +39,6 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-20px)' },
-        },
-        gradient: {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' },
         },
         fadeIn: {
           '0%': { opacity: '0' },

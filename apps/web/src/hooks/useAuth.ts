@@ -1,77 +1,200 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useAppStore } from '@/store/useAppStore';
-import { api } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
-import { User } from '@syncsaga/shared';
+import { useEffect, useState, useCallback } from 'react';
+import type { User } from '@supabase/supabase-js';
+import { supabase, getAccessToken } from '@/lib/supabase';
+
+/**
+ * useAuth — unified authentication hook
+ *
+ * Replaces the dual useAuth + useAppStore pattern.
+ * Uses Supabase Auth exclusively for all auth operations.
+ *
+ * Session is managed by Supabase (cookie-based, auto-refresh).
+ * No manual token storage in Zustand or localStorage.
+ *
+ * Usage:
+ *   const { user, loading, signIn, signOut } = useAuth();
+ */
+
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  loading: boolean;
+  error: string | null;
+}
 
 export function useAuth() {
-  const { user, token, setUser, setToken, logout: storeLogout } = useAppStore();
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    accessToken: null,
+    loading: true,
+    error: null,
+  });
 
+  // Initialize — get existing session
   useEffect(() => {
-    const existingToken = useAppStore.getState().token;
-    if (existingToken) {
-      setLoading(false);
-      return;
+    let mounted = true;
+
+    async function init() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (session) {
+          setState({
+            user: session.user,
+            accessToken: session.access_token,
+            loading: false,
+            error: null,
+          });
+        } else {
+          setState({
+            user: null,
+            accessToken: null,
+            loading: false,
+            error: null,
+          });
+        }
+      } catch (error) {
+        if (!mounted) return;
+        setState({
+          user: null,
+          accessToken: null,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Failed to get session',
+        });
+      }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setToken(session.access_token);
-        supabase.from('profiles').select('*').eq('id', session.user.id).single()
-          .then(({ data }) => {
-            if (data) setUser(data as User);
-          });
-      }
-      setLoading(false);
+    init();
+
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      setState({
+        user: session?.user || null,
+        accessToken: session?.access_token || null,
+        loading: false,
+        error: null,
+      });
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setToken(session.access_token);
-      } else {
-        storeLogout();
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
-  };
+  /**
+   * Sign in with email and password.
+   */
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  const register = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (data.user) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        username,
-        display_name: username,
-      });
+    if (error) {
+      throw new Error(error.message);
     }
+
     return data;
+  }, []);
+
+  /**
+   * Sign up with email, password, and username.
+   * The profile is auto-created by a database trigger on auth.users insert.
+   */
+  const signUp = useCallback(
+    async (email: string, password: string, username: string) => {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username },
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return data;
+    },
+    []
+  );
+
+  /**
+   * Sign out — destroys the session on both client and server.
+   */
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
+    }
+    setState({
+      user: null,
+      accessToken: null,
+      loading: false,
+      error: null,
+    });
+  }, []);
+
+  /**
+   * Send a password reset email.
+   */
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }, []);
+
+  /**
+   * Update the user's password (after reset).
+   */
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }, []);
+
+  /**
+   * Refresh the access token manually.
+   * Supabase auto-refreshes, but this is useful before API calls
+   * that need a fresh token.
+   */
+  const refreshToken = useCallback(async () => {
+    const token = await getAccessToken();
+    setState((prev) => ({ ...prev, accessToken: token }));
+    return token;
+  }, []);
+
+  return {
+    user: state.user,
+    accessToken: state.accessToken,
+    loading: state.loading,
+    error: state.error,
+    isAuthenticated: !!state.user,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+    updatePassword,
+    refreshToken,
   };
-
-  const loginWithGoogle = () => supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
-  });
-
-  const loginWithDiscord = () => supabase.auth.signInWithOAuth({
-    provider: 'discord',
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
-  });
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    storeLogout();
-  };
-
-  return { user, token, loading, login, register, loginWithGoogle, loginWithDiscord, logout };
 }

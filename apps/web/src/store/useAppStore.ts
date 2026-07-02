@@ -1,151 +1,79 @@
+'use client';
+
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { User, Room, Message, RoomMember } from '@syncsaga/shared';
+import type { User } from '@supabase/supabase-js';
+import type { Room } from '@syncsaga/shared';
 
-interface OnlineUser {
-  user_id: string;
-  status: 'online' | 'offline' | 'away' | 'watching';
-  current_room_id: string | null;
-  activity: string | null;
-}
+/**
+ * Application Store
+ *
+ * Manages client-side UI state and cached data.
+ * Authentication state is NOT stored here — it's managed by
+ * Supabase Auth via cookies and the useAuth hook.
+ *
+ * The store is intentionally minimal:
+ * - user: cached Supabase user object (for UI rendering)
+ * - rooms: cached room list (for dashboard)
+ * - onlineUsers: presence indicator for friends
+ * - driftStatuses: per-user sync drift in the current room
+ */
 
-interface AuthSlice {
+interface AppState {
+  // Cached user data (source of truth is Supabase Auth)
   user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
   setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
-  logout: () => void;
-}
 
-interface RoomSlice {
+  // Room data
   rooms: Room[];
-  currentRoom: (Room & { members: RoomMember[] }) | null;
-  activeRoomId: string | null;
-  roomMembers: RoomMember[];
-  messages: Message[];
-  driftStatuses: Map<string, { drift: number; status: 'synced' | 'slight' | 'desynced' }>;
   setRooms: (rooms: Room[]) => void;
   addRoom: (room: Room) => void;
-  setCurrentRoom: (room: (Room & { members: RoomMember[] }) | null) => void;
-  updateRoomState: (partial: Partial<Room>) => void;
-  setActiveRoomId: (id: string | null) => void;
-  setRoomMembers: (members: RoomMember[]) => void;
-  addRoomMember: (member: RoomMember) => void;
-  removeRoomMember: (userId: string) => void;
-  addMessage: (message: Message) => void;
-  setMessages: (messages: Message[]) => void;
-  setDriftStatus: (userId: string, data: { drift: number; status: 'synced' | 'slight' | 'desynced' }) => void;
-}
+  removeRoom: (roomId: string) => void;
 
-interface UiSlice {
+  // Online users (presence)
+  onlineUsers: string[];
+  setOnlineUsers: (userIds: string[]) => void;
+
+  // Drift statuses (per-user sync quality in current room)
+  driftStatuses: Record<string, { drift: number; status: 'synced' | 'slight' | 'desynced' }>;
+  setDriftStatus: (userId: string, data: { drift: number; status: 'synced' | 'slight' | 'desynced' }) => void;
+  clearDriftStatuses: () => void;
+
+  // UI state
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+
+  // Reset (called on sign out)
+  reset: () => void;
 }
 
-interface SocialSlice {
-  friends: User[];
-  onlineUsers: Map<string, OnlineUser>;
-  setFriends: (friends: User[]) => void;
-  updatePresence: (presence: { user_id: string; status: OnlineUser['status']; current_room_id?: string | null; activity?: string | null }) => void;
-}
-
-export type AppState = AuthSlice & RoomSlice & UiSlice & SocialSlice;
-
-const initialAuth: AuthSlice = {
+export const useAppStore = create<AppState>((set) => ({
   user: null,
-  token: null,
-  isAuthenticated: false,
-  setUser: () => {},
-  setToken: () => {},
-  logout: () => {},
-};
+  setUser: (user) => set({ user }),
 
-const initialRoom: RoomSlice = {
   rooms: [],
-  currentRoom: null,
-  activeRoomId: null,
-  roomMembers: [],
-  messages: [],
-  driftStatuses: new Map(),
-  setRooms: () => {},
-  addRoom: () => {},
-  setCurrentRoom: () => {},
-  updateRoomState: () => {},
-  setActiveRoomId: () => {},
-  setRoomMembers: () => {},
-  addRoomMember: () => {},
-  removeRoomMember: () => {},
-  addMessage: () => {},
-  setMessages: () => {},
-  setDriftStatus: () => {},
-};
+  setRooms: (rooms) => set({ rooms }),
+  addRoom: (room) => set((state) => ({ rooms: [room, ...state.rooms] })),
+  removeRoom: (roomId) => set((state) => ({ rooms: state.rooms.filter((r) => r.id !== roomId) })),
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      ...initialAuth,
-      ...initialRoom,
+  onlineUsers: [],
+  setOnlineUsers: (userIds) => set({ onlineUsers: userIds }),
+
+  driftStatuses: {},
+  setDriftStatus: (userId, data) =>
+    set((state) => ({
+      driftStatuses: { ...state.driftStatuses, [userId]: data },
+    })),
+  clearDriftStatuses: () => set({ driftStatuses: {} }),
+
+  sidebarOpen: true,
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  reset: () =>
+    set({
+      user: null,
+      rooms: [],
+      onlineUsers: [],
+      driftStatuses: {},
       sidebarOpen: true,
-      setSidebarOpen: (open) => set({ sidebarOpen: open }),
-      friends: [],
-      onlineUsers: new Map(),
-      setFriends: (friends) => set({ friends }),
-
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setToken: (token) => set({ token }),
-      logout: () => {
-        set({ user: null, token: null, isAuthenticated: false, currentRoom: null, rooms: [], messages: [], friends: [], roomMembers: [] });
-      },
-
-      setActiveRoomId: (id) => set({ activeRoomId: id }),
-      setRooms: (rooms) => set({ rooms }),
-      addRoom: (room) => set({ rooms: [...get().rooms, room] }),
-
-      setCurrentRoom: (room) => set({ currentRoom: room }),
-      updateRoomState: (partial) => {
-        const current = get().currentRoom;
-        if (current) set({ currentRoom: { ...current, ...partial } });
-      },
-
-      setRoomMembers: (members) => set({ roomMembers: members }),
-      addRoomMember: (member) => {
-        const exists = get().roomMembers.some(m => m.user_id === member.user_id);
-        if (!exists) set({ roomMembers: [...get().roomMembers, member] });
-      },
-      removeRoomMember: (userId) => set({ roomMembers: get().roomMembers.filter(m => m.user_id !== userId) }),
-
-      addMessage: (message) => {
-        const exists = get().messages.some(m => m.id === message.id);
-        if (!exists) set({ messages: [...get().messages, message] });
-      },
-      setMessages: (messages) => set({ messages }),
-
-      setDriftStatus: (userId, data) => {
-        const map = new Map(get().driftStatuses);
-        map.set(userId, data);
-        set({ driftStatuses: map });
-      },
-
-      updatePresence: (presence) => {
-        const map = new Map(get().onlineUsers);
-        if (presence.status === 'offline') {
-          map.delete(presence.user_id);
-        } else {
-          map.set(presence.user_id, presence as OnlineUser);
-        }
-        set({ onlineUsers: map });
-      },
     }),
-    {
-      name: 'syncsaga-store',
-      partialize: (state) => ({ token: state.token, user: state.user }),
-      merge: (persisted: any, current: AppState) => ({
-        ...current,
-        token: persisted?.token ?? null,
-        user: persisted?.user ?? null,
-        isAuthenticated: !!persisted?.user,
-      }),
-    }
-  )
-);
+}));

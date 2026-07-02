@@ -1,49 +1,101 @@
+'use client';
+
 import { io, Socket } from 'socket.io-client';
-import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
+import { getAccessToken } from '@/lib/supabase';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+/**
+ * Socket.IO client with Supabase auth.
+ *
+ * The socket connects with the Supabase access token in the
+ * handshake auth. The backend verifies the token via
+ * verifySupabaseToken() in the socket auth middleware.
+ */
 
-let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
-let currentToken: string | null = null;
+let socket: Socket | null = null;
+let connecting: Promise<Socket> | null = null;
 
-type EventHandler = (...args: any[]) => void;
-const eventHandlers: Record<string, EventHandler> = {
-  connect: () => {},
-  disconnect: () => {},
-  connect_error: () => {},
-};
-
-export function getSocket(token?: string | null): Socket<ServerToClientEvents, ClientToServerEvents> {
-  const needsNewToken = token !== undefined && token !== currentToken;
-
-  if (!socket || needsNewToken) {
-    if (socket) {
-      socket.removeAllListeners();
-      socket.disconnect();
-    }
-
-    currentToken = token ?? currentToken;
-
-    socket = io(SOCKET_URL, {
-      auth: { token: currentToken },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-      randomizationFactor: 0.3,
-      timeout: 20000,
-    });
+/**
+ * Get or create the singleton Socket.IO connection.
+ * Automatically injects the Supabase access token.
+ */
+export async function getSocket(): Promise<Socket> {
+  if (socket?.connected) {
+    return socket;
   }
 
-  return socket;
+  if (connecting) {
+    return connecting;
+  }
+
+  connecting = (async () => {
+    const token = await getAccessToken();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+    if (!token) {
+      throw new Error('Not authenticated — cannot connect to socket');
+    }
+
+    socket = io(apiUrl, {
+      auth: { token },
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      timeout: 10000,
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+      if (err.message.includes('Authentication')) {
+        // Token is invalid — force re-auth
+        window.location.href = '/auth/login';
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.warn('Socket disconnected:', reason);
+    });
+
+    return new Promise<Socket>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Socket connection timeout'));
+      }, 10000);
+
+      socket!.on('connect', () => {
+        clearTimeout(timeout);
+        resolve(socket!);
+      });
+
+      socket!.on('connect_error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+  })();
+
+  try {
+    return await connecting;
+  } finally {
+    connecting = null;
+  }
 }
 
-export function disconnectSocket() {
+/**
+ * Disconnect the socket and clean up.
+ */
+export function disconnectSocket(): void {
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();
     socket = null;
-    currentToken = null;
   }
+}
+
+/**
+ * Reconnect with a fresh token (after session refresh).
+ */
+export async function reconnectSocket(): Promise<Socket> {
+  disconnectSocket();
+  return getSocket();
 }

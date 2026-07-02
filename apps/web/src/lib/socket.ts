@@ -9,6 +9,9 @@ import { getAccessToken } from '@/lib/supabase';
  * The socket connects with the Supabase access token in the
  * handshake auth. The backend verifies the token via
  * verifySupabaseToken() in the socket auth middleware.
+ *
+ * This module provides a singleton socket instance.
+ * Token is fetched automatically from the Supabase session.
  */
 
 let socket: Socket | null = null;
@@ -17,6 +20,9 @@ let connecting: Promise<Socket> | null = null;
 /**
  * Get or create the singleton Socket.IO connection.
  * Automatically injects the Supabase access token.
+ *
+ * This is the canonical socket accessor. Do NOT pass a token —
+ * the token is fetched internally from the Supabase session.
  */
 export async function getSocket(): Promise<Socket> {
   if (socket?.connected) {
@@ -35,11 +41,18 @@ export async function getSocket(): Promise<Socket> {
       throw new Error('Not authenticated — cannot connect to socket');
     }
 
+    // Disconnect any existing stale socket
+    if (socket) {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socket = null;
+    }
+
     socket = io(apiUrl, {
       auth: { token },
       transports: ['websocket'],
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       timeout: 10000,
@@ -47,7 +60,7 @@ export async function getSocket(): Promise<Socket> {
 
     socket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
-      if (err.message.includes('Authentication')) {
+      if (err.message.includes('Authentication') || err.message.includes('Invalid or expired')) {
         // Token is invalid — force re-auth
         window.location.href = '/auth/login';
       }
@@ -55,6 +68,16 @@ export async function getSocket(): Promise<Socket> {
 
     socket.on('disconnect', (reason) => {
       console.warn('Socket disconnected:', reason);
+    });
+
+    // Reconnect with fresh token on reconnection attempts
+    socket.io.on('reconnect_attempt', async () => {
+      if (socket) {
+        const freshToken = await getAccessToken();
+        if (freshToken) {
+          socket.auth = { token: freshToken };
+        }
+      }
     });
 
     return new Promise<Socket>((resolve, reject) => {
@@ -82,6 +105,14 @@ export async function getSocket(): Promise<Socket> {
 }
 
 /**
+ * Get the current socket instance if connected, or null.
+ * Useful for registering event listeners without awaiting connection.
+ */
+export function getSocketSync(): Socket | null {
+  return socket?.connected ? socket : null;
+}
+
+/**
  * Disconnect the socket and clean up.
  */
 export function disconnectSocket(): void {
@@ -90,6 +121,7 @@ export function disconnectSocket(): void {
     socket.disconnect();
     socket = null;
   }
+  connecting = null;
 }
 
 /**

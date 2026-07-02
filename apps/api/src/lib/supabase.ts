@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getEnv } from '@syncsaga/config';
 import { logger } from './logger';
 
@@ -27,32 +27,38 @@ export const supabaseAdmin = createClient(
 );
 
 /**
+ * Backward-compatible alias. Many modules import `{ supabase }` from here.
+ * This is the admin client — see the warning above.
+ */
+export const supabase = supabaseAdmin;
+
+/**
+ * Anon client for token verification.
+ * Created once and reused — not per-request.
+ */
+const anonClient = createClient(
+  env.SUPABASE_URL,
+  env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
+
+/**
  * Verify a Supabase JWT access token and return the user ID.
  *
- * This replaces the custom JWT verification system.
- * The token is a Supabase Auth session token, signed by Supabase's
- * JWT secret. We verify it by calling supabase.auth.getUser()
- * which validates the token server-side.
+ * Uses the anon client with the user's token in the Authorization header.
+ * Supabase's auth.getUser() validates the token server-side.
  *
  * @param token - The access token from the Authorization header
  * @returns The user ID if valid, null if invalid or expired
  */
 export async function verifySupabaseToken(token: string): Promise<string | null> {
   try {
-    // Create a temporary client with the user's token to verify it
-    const client = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    });
-
-    const { data, error } = await client.auth.getUser();
+    const { data, error } = await anonClient.auth.getUser(token);
 
     if (error || !data.user) {
       logger.debug('Token verification failed:', error?.message || 'No user');

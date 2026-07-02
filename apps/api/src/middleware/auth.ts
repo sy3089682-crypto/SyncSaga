@@ -6,8 +6,6 @@ import { logger } from '../lib/logger';
  * Express middleware that verifies the Supabase JWT from the
  * Authorization header and attaches the user to the request.
  *
- * Replaces the per-route `requireAuth` pattern.
- *
  * Usage:
  *   router.get('/rooms', authMiddleware, roomController.getRooms);
  *
@@ -106,7 +104,7 @@ export async function optionalAuth(
  * Checks if the authenticated user has the required role in a room.
  *
  * Usage:
- *   router.delete('/rooms/:id', authMiddleware, requireRole('host'), roomController.deleteRoom);
+ *   router.delete('/rooms/:id', authMiddleware, requireRoomRole('host'), roomController.deleteRoom);
  */
 export function requireRoomRole(roles: string[]) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -115,8 +113,8 @@ export function requireRoomRole(roles: string[]) {
       return;
     }
 
-    // Check if user is the host
-    const { supabaseAdmin } = require('../lib/supabase');
+    // Use the admin client imported at top level — no require()
+    const { supabaseAdmin } = await import('../lib/supabase');
     const { data: room } = await supabaseAdmin
       .from('rooms')
       .select('host_id, co_hosts')
@@ -141,7 +139,6 @@ export function requireRoomRole(roles: string[]) {
       return;
     }
 
-    // Check room_members role
     const { data: member } = await supabaseAdmin
       .from('room_members')
       .select('role, is_banned')

@@ -1,218 +1,379 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Play, Users, MessageSquare, Mic, Shield, Zap, ArrowRight, Sparkles, ChevronDown, Star, Github } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Mic, MicOff, Play, Pause, MessageCircle, Send } from 'lucide-react';
 
-const features = [
-  { icon: Play, title: 'Synchronized Playback', description: 'Frame-perfect sync with drift correction and latency compensation.', gradient: 'from-primary to-accent-pink' },
-  { icon: Users, title: 'Watch Rooms', description: 'Create public or private rooms for up to 50 friends.', gradient: 'from-accent-cyan to-primary' },
-  { icon: Mic, title: 'Voice Chat', description: 'Crystal-clear voice with noise suppression.', gradient: 'from-accent-pink to-accent-cyan' },
-  { icon: MessageSquare, title: 'Realtime Chat', description: 'Emojis, GIFs, reactions, and typing indicators.', gradient: 'from-primary to-accent-cyan' },
-  { icon: Shield, title: 'Secure & Private', description: 'End-to-end encryption and granular permissions.', gradient: 'from-accent-pink to-primary' },
-  { icon: Zap, title: 'Low Latency', description: 'Sub-100ms sync with automatic reconnection.', gradient: 'from-accent-cyan to-accent-pink' },
+/* ============================================================
+   SyncSaga — Landing / Gathering
+   One vertical composition. One live room. One action.
+   ============================================================ */
+
+const CHAT_SEED = [
+  { name: 'Mira', text: 'this OP goes so hard every single time' },
+  { name: 'Rei', text: 'wait pause i need to grab snacks' },
+  { name: 'Aya', text: 'that scene destroyed me' },
+  { name: 'Kaito', text: 'ok resynced everyone, we good now?' },
+  { name: 'Mira', text: 'perfect. frame for frame' },
 ];
 
-const testimonials = [
-  { quote: 'Best way to watch anime with long-distance friends. The sync is flawless.', name: 'Alex K.', role: 'Anime Enthusiast' },
-  { quote: 'The voice chat + sync combo is incredible. Feels like we\'re in the same room.', name: 'Sam T.', role: 'Daily User' },
-  { quote: 'Clean UI and works perfectly with any streaming site. Game changer.', name: 'Jordan M.', role: 'Developer' },
+const PRESENCE_EVENTS = [
+  'Mira is speaking',
+  'Rei reacted',
+  'Aya is speaking',
+  'Kaito resynced everyone',
+  'Daichi joined',
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [screen, setScreen] = useState<'gathering' | 'room'>('gathering');
+  const [playing, setPlaying] = useState(false);
+  const [time, setTime] = useState(862);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [messages, setMessages] = useState(CHAT_SEED);
+  const [notifications, setNotifications] = useState<{id: number; text: string}[]>([]);
+  const [showStartInput, setShowStartInput] = useState(false);
+  const [startValue, setStartValue] = useState('');
+  const [showChatHint, setShowChatHint] = useState(false);
+  const [idle, setIdle] = useState(false);
+
+  const DUR = 1440;
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifIdRef = useRef(0);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width:640px)').matches;
+  const isTablet = typeof window !== 'undefined' && window.matchMedia('(min-width:641px) and (max-width:1024px)').matches;
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  /* ---- Playback ---- */
+  useEffect(() => {
+    if (!playing) return;
+    const interval = setInterval(() => {
+      setTime(t => {
+        if (t >= DUR) { setPlaying(false); return DUR; }
+        return t + 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [playing]);
+
+  /* ---- Idle overlay fading (desktop) ---- */
+  const resetIdle = useCallback(() => {
+    setIdle(false);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (playing && !isMobile && !isTablet) {
+      idleTimerRef.current = setTimeout(() => setIdle(true), 3500);
+    }
+  }, [playing, isMobile, isTablet]);
+
+  useEffect(() => { resetIdle(); }, [playing, resetIdle]);
+
+  /* ---- Enter / leave room ---- */
+  const enterRoom = () => {
+    setScreen('room');
+    setPlaying(true);
+    pushNotification('Kaito is hosting');
+    setTimeout(() => pushNotification('Mira joined'), 2200);
+    if (!isMobile && !isTablet) {
+      setTimeout(() => setShowChatHint(true), 1000);
+      setTimeout(() => setShowChatHint(false), 5000);
+    }
+  };
+
+  const leaveRoom = () => {
+    setScreen('gathering');
+    setPlaying(false);
+    setChatOpen(false);
+    setShowChatHint(false);
+  };
+
+  /* ---- Notifications ---- */
+  const pushNotification = (text: string) => {
+    const id = notifIdRef.current++;
+    setNotifications(prev => [...prev, { id, text }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 3000);
+  };
+
+  useEffect(() => {
+    if (screen !== 'room' || !playing) return;
+    let idx = 0;
+    const interval = setInterval(() => {
+      pushNotification(PRESENCE_EVENTS[idx % PRESENCE_EVENTS.length]);
+      idx++;
+    }, 9000);
+    return () => clearInterval(interval);
+  }, [screen, playing]);
+
+  /* ---- Chat ---- */
+  const sendMessage = () => {
+    const v = chatInput.trim();
+    if (!v) return;
+    setMessages(prev => [...prev, { name: 'You', text: v }]);
+    setChatInput('');
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  /* ---- Keyboard ---- */
+  useEffect(() => {
+    if (screen !== 'room') return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.key === 'c' || e.key === 'C') {
+        if (!isMobile && !isTablet) setChatOpen(o => !o);
+      } else if (e.key === 'Escape') {
+        if (chatOpen) setChatOpen(false);
+        else leaveRoom();
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        setPlaying(p => !p);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [screen, chatOpen, isMobile, isTablet]);
+
+  /* ---- Seek ---- */
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - r.left) / r.width;
+    setTime(Math.max(0, Math.min(DUR, pct * DUR)));
+  };
+
+  const pct = (time / DUR) * 100;
+  const latestMsg = messages[messages.length - 1];
+
+  /* =========================================================
+     RENDER — GATHERING
+     ========================================================= */
+  if (screen === 'gathering') {
+    return (
+      <div className="min-h-screen flex flex-col max-w-[880px] mx-auto px-8 py-8 pb-16 sm:pb-8">
+        <h1 className="syncsaga-wordmark">SyncSaga</h1>
+
+        <div className="mt-14 cursor-pointer group" onClick={enterRoom}>
+          <div className="syncsaga-still aspect-video group-hover:shadow-2xl transition-shadow duration-300" />
+          <div className="mt-6 flex items-end justify-between gap-6 flex-wrap">
+            <div>
+              <h2 className="syncsaga-show-title">Emberfall</h2>
+              <p className="syncsaga-meta-line">Episode 12 · 14:22 in</p>
+              <p className="syncsaga-people-line">Kaito, Mira, Rei and 4 others</p>
+            </div>
+            <button className="syncsaga-join-btn">Join</button>
+          </div>
+        </div>
+
+        <div className="mt-auto pt-16">
+          {!showStartInput ? (
+            <button
+              className="syncsaga-start-link"
+              onClick={() => setShowStartInput(true)}
+            >
+              or start a room →
+            </button>
+          ) : (
+            <input
+              type="text"
+              placeholder="What are you watching?"
+              value={startValue}
+              onChange={e => setStartValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && startValue.trim()) enterRoom();
+                if (e.key === 'Escape') { setShowStartInput(false); setStartValue(''); }
+              }}
+              autoFocus
+              className="syncsaga-start-input"
+            />
+          )}
+        </div>
+
+        {/* Mobile bottom tabs */}
+        <nav className="syncsaga-mobile-tabs">
+          <button className="syncsaga-tab active">Watch</button>
+          <button className="syncsaga-tab">Rooms</button>
+          <button className="syncsaga-tab">You</button>
+        </nav>
+      </div>
+    );
+  }
+
+  /* =========================================================
+     RENDER — ROOM
+     ========================================================= */
   return (
-    <div className="min-h-screen bg-background text-text-primary overflow-x-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent-cyan flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent-cyan bg-clip-text text-transparent">SyncSaga</span>
-            </div>
-            <div className="hidden md:flex items-center gap-6">
-              <a href="#features" className="text-sm text-text-secondary hover:text-text-primary transition-colors">Features</a>
-              <a href="#testimonials" className="text-sm text-text-secondary hover:text-text-primary transition-colors">Testimonials</a>
-              <div className="flex items-center gap-3">
-                <Link href="/auth/login" className="text-sm text-text-secondary hover:text-text-primary transition-colors">Sign In</Link>
-                <Link href="/auth/register">
-                  <button className="px-5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25">
-                    Get Started
-                  </button>
-                </Link>
-              </div>
-            </div>
+    <div
+      className="fixed inset-0 bg-black cursor-pointer"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-no-toggle]')) return;
+        if (isMobile) {
+          if (e.clientX > window.innerWidth * 0.6) {
+            setChatOpen(o => !o);
+            return;
+          }
+        }
+        if (chatOpen && !isTablet) { setChatOpen(false); return; }
+        setPlaying(p => !p);
+      }}
+      onMouseMove={() => resetIdle()}
+    >
+      <div className="syncsaga-stall absolute inset-0" />
+
+      {/* Top overlay */}
+      <div className={`absolute top-0 left-0 right-0 flex items-center justify-between p-6 z-10 transition-opacity duration-400 ${idle ? 'opacity-0 pointer-events-none' : ''}`}>
+        <div className="flex items-center gap-4">
+          <button
+            className="syncsaga-back-btn"
+            onClick={(e) => { e.stopPropagation(); leaveRoom(); }}
+            data-no-toggle
+            aria-label="Leave room"
+          >
+            <ChevronLeft className="w-[18px] h-[18px]" />
+          </button>
+          <span className="text-[15px] font-semibold text-ink">Friday night watch</span>
+        </div>
+        <span className="syncsaga-sync-status">in sync · 42ms</span>
+      </div>
+
+      {/* Notifications */}
+      <div className="absolute top-20 left-7 z-8 flex flex-col gap-2 pointer-events-none">
+        {notifications.map(n => (
+          <div key={n.id} className="syncsaga-notification show">
+            {n.text}
           </div>
+        ))}
+      </div>
+
+      {/* Chat hint */}
+      {showChatHint && !isMobile && !isTablet && (
+        <div className="syncsaga-chat-hint show">press C for chat</div>
+      )}
+
+      {/* Pause indicator */}
+      {!playing && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-5">
+          <Play className="w-8 h-8 text-ink opacity-55" />
         </div>
-      </nav>
+      )}
 
-      {/* Hero */}
-      <section className="relative pt-36 pb-24 px-4 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/15 rounded-full blur-3xl animate-float" />
-          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent-cyan/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '-3s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent-pink/5 rounded-full blur-3xl" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.05)_0%,transparent_70%)]" />
+      {/* Chat preview (desktop, when chat closed) */}
+      {!chatOpen && !isMobile && !isTablet && (
+        <div className="absolute bottom-20 left-7 z-8 opacity-55 pointer-events-none max-w-[300px] truncate">
+          <span className="font-semibold text-ink">{latestMsg?.name}</span>
+          <span className="text-ink-faint mx-1.5">·</span>
+          <span className="text-ink-soft">{latestMsg?.text}</span>
         </div>
+      )}
 
-        <div className="relative max-w-7xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-8">
-              <Sparkles className="w-4 h-4" />
-              <span>The future of social anime watching</span>
-            </div>
-          </motion.div>
-
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-5xl sm:text-7xl lg:text-8xl font-bold mb-6 leading-[1.1]">
-            Watch Anime{' '}
-            <span className="bg-gradient-to-r from-primary via-accent-pink to-accent-cyan bg-clip-text text-transparent animate-gradient">
-              Together
-            </span>
-          </motion.h1>
-
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto mb-10 leading-relaxed">
-            Synchronized playback, voice chat, and realtime messaging. Create your own watch rooms and enjoy anime with friends from anywhere in the world.
-          </motion.p>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/auth/register">
-              <button className="group px-8 py-4 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white font-semibold text-lg hover:shadow-xl hover:shadow-primary/30 transition-all flex items-center gap-2">
-                Start Watching Free
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </Link>
-            <a href="#features">
-              <button className="px-8 py-4 rounded-xl bg-surface-light border border-border text-text-primary font-semibold text-lg hover:border-primary/50 transition-colors flex items-center gap-2">
-                Learn More
-                <ChevronDown className="w-5 h-5" />
-              </button>
-            </a>
-          </motion.div>
-
-          {/* Mock Preview */}
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.5 }} className="mt-20">
-            <div className="relative mx-auto max-w-5xl">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent-pink to-accent-cyan rounded-2xl blur opacity-30" />
-              <div className="relative glass rounded-2xl p-2 overflow-hidden">
-                <div className="bg-surface rounded-xl aspect-video flex items-center justify-center relative">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                        <Play className="w-10 h-10 text-primary" />
-                      </div>
-                      <p className="text-text-muted font-medium">SyncSaga Room Preview</p>
-                    </div>
-                  </div>
-                </div>
+      {/* Chat overlay — desktop: right panel, mobile: bottom sheet */}
+      {chatOpen && !isTablet && (
+        <div
+          className={`syncsaga-chat-overlay ${isMobile ? 'syncsaga-chat-sheet' : ''}`}
+          data-no-toggle
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex-1 overflow-y-auto flex flex-col gap-[18px] pb-4 syncsaga-chat-scroll">
+            {messages.map((msg, i) => (
+              <div key={i} className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-ink">{msg.name}</span>
+                <span className="text-[13.5px] leading-[1.5] text-ink-soft">{msg.text}</span>
               </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="py-24 px-4 sm:px-6 lg:px-8 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
-        <div className="max-w-7xl mx-auto relative">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
-              <Zap className="w-4 h-4" />
-              <span>Everything you need</span>
-            </div>
-            <h2 className="text-4xl sm:text-5xl font-bold mb-4">Built for the perfect watch party</h2>
-            <p className="text-text-secondary text-lg max-w-2xl mx-auto">Every feature designed for the ultimate social anime experience.</p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f, i) => (
-              <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-                className="group p-6 rounded-2xl bg-card-gradient border border-border hover:border-primary/30 transition-all hover:-translate-y-1 duration-300">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.gradient} bg-opacity-20 flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-                  <f.icon className="w-6 h-6" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-                <p className="text-text-secondary">{f.description}</p>
-              </motion.div>
             ))}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="pt-4">
+            <input
+              type="text"
+              placeholder="Say something…"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
+              className="syncsaga-chat-input"
+              data-no-toggle
+            />
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-sm mb-6">
-              <Star className="w-4 h-4" />
-              <span>Loved by the community</span>
-            </div>
-            <h2 className="text-4xl sm:text-5xl font-bold mb-4">What users are saying</h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <motion.div key={t.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-2xl bg-card-gradient border border-border">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, j) => <Star key={j} className="w-4 h-4 fill-yellow-500 text-yellow-500" />)}
-                </div>
-                <p className="text-text-primary mb-4 leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent-cyan flex items-center justify-center text-sm font-semibold">
-                    {t.name[0]}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{t.name}</p>
-                    <p className="text-xs text-text-muted">{t.role}</p>
-                  </div>
-                </div>
-              </motion.div>
+      {/* Tablet persistent chat */}
+      {isTablet && (
+        <div
+          className="absolute top-0 right-0 bottom-0 w-[35%] bg-[rgba(14,14,16,0.88)] p-6 pt-20 flex flex-col z-12"
+          data-no-toggle
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex-1 overflow-y-auto flex flex-col gap-[18px] pb-4 syncsaga-chat-scroll">
+            {messages.map((msg, i) => (
+              <div key={i} className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-ink">{msg.name}</span>
+                <span className="text-[13.5px] leading-[1.5] text-ink-soft">{msg.text}</span>
+              </div>
             ))}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="pt-4">
+            <input
+              type="text"
+              placeholder="Say something…"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
+              className="syncsaga-chat-input"
+            />
           </div>
         </div>
-      </section>
+      )}
 
-      {/* CTA */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
-            className="glass rounded-3xl p-12 border border-primary/20 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent-cyan/10 pointer-events-none" />
-            <div className="relative">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to watch together?</h2>
-              <p className="text-text-secondary text-lg mb-8 max-w-lg mx-auto">Join thousands of anime fans already using SyncSaga. It&apos;s free to start.</p>
-              <Link href="/auth/register">
-                <button className="px-8 py-4 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white font-semibold text-lg hover:shadow-xl hover:shadow-primary/30 transition-all">
-                  Get Started Free
-                </button>
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent-cyan flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold">SyncSaga</span>
+      {/* Bottom overlay — scrubber */}
+      <div className={`absolute bottom-0 left-0 ${isTablet ? 'right-[35%]' : 'right-0'} p-5 z-10 transition-opacity duration-400 ${idle ? 'opacity-0 pointer-events-none' : ''}`}>
+        <div className="flex items-center gap-3.5">
+          <div className="syncsaga-track flex-1" onClick={(e) => { e.stopPropagation(); seek(e); }} data-no-toggle>
+            <div className="syncsaga-played" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-text-muted text-sm text-center">
-            SyncSaga does not host or distribute copyrighted content. It only synchronizes playback between users.
-          </p>
-          <a href="https://github.com/sy3089682-crypto/SyncSaga" target="_blank" rel="noopener noreferrer" className="text-text-muted hover:text-text-primary transition-colors">
-            <Github className="w-5 h-5" />
-          </a>
+          <span className="text-xs text-ink-soft tabular-nums flex-none">
+            {fmt(time)} / {fmt(DUR)}
+          </span>
         </div>
-      </footer>
+      </div>
+
+      {/* Mic button — desktop/tablet floating */}
+      {!isMobile && (
+        <button
+          className={`syncsaga-mic-btn ${isTablet ? '!top-6 !bottom-auto' : ''} ${micMuted ? 'muted' : ''}`}
+          onClick={(e) => { e.stopPropagation(); setMicMuted(m => !m); }}
+          data-no-toggle
+          aria-label="Toggle microphone"
+        >
+          {micMuted ? <MicOff className="w-[18px] h-[18px]" /> : <Mic className="w-[18px] h-[18px]" />}
+        </button>
+      )}
+
+      {/* Mobile control bar */}
+      {isMobile && (
+        <div className="syncsaga-mobile-controls" data-no-toggle>
+          <button onClick={(e) => { e.stopPropagation(); setPlaying(p => !p); }} className="syncsaga-mc-btn">
+            {playing ? <Pause className="w-[22px] h-[22px]" /> : <Play className="w-[22px] h-[22px]" />}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setMicMuted(m => !m); }}
+            className={`syncsaga-mc-btn ${micMuted ? 'muted' : ''}`}
+          >
+            {micMuted ? <MicOff className="w-[22px] h-[22px]" /> : <Mic className="w-[22px] h-[22px]" />}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); setChatOpen(o => !o); }} className="syncsaga-mc-btn">
+            <MessageCircle className="w-[22px] h-[22px]" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

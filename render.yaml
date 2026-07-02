@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: syncsaga-api
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm ci --legacy-peer-deps && npm run build --workspace=packages/config && npm run build --workspace=packages/shared && npm run build --workspace=@syncsaga/api
+    startCommand: node apps/api/dist/index.js
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://syncsaga.vercel.app
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: AI_GROQ_API_KEY
+        sync: false
+      - key: AI_GEMINI_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+    disk:
+      name: syncsaga-data
+      mountPath: /data
+      sizeGB: 1

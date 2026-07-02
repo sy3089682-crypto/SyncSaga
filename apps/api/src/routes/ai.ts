@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getAiRouter } from '../services/ai.service';
 import { aiCache } from '../lib/ai/cache/ai-cache';
 import { supabase } from '../lib/supabase';
-import { verifyToken } from '../lib/jwt';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { RECOMMENDATIONS_PROMPT, SUMMARY_PROMPT, ROOM_NAME_PROMPT, RECAP_PROMPT } from '../lib/ai/prompts';
 import { providerHealth } from '../lib/ai/router/provider-health';
 import { logger } from '../lib/logger';
@@ -38,19 +38,7 @@ const recapSchema = z.object({
   episodeNumber: z.number().optional(),
 });
 
-function requireAuth(req: Request, res: Response): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
-    return null;
-  }
-  const decoded = verifyToken(authHeader.slice(7));
-  if (!decoded) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
-    return null;
-  }
-  return decoded.userId;
-}
+
 
 async function generateWithFallback(
   prompt: string,
@@ -82,10 +70,10 @@ async function generateWithFallback(
   }
 }
 
-router.post('/recommend', async (req: Request, res: Response) => {
+router.post('/recommend', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
-    if (!userId) return;
+    if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    const userId = req.userId;
 
     const { watchHistory, preferredGenres } = recommendSchema.parse(req.body);
     const titleList = watchHistory.map(w => w.title).join(', ');
@@ -110,10 +98,10 @@ router.post('/recommend', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/summarize-session', async (req: Request, res: Response) => {
+router.post('/summarize-session', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
-    if (!userId) return;
+    if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    const userId = req.userId;
 
     const { messages, animeTitle } = summarizeSchema.parse(req.body);
     const messagesText = messages.slice(-100).map(m => `${m.username}: ${m.content}`).join('\n');
@@ -138,10 +126,10 @@ router.post('/summarize-session', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/generate-room-names', async (req: Request, res: Response) => {
+router.post('/generate-room-names', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
-    if (!userId) return;
+    if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    const userId = req.userId;
 
     const { animeTitle } = generateRoomNamesSchema.parse(req.body);
     const prompt = `${ROOM_NAME_PROMPT}\n\nAnime: ${animeTitle}`;
@@ -165,10 +153,10 @@ router.post('/generate-room-names', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/recap', async (req: Request, res: Response) => {
+router.post('/recap', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
-    if (!userId) return;
+    if (!req.userId) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    const userId = req.userId;
 
     const { roomId, animeTitle, episodeNumber } = recapSchema.parse(req.body);
 

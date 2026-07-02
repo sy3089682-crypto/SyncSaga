@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { generateAccessToken, generateRefreshToken, storeRefreshToken, verifyRefreshToken, rotateRefreshToken, revokeRefreshToken, revokeAllRefreshTokens } from '../lib/jwt';
-import { verifyToken } from '../lib/jwt';
+import { verifySupabaseToken } from '../lib/supabase';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
 import { redisService } from '../services/redis.service';
@@ -35,18 +35,18 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
-function requireAuth(req: Request, res: Response): string | null {
+async function requireAuth(req: Request, res: Response): Promise<string | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
     return null;
   }
-  const decoded = verifyToken(authHeader.slice(7));
-  if (!decoded) {
-    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
+  const userId = await verifySupabaseToken(authHeader.slice(7));
+  if (!userId) {
+    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } });
     return null;
   }
-  return decoded.userId;
+  return userId;
 }
 
 function createAuthResponse(userId: string, email: string, user: any, req: Request, res: Response) {
@@ -250,8 +250,8 @@ router.post('/logout-all', async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Authentication required' });
-    const decoded = verifyToken(authHeader.slice(7));
-    if (decoded) await revokeAllRefreshTokens(decoded.userId);
+    const userId = await verifySupabaseToken(authHeader.slice(7));
+    if (userId) await revokeAllRefreshTokens(userId);
     res.clearCookie('refreshToken', { path: '/api/auth' });
     res.json({ success: true });
   } catch (error) {
@@ -290,7 +290,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
 router.post('/change-password', async (req: Request, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
+    const userId = await requireAuth(req, res);
     if (!userId) return;
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
     const { data: user } = await supabase.auth.getUser(req.headers.authorization!.slice(7));
@@ -313,7 +313,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
 
 router.post('/2fa/setup', async (req: Request, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
+    const userId = await requireAuth(req, res);
     if (!userId) return;
     const secret = authenticator.generateSecret();
     const serviceName = 'SyncSaga';
@@ -330,7 +330,7 @@ router.post('/2fa/setup', async (req: Request, res: Response) => {
 
 router.post('/2fa/verify', async (req: Request, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
+    const userId = await requireAuth(req, res);
     if (!userId) return;
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required' });
@@ -348,7 +348,7 @@ router.post('/2fa/verify', async (req: Request, res: Response) => {
 
 router.post('/2fa/disable', async (req: Request, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
+    const userId = await requireAuth(req, res);
     if (!userId) return;
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required' });
@@ -366,7 +366,7 @@ router.post('/2fa/disable', async (req: Request, res: Response) => {
 
 router.get('/sessions', async (req: Request, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
+    const userId = await requireAuth(req, res);
     if (!userId) return;
     const keys = await redisService.getClient().keys(`refresh:${userId}:*`);
     const sessions = await Promise.all(
@@ -385,7 +385,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
 
 router.post('/sessions/revoke', async (req: Request, res: Response) => {
   try {
-    const userId = requireAuth(req, res);
+    const userId = await requireAuth(req, res);
     if (!userId) return;
     const { refreshId } = req.body;
     if (!refreshId) return res.status(400).json({ error: 'Refresh ID required' });

@@ -1,19 +1,14 @@
 import { Router, Request } from 'express';
 import { supabase } from '../lib/supabase';
-import { verifyToken } from '../lib/jwt';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
-function getUser(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  const decoded = verifyToken(auth.slice(7));
-  return decoded?.userId || null;
-}
+
 
 // GET /api/activity — Friends activity feed
 router.get('/', async (req, res) => {
-  const userId = getUser(req);
+  const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   const { limit = '30' } = req.query;
@@ -45,7 +40,7 @@ router.get('/', async (req, res) => {
 
 // GET /api/activity/recommendations — Taste graph recommendations
 router.get('/recommendations', async (req, res) => {
-  const userId = getUser(req);
+  const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   // Get user's completed anime IDs

@@ -79,8 +79,9 @@ export function syncHandler(
       const roomId = event.room_id;
       const dupKey = roomId + ':' + socket.userId + ':' + event.type + ':' + event.timestamp;
       if (isDuplicate(dupKey)) return;
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
+      // ⚡ Bolt: Use O(1) lookup instead of fetching all room users to reduce GC pressure on high-frequency sync events
+      const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);
+      if (!userSocketId) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       const roomState = await redisService.getRoomState(roomId);
       const isHost = roomState?.host_id === socket.userId || roomState?.co_hosts?.includes(socket.userId);
       if (roomState?.sync_lock && !isHost) return;
@@ -153,17 +154,15 @@ export function syncHandler(
     try {
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      const isHostDisconnected = !roomUsers.includes(roomState.host_id);
+      // ⚡ Bolt: Use O(1) hostSocketId check directly instead of pulling all room users to check disconnection
+      const hostSocketId = await redisService.getUserSocketId(roomId, roomState.host_id);
+      const isHostDisconnected = !hostSocketId;
       if (isHostDisconnected) {
-        const hostSocketId = await redisService.getUserSocketId(roomId, roomState.host_id);
-        if (!hostSocketId) {
-          io.to(roomId).emit('sync:takeover', { newHostId: socket.userId, timestamp: Date.now() });
-          await redisService.setRoomState(roomId, { ...roomState, host_id: socket.userId });
-          await supabase.from('rooms').update({ host_id: socket.userId }).eq('id', roomId);
-          io.to(roomId).emit('room:new_host', { newHostId: socket.userId });
-          startHostHeartbeat(roomId);
-        }
+        io.to(roomId).emit('sync:takeover', { newHostId: socket.userId, timestamp: Date.now() });
+        await redisService.setRoomState(roomId, { ...roomState, host_id: socket.userId });
+        await supabase.from('rooms').update({ host_id: socket.userId }).eq('id', roomId);
+        io.to(roomId).emit('room:new_host', { newHostId: socket.userId });
+        startHostHeartbeat(roomId);
       }
     } catch (error) {
       logger.error('Takeover error:', error as Error);

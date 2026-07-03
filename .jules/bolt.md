@@ -1,3 +1,3 @@
-## 2025-02-23 - [TimelineReactions Optimization]
-**Learning:** React components containing list iterations often have duplicate or unused `reduce` iterations that cause unnecessary re-renders. We identified one such case in `TimelineReactions.tsx` where an entire list was mapped into a dictionary structure (`grouped`) in `TimelineReactions` itself but only used further down in a separate component (`ReactionBar`).
-**Action:** Always scan for unneeded O(N) operations in components that receive lists or arrays of data. Dead code removal should accompany memoization wherever applicable, and any remaining expensive computations should be enclosed in `useMemo`.
+## 2024-05-24 - [Redis Presence Check Performance Anti-pattern]
+**Learning:** Checking a specific user's presence in a room using `redisService.getRoomUsers(roomId).includes(userId)` performs an O(N) lookup that returns an array of all users, allocating unnecessary memory, increasing payload size over network, and contributing to GC pressure when run per-message in high-frequency socket events.
+**Action:** Always prefer the O(1) point lookup `redisService.getUserSocketId(roomId, userId)` to verify presence unless the whole list of users is actually needed for iteration.

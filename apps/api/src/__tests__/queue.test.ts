@@ -29,7 +29,7 @@ vi.mock('../lib/supabase', () => ({
   supabaseAdmin: { from: vi.fn() },
 }));
 
-vi.mock('./redis.service', () => ({
+vi.mock('../services/redis.service', () => ({
   redisService: {
     getClient: vi.fn().mockReturnValue({
       // Mock Redis client for BullMQ connection
@@ -65,26 +65,26 @@ vi.mock('bullmq', () => {
 
 describe('Queue Service - Enqueue Helpers', () => {
   it('should enqueue audit log entries', async () => {
-    const { queueService } = await import('./queue.service');
+    const { queueService } = await import('../services/queue.service');
     await queueService.audit('user.login', 'user-1', { ip: '127.0.0.1' });
     // If no error thrown, the enqueue succeeded
     expect(true).toBe(true);
   });
 
   it('should enqueue notifications', async () => {
-    const { queueService } = await import('./queue.service');
+    const { queueService } = await import('../services/queue.service');
     await queueService.notify('user-1', 'friend_request', 'New friend request', 'You have a new friend request');
     expect(true).toBe(true);
   });
 
   it('should enqueue activity feed entries', async () => {
-    const { queueService } = await import('./queue.service');
+    const { queueService } = await import('../services/queue.service');
     await queueService.activity('user-1', 'clip_created', { clipId: 'clip-1' });
     expect(true).toBe(true);
   });
 
   it('should enqueue AI processing jobs', async () => {
-    const { queueService } = await import('./queue.service');
+    const { queueService } = await import('../services/queue.service');
     await queueService.ai('generate_recap', { roomId: 'room-1' });
     expect(true).toBe(true);
   });
@@ -92,7 +92,7 @@ describe('Queue Service - Enqueue Helpers', () => {
 
 describe('Queue Service - Metrics', () => {
   it('should return queue metrics', async () => {
-    const { queueService } = await import('./queue.service');
+    const { queueService } = await import('../services/queue.service');
     const metrics = await queueService.getMetrics();
 
     expect(metrics).toHaveProperty('audit');
@@ -104,7 +104,7 @@ describe('Queue Service - Metrics', () => {
 
 describe('Queue Service - Graceful Shutdown', () => {
   it('should shut down without errors', async () => {
-    const { queueService } = await import('./queue.service');
+    const { queueService } = await import('../services/queue.service');
     await queueService.shutdown();
     expect(true).toBe(true);
   });

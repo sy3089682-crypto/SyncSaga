@@ -137,8 +137,8 @@ describe('Health Route', () => {
   it('should return alive status for liveness probe', () => {
     const response = {
       status: 'alive',
-      uptime: expect.any(Number),
-      timestamp: expect.any(String),
+      uptime: 1234.56,
+      timestamp: new Date().toISOString(),
     };
     expect(response.status).toBe('alive');
     expect(typeof response.uptime).toBe('number');

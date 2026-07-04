@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockGet = vi.fn();
-const mockSet = vi.fn();
+const mockSetEx = vi.fn();
 const mockDel = vi.fn();
 const mockKeys = vi.fn();
+const mockScan = vi.fn();
 
 vi.mock('../services/redis.service', () => ({
   redisService: {
     getClient: () => ({
       get: mockGet,
-      set: mockSet,
+      setEx: mockSetEx,
       del: mockDel,
       keys: mockKeys,
+      scan: mockScan,
       ping: vi.fn().mockResolvedValue('PONG'),
     }),
     connect: vi.fn().mockResolvedValue(undefined),
@@ -28,12 +30,12 @@ describe('CacheService', () => {
     const { cacheService } = await import('../services/cache.service');
 
     mockGet.mockResolvedValueOnce(null);
-    mockSet.mockResolvedValueOnce('OK');
+    mockSetEx.mockResolvedValueOnce('OK');
 
     const result = await cacheService.getOrSet('test-key', async () => ({ data: 'hello' }), 60);
     expect(result).toEqual({ data: 'hello' });
     expect(mockGet).toHaveBeenCalledWith('cache:test-key');
-    expect(mockSet).toHaveBeenCalled();
+    expect(mockSetEx).toHaveBeenCalled();
   });
 
   it('should return cached values', async () => {
@@ -64,11 +66,11 @@ describe('CacheService', () => {
   it('should delete pattern', async () => {
     const { cacheService } = await import('../services/cache.service');
 
-    mockKeys.mockResolvedValueOnce(['cache:a', 'cache:b', 'cache:c']);
+    mockScan.mockResolvedValueOnce({ cursor: 0, keys: ['cache:a', 'cache:b', 'cache:c'] });
     mockDel.mockResolvedValueOnce(3);
 
     await cacheService.deletePattern('cache:*');
-    expect(mockKeys).toHaveBeenCalledWith('cache:*');
+    expect(mockScan).toHaveBeenCalledWith(0, { MATCH: 'cache:*', COUNT: 100 });
     expect(mockDel).toHaveBeenCalled();
   });
 });

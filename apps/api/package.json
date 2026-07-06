@@ -55,6 +55,6 @@
     "@types/csrf": "^3.0.0",
     "@types/qrcode": "^1.5.5",
     "@types/bcrypt": "^5.0.2",
-    "@types/bullmq": "^5.1.0"
+    "@types/node": "^20.11.0"
   }
 }

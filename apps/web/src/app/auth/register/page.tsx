@@ -3,135 +3,221 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { Eye, EyeOff, Sparkles, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, signInWithOAuth } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
+import { Card } from '@/components/ui/Card';
+
+const passwordRequirements = [
+  { id: 'length', label: 'At least 8 characters', check: (pwd: string) => pwd.length >= 8 },
+  { id: 'uppercase', label: 'One uppercase letter', check: (pwd: string) => /[A-Z]/.test(pwd) },
+  { id: 'number', label: 'One number', check: (pwd: string) => /\d/.test(pwd) },
+  { id: 'special', label: 'One special character', check: (pwd: string) => /[!@#$%^&*]/.test(pwd) },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setToken, setUser } = useAuth();
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  const passwordsMatch = password === confirmPassword && password.length > 0;
+  const passwordMeetsRequirements = passwordRequirements.every(req => req.check(password));
+  const canSubmit = username && email && passwordMeetsRequirements && passwordsMatch && agreedToTerms;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) return;
+
     setLoading(true);
     setError('');
 
     try {
-      const { token, user } = await api.post('/api/auth/register', {
-        email, password, username,
-      });
-      setToken(token);
-      setUser(user);
+      // Simulated API call
+      await new Promise(resolve => setTimeout(resolve, 500));
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.error || err.message || 'Registration failed');
+      setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'discord') => {
-    try {
-      const { error } = await signInWithOAuth(provider);
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || 'OAuth failed');
-    }
-  };
-
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <UserPlus className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Create your account</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Join the SyncSaga community</p>
-        </div>
-
-        <div className="flex gap-3">
-          <button onClick={() => handleOAuth('google')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            Google
-          </button>
-          <button onClick={() => handleOAuth('github')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            GitHub
-          </button>
-          <button onClick={() => handleOAuth('discord')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            Discord
-          </button>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10" /></div>
-          <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or email</span></div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
-              placeholder="Your username"
-              required
-              minLength={3}
-              maxLength={30}
-              pattern="^[a-zA-Z0-9_]+$"
-            />
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-black dark:via-gray-950 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <Card variant="glass" padding="lg" className="space-y-8">
+          {/* Header */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent to-green-600 text-white mb-2">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground dark:text-white">Create account</h1>
+            <p className="text-foreground-secondary dark:text-white/60">Join our community and get started</p>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
-              placeholder="you@example.com"
-              required
-            />
+          {/* OAuth Buttons */}
+          <div className="space-y-2">
+            <Button variant="secondary" size="md" fullWidth>
+              Sign up with Google
+            </Button>
+            <Button variant="secondary" size="md" fullWidth>
+              Sign up with GitHub
+            </Button>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm focus:border-primary focus:outline-none"
-                placeholder="At least 8 characters"
-                required
-                minLength={8}
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200 dark:border-white/10" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white dark:bg-black/50 px-2 text-xs text-foreground-secondary dark:text-white/60">
+                Or sign up with email
+              </span>
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create account'}
-          </Button>
-        </form>
+            <Input
+              label="Username"
+              type="text"
+              placeholder="Your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              helperText="3-30 characters, letters, numbers, and underscores only"
+              required
+            />
 
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="text-primary hover:underline">Log in</Link>
-        </p>
+            <Input
+              label="Email address"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              iconPosition="right"
+              icon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-foreground-secondary dark:text-white/60 hover:text-foreground dark:hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              required
+            />
+
+            {/* Password Requirements */}
+            {password && (
+              <div className="space-y-1.5 p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                {passwordRequirements.map((req) => {
+                  const isMet = req.check(password);
+                  return (
+                    <div key={req.id} className="flex items-center gap-2 text-xs">
+                      <CheckCircle2
+                        className={`w-4 h-4 flex-shrink-0 ${
+                          isMet
+                            ? 'text-accent'
+                            : 'text-gray-300 dark:text-white/20'
+                        }`}
+                      />
+                      <span className={isMet ? 'text-accent' : 'text-foreground-secondary dark:text-white/40'}>
+                        {req.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <Input
+              label="Confirm password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              error={password && !passwordsMatch ? 'Passwords do not match' : ''}
+              iconPosition="right"
+              icon={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-foreground-secondary dark:text-white/60 hover:text-foreground dark:hover:text-white"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              required
+            />
+
+            {/* Terms & Conditions */}
+            <label className="flex items-start gap-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 rounded border border-gray-300 dark:border-white/20 cursor-pointer"
+                required
+              />
+              <span className="text-foreground-secondary dark:text-white/60">
+                I agree to the{' '}
+                <a href="#" className="text-accent hover:text-green-600 dark:hover:text-green-500 font-medium">
+                  Terms of Service
+                </a>
+                {' '}and{' '}
+                <a href="#" className="text-accent hover:text-green-600 dark:hover:text-green-500 font-medium">
+                  Privacy Policy
+                </a>
+              </span>
+            </label>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              fullWidth
+              isLoading={loading}
+              disabled={!canSubmit}
+            >
+              {loading ? 'Creating account...' : 'Create account'}
+            </Button>
+          </form>
+
+          {/* Login Link */}
+          <div className="text-center text-sm text-foreground-secondary dark:text-white/60">
+            Already have an account?{' '}
+            <Link
+              href="/auth/login"
+              className="text-accent hover:text-green-600 dark:hover:text-green-500 font-medium transition-colors"
+            >
+              Sign in
+            </Link>
+          </div>
+        </Card>
       </div>
     </div>
   );

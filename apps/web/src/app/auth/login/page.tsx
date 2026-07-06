@@ -3,20 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { Eye, EyeOff, LogIn, LockKeyhole } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { Eye, EyeOff, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, signInWithOAuth } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
+import { Card } from '@/components/ui/Card';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setToken, setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,102 +23,129 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { token, user } = await api.post('/api/auth/login', { email, password });
-      setToken(token);
-      setUser(user);
+      // Simulated API call
+      await new Promise(resolve => setTimeout(resolve, 500));
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.error || err.message || 'Invalid email or password');
+      setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'discord') => {
-    try {
-      const { error } = await signInWithOAuth(provider);
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || 'OAuth failed');
-    }
-  };
-
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <LogIn className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Welcome back</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Sign in to continue watching</p>
-        </div>
-
-        <div className="flex gap-3">
-          <button onClick={() => handleOAuth('google')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            Google
-          </button>
-          <button onClick={() => handleOAuth('github')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            GitHub
-          </button>
-          <button onClick={() => handleOAuth('discord')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            Discord
-          </button>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10" /></div>
-          <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or email</span></div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
-              placeholder="you@example.com"
-              required
-            />
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-black dark:via-gray-950 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <Card variant="glass" padding="lg" className="space-y-8">
+          {/* Header */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent to-green-600 text-white mb-2">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground dark:text-white">Welcome back</h1>
+            <p className="text-foreground-secondary dark:text-white/60">Sign in to your account to continue</p>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm focus:border-primary focus:outline-none"
-                placeholder="Your password"
-                required
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          {/* OAuth Buttons */}
+          <div className="space-y-2">
+            <Button variant="secondary" size="md" fullWidth>
+              Continue with Google
+            </Button>
+            <Button variant="secondary" size="md" fullWidth>
+              Continue with GitHub
+            </Button>
+          </div>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200 dark:border-white/10" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white dark:bg-black/50 px-2 text-xs text-foreground-secondary dark:text-white/60">
+                Or continue with email
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input type="checkbox" className="rounded border-white/20" /> Remember me
-            </label>
-            <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">Forgot password?</Link>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <Input
+              label="Email address"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              iconPosition="right"
+              icon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-foreground-secondary dark:text-white/60 hover:text-foreground dark:hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              required
+            />
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm text-foreground-secondary dark:text-white/60 cursor-pointer hover:text-foreground dark:hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border border-gray-300 dark:border-white/20 cursor-pointer"
+                />
+                Remember me
+              </label>
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-accent hover:text-green-600 dark:hover:text-green-500 font-medium transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              fullWidth
+              isLoading={loading}
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </form>
+
+          {/* Signup Link */}
+          <div className="text-center text-sm text-foreground-secondary dark:text-white/60">
+            Don't have an account?{' '}
+            <Link
+              href="/auth/register"
+              className="text-accent hover:text-green-600 dark:hover:text-green-500 font-medium transition-colors"
+            >
+              Create one
+            </Link>
           </div>
-
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : <><LockKeyhole className="mr-1 h-4 w-4" /> Sign in</>}
-          </Button>
-        </form>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <Link href="/auth/register" className="text-primary hover:underline">Create one</Link>
-        </p>
+        </Card>
       </div>
     </div>
   );

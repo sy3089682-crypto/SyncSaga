@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "SyncSaga browser extension - synchronize anime playback with friends",
   "scripts": {
-    "build": "node scripts/generate-icons.js && node scripts/build.js",
+    "build": "node scripts/build.js",
     "dev": "node scripts/build.js --watch",
     "package:chrome": "npm run build && cd dist && zip -r ../chrome-extension.zip .",
     "package:firefox": "npm run build && cd dist && zip -r ../firefox-extension.zip ."

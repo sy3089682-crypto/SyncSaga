@@ -5,3 +5,7 @@
 ## 2025-05-18 - [Optimize Room User Presence Checks]
 **Learning:** Checking if a user is in a room using `redisService.getRoomUsers(roomId).includes(userId)` causes high memory overhead and garbage collection pressure because it retrieves all users via `HKEYS` and iterates over them (O(N) operation).
 **Action:** Always prefer using `!!(await redisService.getUserSocketId(roomId, userId))` which executes an O(1) `HGET` operation directly on the Redis hash map to determine user presence, especially in high-frequency socket events.
+
+## 2025-05-18 - [Optimize Room User Presence Checks]
+**Learning:** Checking if a user is in a room using `redisService.getRoomUsers(roomId).includes(userId)` causes high memory overhead and garbage collection pressure because it retrieves all users via `HKEYS` and iterates over them (O(N) operation).
+**Action:** Always prefer using `!!(await redisService.getUserSocketId(roomId, userId))` which executes an O(1) `HGET` operation directly on the Redis hash map to determine user presence, especially in high-frequency socket events.

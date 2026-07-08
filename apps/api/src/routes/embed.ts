@@ -91,7 +91,7 @@ router.post('/search', async (req, res) => {
     const { data: rooms } = await supabase.from('rooms').select('id, name, anime_title, current_episode').or('name.ilike.%' + query + '%,anime_title.ilike.%' + query + '%').limit(20);
     res.json({ results: rooms || [] });
   } catch (error) {
-    logger.error('Search error:', error as Error);
+    logger.error({ err: error }, 'Search error');
     res.status(500).json({ error: 'Search failed' });
   }
 });

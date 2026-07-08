@@ -59,7 +59,7 @@ export function chatHandler(
       io.to(roomId).emit('chat:message', message);
       logger.debug('Chat message from ' + socket.userId + ' in ' + roomId);
     } catch (error) {
-      logger.error('Chat handler error:', error as Error);
+      logger.error({ err: error }, 'Chat handler error');
     }
   });
 
@@ -71,7 +71,7 @@ export function chatHandler(
       if (!socket.userId) return;
       socket.to(roomId).emit('chat:typing', { userId: socket.userId, isTyping });
     } catch (error) {
-      logger.error('Chat typing error:', error as Error);
+      logger.error({ err: error }, 'Chat typing error');
     }
   });
 
@@ -94,7 +94,7 @@ export function chatHandler(
       };
       io.to(data.roomId || '').emit('chat:reaction', reactionMsg);
     } catch (error) {
-      logger.error('Chat reaction error:', error as Error);
+      logger.error({ err: error }, 'Chat reaction error');
     }
   });
 }

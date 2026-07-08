@@ -11,7 +11,7 @@ function sanitizeContent(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\/g, '&#x2F;')
+    .replace(/\//g, '&#x2F;')
     .replace(/javascript:/gi, '')
     .replace(/on\w+=/gi, '')
     .replace(/data:/gi, '')
@@ -38,8 +38,8 @@ export function chatHandler(
       if (!validation.success) return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       const { roomId, content, type } = validation.data;
       if (!socket.userId) return;
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
+      const isInRoom = !!(await redisService.getUserSocketId(roomId, socket.userId));
+      if (!isInRoom) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       const allowed = await redisService.checkRateLimit('chat:' + socket.userId, 30, 60);
       if (!allowed) return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
       const sanitized = sanitizeContent(content);
@@ -59,7 +59,7 @@ export function chatHandler(
       io.to(roomId).emit('chat:message', message);
       logger.debug('Chat message from ' + socket.userId + ' in ' + roomId);
     } catch (error) {
-      logger.error('Chat handler error:', error as Error);
+      logger.error({ err: error }, 'Chat handler error');
     }
   });
 
@@ -71,7 +71,7 @@ export function chatHandler(
       if (!socket.userId) return;
       socket.to(roomId).emit('chat:typing', { userId: socket.userId, isTyping });
     } catch (error) {
-      logger.error('Chat typing error:', error as Error);
+      logger.error({ err: error }, 'Chat typing error');
     }
   });
 
@@ -94,7 +94,7 @@ export function chatHandler(
       };
       io.to(data.roomId || '').emit('chat:reaction', reactionMsg);
     } catch (error) {
-      logger.error('Chat reaction error:', error as Error);
+      logger.error({ err: error }, 'Chat reaction error');
     }
   });
 }

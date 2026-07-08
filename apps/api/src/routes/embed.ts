@@ -59,7 +59,7 @@ router.get('/widget/:roomId', async (req, res) => {
   const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:4000';
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.send('(function() { var roomId = '' + req.params.roomId + ''; var container = document.createElement('div'); container.id = 'syncsaga-embed-' + roomId; container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;width:320px;height:480px;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4);'; document.body.appendChild(container); var iframe = document.createElement('iframe'); iframe.src = '' + (process.env.WIDGET_URL || 'http://localhost:3000') + '/embed/room/' + roomId; iframe.style.cssText = 'width:100%;height:100%;border:none;'; container.appendChild(iframe); })();');
+  res.send(`(function() { var roomId = '${req.params.roomId}'; var container = document.createElement('div'); container.id = 'syncsaga-embed-' + roomId; container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;width:320px;height:480px;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4);'; document.body.appendChild(container); var iframe = document.createElement('iframe'); iframe.src = '${process.env.WIDGET_URL || 'http://localhost:3000'}/embed/room/' + roomId; iframe.style.cssText = 'width:100%;height:100%;border:none;'; container.appendChild(iframe); })();`);
 });
 
 router.post('/search', async (req, res) => {
@@ -91,7 +91,7 @@ router.post('/search', async (req, res) => {
     const { data: rooms } = await supabase.from('rooms').select('id, name, anime_title, current_episode').or('name.ilike.%' + query + '%,anime_title.ilike.%' + query + '%').limit(20);
     res.json({ results: rooms || [] });
   } catch (error) {
-    logger.error('Search error:', error as Error);
+    logger.error({ err: error }, 'Search error');
     res.status(500).json({ error: 'Search failed' });
   }
 });

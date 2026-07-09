@@ -11,7 +11,7 @@ function sanitizeContent(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\/g, '&#x2F;')
+    .replace(/\//g, '&#x2F;')
     .replace(/javascript:/gi, '')
     .replace(/on\w+=/gi, '')
     .replace(/data:/gi, '')
@@ -38,8 +38,9 @@ export function chatHandler(
       if (!validation.success) return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       const { roomId, content, type } = validation.data;
       if (!socket.userId) return;
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
+      // ⚡ Bolt Optimization: Use O(1) getUserSocketId instead of O(N) getRoomUsers to prevent memory spikes
+      const inRoom = await redisService.getUserSocketId(roomId, socket.userId);
+      if (!inRoom) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       const allowed = await redisService.checkRateLimit('chat:' + socket.userId, 30, 60);
       if (!allowed) return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
       const sanitized = sanitizeContent(content);

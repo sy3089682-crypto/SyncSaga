@@ -143,8 +143,9 @@ export function syncHandler(
       if (isDup) return;
 
       // Verify user is in the room
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) {
+      // Optimization: Use O(1) getUserSocketId instead of O(N) getRoomUsers
+      const isUserInRoom = !!(await redisService.getUserSocketId(roomId, socket.userId));
+      if (!isUserInRoom) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 
@@ -345,23 +346,23 @@ export function syncHandler(
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
 
-      const roomUsers = await redisService.getRoomUsers(roomId);
       const hostId = roomState.host_id as string;
 
       // Check if host is actually disconnected
-      if (roomUsers.includes(hostId)) {
+      // Optimization: Use O(1) getUserSocketId to check if host is in the room
+      const hostSocketId = await redisService.getUserSocketId(roomId, hostId);
+      if (hostSocketId) {
         // Host is still connected — check if they're stale
-        const hostSocketId = await redisService.getUserSocketId(roomId, hostId);
-        if (hostSocketId) {
-          const hostSocket = io.sockets.sockets.get(hostSocketId);
-          if (hostSocket?.connected) {
-            return socket.emit('error', { code: 'HOST_ACTIVE', message: 'Host is still active' });
-          }
+        const hostSocket = io.sockets.sockets.get(hostSocketId);
+        if (hostSocket?.connected) {
+          return socket.emit('error', { code: 'HOST_ACTIVE', message: 'Host is still active' });
         }
       }
 
       // Verify requesting user is in the room
-      if (!roomUsers.includes(socket.userId)) {
+      // Optimization: Use O(1) getUserSocketId instead of O(N) getRoomUsers
+      const isRequestingUserInRoom = !!(await redisService.getUserSocketId(roomId, socket.userId));
+      if (!isRequestingUserInRoom) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 

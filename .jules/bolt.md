@@ -1,3 +1,6 @@
 ## 2025-02-23 - [TimelineReactions Optimization]
 **Learning:** React components containing list iterations often have duplicate or unused `reduce` iterations that cause unnecessary re-renders. We identified one such case in `TimelineReactions.tsx` where an entire list was mapped into a dictionary structure (`grouped`) in `TimelineReactions` itself but only used further down in a separate component (`ReactionBar`).
 **Action:** Always scan for unneeded O(N) operations in components that receive lists or arrays of data. Dead code removal should accompany memoization wherever applicable, and any remaining expensive computations should be enclosed in `useMemo`.
+## 2025-02-28 - [Performance Insight] Avoid O(N) presence checks in Redis high-load scenarios
+**Learning:** Using `HKEYS` (via `getRoomUsers(roomId)`) followed by an `.includes(userId)` array lookup is an O(N) anti-pattern for checking if a single user is in a room, especially within hot socket paths (e.g. chat messages, sync events). This places heavy load on Redis and increases memory/garbage collection overhead on the Node.js process.
+**Action:** Always use the O(1) `HGET` based `getUserSocketId(roomId, userId)` equivalent when just verifying the presence or connectedness of a specific user.

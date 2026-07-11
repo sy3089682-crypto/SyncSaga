@@ -7,7 +7,6 @@ import { getEnv } from '@syncsaga/config';
 import { redisService } from './services/redis.service';
 import { queueService } from './services/queue.service';
 import type { Server as SocketIOServer } from 'socket.io';
-import type { Server as SocketIOServer } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 
 async function bootstrap() {
@@ -50,10 +49,13 @@ async function bootstrap() {
       await queueService.shutdown();
       logger.info('BullMQ queues shut down');
 
-      // 5. Exit
-      process.exit(0);
+      // 5. Graceful exit with forced fallback
+      setTimeout(() => {
+        logger.info('Graceful shutdown complete');
+        process.exit(0);
+      }, 100);
 
-      // Force exit after timeout
+      // Force exit fallback after timeout
       setTimeout(() => {
         logger.error('Forced shutdown after timeout');
         process.exit(1);

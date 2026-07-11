@@ -29,8 +29,7 @@ import { logger } from './lib/logger';
 import { AuthenticatedSocket } from './socket/middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
-import { queueService } from './services/queue.service';
-import { setQueueSocket } from './services/queue.service';
+import { queueService, setQueueSocket } from './services/queue.service';
 import { metrics } from './services/metrics.service';
 import { initSentry, sentryErrorHandler } from './lib/sentry';
 

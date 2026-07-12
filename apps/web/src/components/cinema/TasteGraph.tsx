@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Star, Users, Play, Info } from 'lucide-react';
+import { TrendingUp, Users, Play } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/store/useAppStore';
-import { cn } from '@/lib/utils';
 
 interface Recommendation {
   anime_id: string;

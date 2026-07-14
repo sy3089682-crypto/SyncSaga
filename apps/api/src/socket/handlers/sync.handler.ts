@@ -354,14 +354,14 @@ export function syncHandler(
       if (hostSocketId) {
         // Host is still connected — check if they're stale
         const hostSocket = io.sockets.sockets.get(hostSocketId);
-          if (hostSocket?.connected) {
-            return socket.emit('error', { code: 'HOST_ACTIVE', message: 'Host is still active' });
-          }
+        if (hostSocket?.connected) {
+          return socket.emit('error', { code: 'HOST_ACTIVE', message: 'Host is still active' });
         }
       }
 
       // Verify requesting user is in the room
-      if (!roomUsers.includes(socket.userId)) {
+      const isUserInRoom = await redisService.getUserSocketId(roomId, socket.userId);
+      if (!isUserInRoom) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 

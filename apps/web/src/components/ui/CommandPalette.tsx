@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -43,7 +43,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   }, [open]);
 
-  const commands: CommandItem[] = [
+  // Use useMemo to avoid re-creating this array on every render
+  const commands: CommandItem[] = React.useMemo(() => [
     { id: 'dashboard', label: 'Dashboard', icon: Home, action: () => router.push('/dashboard'), shortcut: 'G D', category: 'Navigation' },
     { id: 'discover', label: 'Discover Rooms', icon: Tv, action: () => router.push('/discover'), shortcut: 'G R', category: 'Navigation' },
     { id: 'friends', label: 'Friends', icon: Users, action: () => router.push('/friends'), shortcut: 'G F', category: 'Navigation' },
@@ -53,15 +54,19 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { id: 'profile', label: 'Profile', icon: Users, action: () => router.push('/profile'), shortcut: 'G P', category: 'Navigation' },
     { id: 'create-room', label: 'Create Room', icon: Plus, action: () => router.push('/room/create'), shortcut: 'C', category: 'Actions' },
     { id: 'signout', label: 'Sign Out', icon: LogOut, action: () => { logout(); router.push('/'); }, shortcut: '', category: 'Actions' },
-  ];
+  ], [router, logout]);
 
-  const filtered = query
-    ? commands.filter(c =>
-        c.label.toLowerCase().includes(query.toLowerCase()) ||
-        c.description?.toLowerCase().includes(query.toLowerCase()) ||
-        c.category.toLowerCase().includes(query.toLowerCase())
-      )
-    : commands;
+  // Memoize filtered commands to prevent recalculation on unrelated renders
+  const filtered = React.useMemo(() => {
+    const q = query.toLowerCase();
+    return q
+      ? commands.filter(c =>
+          c.label.toLowerCase().includes(q) ||
+          c.description?.toLowerCase().includes(q) ||
+          c.category.toLowerCase().includes(q)
+        )
+      : commands;
+  }, [commands, query]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -79,7 +84,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   };
 
-  const categories = [...new Set(filtered.map(c => c.category))];
+  // Memoize categories to prevent O(N) deduplication on every render
+  const categories = React.useMemo(() => [...new Set(filtered.map(c => c.category))], [filtered]);
 
   return (
     <AnimatePresence>

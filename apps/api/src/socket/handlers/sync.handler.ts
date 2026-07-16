@@ -143,9 +143,8 @@ export function syncHandler(
       if (isDup) return;
 
       // Verify user is in the room
-      // O(1) existence check instead of O(N) getRoomUsers
-      const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);
-      if (!userSocketId) {
+      const roomUsers = await redisService.getRoomUsers(roomId);
+      if (!roomUsers.includes(socket.userId)) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 
@@ -346,14 +345,13 @@ export function syncHandler(
       const roomState = await redisService.getRoomState(roomId);
       if (!roomState) return;
 
+      const roomUsers = await redisService.getRoomUsers(roomId);
       const hostId = roomState.host_id as string;
 
       // Check if host is actually disconnected
-      // O(1) existence check instead of O(N) getRoomUsers
-      const currentHostSocketId = await redisService.getUserSocketId(roomId, hostId);
-      if (currentHostSocketId) {
+      if (roomUsers.includes(hostId)) {
         // Host is still connected — check if they're stale
-        const hostSocketId = currentHostSocketId;
+        const hostSocketId = await redisService.getUserSocketId(roomId, hostId);
         if (hostSocketId) {
           const hostSocket = io.sockets.sockets.get(hostSocketId);
           if (hostSocket?.connected) {
@@ -363,9 +361,7 @@ export function syncHandler(
       }
 
       // Verify requesting user is in the room
-      // O(1) existence check instead of O(N) getRoomUsers
-      const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);
-      if (!userSocketId) {
+      if (!roomUsers.includes(socket.userId)) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       }
 

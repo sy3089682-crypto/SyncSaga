@@ -59,7 +59,7 @@ router.post('/create-checkout', authMiddleware, async (req: AuthenticatedRequest
   }
 });
 
-router.post('/webhook', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/webhook', async (req: AuthenticatedRequest, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
   if (!env.STRIPE_WEBHOOK_SECRET) return res.status(501).json({ error: 'Webhook not configured' });
   try {
@@ -68,8 +68,9 @@ router.post('/webhook', authMiddleware, async (req: AuthenticatedRequest, res: R
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
+        const fullSession = await stripe.checkout.sessions.retrieve(session.id, { expand: ['line_items'] });
         const userId = session.metadata.userId;
-        const plan = session.line_items?.data?.[0]?.price?.nickname?.toLowerCase() || 'premium';
+        const plan = fullSession.line_items?.data?.[0]?.price?.nickname?.toLowerCase() || 'premium';
         await supabase.from('subscriptions').upsert({
           user_id: userId,
           stripe_subscription_id: session.subscription,

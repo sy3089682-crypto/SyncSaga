@@ -160,11 +160,16 @@ export class RoomService {
    * Update room state in both database and Redis cache.
    */
   async updateRoomState(roomId: string, state: Partial<Room>): Promise<void> {
-    const { error } = await supabase.from('rooms').update(state).eq('id', roomId);
+    const allowed = ['playback_state', 'current_timestamp', 'playback_speed', 'current_episode', 'current_episode_number', 'updated_at'] as const;
+    const safeState: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (key in state) safeState[key] = (state as Record<string, unknown>)[key];
+    }
+    const { error } = await supabase.from('rooms').update(safeState).eq('id', roomId);
     if (error) {
       logger.error({ err: error, roomId }, 'Failed to update room in database');
     }
-    await redisService.setRoomState(roomId, state as Record<string, unknown>);
+    await redisService.setRoomState(roomId, safeState);
   }
 
   /**

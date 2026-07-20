@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, uuid, text, boolean, integer, doublePrecision, jsonb, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 /**
@@ -97,7 +98,7 @@ export const roomMembers = pgTable('room_members', {
 
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'cascade' }),
+  roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'cascade' }),
   senderId: uuid('sender_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   recipientId: uuid('recipient_id').references(() => profiles.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
@@ -119,7 +120,7 @@ export const notifications = pgTable('notifications', {
   type: text('type').notNull(),
   title: text('title').notNull(),
   body: text('body'),
-  data: jsonb('data').default({}).notNull(),
+  data: jsonb('data').default(sql`'{}'::jsonb`).notNull(),
   isRead: boolean('is_read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
@@ -132,7 +133,7 @@ export const clips = pgTable('clips', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
-  animeTitle: text('anime_title'),
+  animeTitle: text('anime_title').notNull(),
   episodeNumber: integer('episode_number'),
   startTime: doublePrecision('start_time').notNull(),
   endTime: doublePrecision('end_time').notNull(),
@@ -170,7 +171,7 @@ export const activityFeed = pgTable('activity_feed', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
-  data: jsonb('data').default({}).notNull(),
+  data: jsonb('data').default(sql`'{}'::jsonb`).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   userIdx: index('idx_activity_feed_user').on(table.userId, table.createdAt),
@@ -218,7 +219,7 @@ export const apiKeys = pgTable('api_keys', {
   userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   keyHash: text('key_hash').notNull().unique(),
-  permissions: jsonb('permissions').default([]).notNull(),
+  permissions: jsonb('permissions').default(sql`'[]'::jsonb`).notNull(),
   rateLimit: integer('rate_limit').default(100).notNull(),
   lastUsedAt: timestamp('last_used_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -232,7 +233,7 @@ export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => profiles.id, { onDelete: 'set null' }),
   action: text('action').notNull(),
-  metadata: jsonb('metadata').default({}).notNull(),
+  metadata: jsonb('metadata').default(sql`'{}'::jsonb`).notNull(),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -245,7 +246,7 @@ export const auditLogs = pgTable('audit_logs', {
 export const reports = pgTable('reports', {
   id: uuid('id').primaryKey().defaultRandom(),
   reporterId: uuid('reporter_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
-  reportedId: uuid('reported_id').references(() => profiles.id, { onDelete: 'set null' }),
+  reportedId: uuid('reported_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
   reason: text('reason').notNull(),
   details: text('details'),

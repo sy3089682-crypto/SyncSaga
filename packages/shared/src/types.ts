@@ -143,4 +143,6 @@ export interface ServerToClientEvents {
   'error': (error: { code: string; message: string }) => void;
 }
 
-export interface ClientToServerEvents extends SocketEventMap {}
+export type ClientToServerEvents = {
+  [K in keyof SocketEventMap]: (payload: SocketEventMap[K]) => void;
+};

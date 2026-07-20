@@ -9,17 +9,16 @@ import Link from 'next/link';
 import { formatTime } from '@/lib/utils';
 
 export default function ClipsPage() {
-  const { token, user } = useAppStore();
+  const { user } = useAppStore();
   const [clips, setClips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) return;
-    api.get<{ clips: any[] }>('/api/clips', token)
+    api.get<{ clips: any[] }>('/api/clips')
       .then(({ clips }) => setClips(clips))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-text-primary px-4 sm:px-6 lg:px-8 py-6 pb-20 lg:pb-6">

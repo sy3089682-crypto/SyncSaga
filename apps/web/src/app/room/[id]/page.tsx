@@ -51,60 +51,73 @@ export default function RoomPage() {
   const [cinemaMode, setCinemaMode] = useState<'flat' | 'cinema' | 'immersive'>('flat');
   const [episode, setEpisode] = useState<string | null>('Attack on Titan S4 E5');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Awaited<ReturnType<typeof getSocket>> | null>(null);
 
   useEffect(() => {
     join();
-    const socket = getSocket();
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
-    const onSync = (event: any) => {
-      if (event.type === 'play') setPlaybackState('playing');
-      if (event.type === 'pause') setPlaybackState('paused');
-      if (event.type === 'seek') setCurrentTime(event.timestamp);
-      if (event.type === 'episode') setEpisode(event.episode);
-    };
-    const onState = (state: any) => {
-      setCurrentTime(state.timestamp);
-      setPlaybackState(state.playback_state);
-      if (state.episode) setEpisode(state.episode);
-    };
-    const onTyping = (data: { userId: string; isTyping: boolean }) => {
-      if (data.isTyping) {
-        setTypingUsers(prev => prev.includes(data.userId) ? prev : [...prev, data.userId]);
-        setTimeout(() => setTypingUsers(prev => prev.filter(id => id !== data.userId)), 3000);
-      } else {
-        setTypingUsers(prev => prev.filter(id => id !== data.userId));
-      }
-    };
-    const onReaction = (r: TimelineReaction) => setTimelineReactions(prev => [...prev, r]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const socket = await getSocket();
+        if (cancelled) return;
+        socketRef.current = socket;
+        const onConnect = () => setIsConnected(true);
+        const onDisconnect = () => setIsConnected(false);
+        const onSync = (event: any) => {
+          if (event.type === 'play') setPlaybackState('playing');
+          if (event.type === 'pause') setPlaybackState('paused');
+          if (event.type === 'seek') setCurrentTime(event.timestamp);
+          if (event.type === 'episode') setEpisode(event.episode);
+        };
+        const onState = (state: any) => {
+          setCurrentTime(state.timestamp);
+          setPlaybackState(state.playback_state);
+          if (state.episode) setEpisode(state.episode);
+        };
+        const onTyping = (data: { userId: string; isTyping: boolean }) => {
+          if (data.isTyping) {
+            setTypingUsers(prev => prev.includes(data.userId) ? prev : [...prev, data.userId]);
+            setTimeout(() => setTypingUsers(prev => prev.filter(id => id !== data.userId)), 3000);
+          } else {
+            setTypingUsers(prev => prev.filter(id => id !== data.userId));
+          }
+        };
+        const onReaction = (r: TimelineReaction) => setTimelineReactions(prev => [...prev, r]);
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('sync:event', onSync);
-    socket.on('sync:state', onState);
-    socket.on('chat:typing', onTyping);
-    socket.on('reaction:new', onReaction);
-    const onDriftUpdate = (data: { userId: string; drift: number; status: 'synced' | 'slight' | 'desynced' }) => {
-      setDriftStatus(data.userId, { drift: data.drift, status: data.status });
-    };
-    const onNewHost = (data: { newHostId: string }) => {
-      if (data.newHostId === user?.id) {
-        setEpisode(prev => prev); // Force re-render
-      }
-    };
-    socket.on('sync:drift_update', onDriftUpdate);
-    socket.on('room:new_host', onNewHost);
+        socket.on('connect', onConnect);
+        socket.on('disconnect', onDisconnect);
+        socket.on('sync:event', onSync);
+        socket.on('sync:state', onState);
+        socket.on('chat:typing', onTyping);
+        socket.on('reaction:new', onReaction);
+        const onDriftUpdate = (data: { userId: string; drift: number; status: 'synced' | 'slight' | 'desynced' }) => {
+          setDriftStatus(data.userId, { drift: data.drift, status: data.status });
+        };
+        const onNewHost = (data: { newHostId: string }) => {
+          if (data.newHostId === user?.id) {
+            setEpisode(prev => prev); // Force re-render
+          }
+        };
+        socket.on('sync:drift_update', onDriftUpdate);
+        socket.on('room:new_host', onNewHost);
+      } catch (e) { console.error(e); }
+    })();
 
     return () => {
+      cancelled = true;
       leave();
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('sync:event', onSync);
-      socket.off('sync:state', onState);
-      socket.off('chat:typing', onTyping);
-      socket.off('reaction:new', onReaction);
-      socket.off('sync:drift_update', onDriftUpdate);
-      socket.off('room:new_host', onNewHost);
+      const socket = socketRef.current;
+      if (socket) {
+        socket.off('connect');
+        socket.off('disconnect');
+        socket.off('sync:event');
+        socket.off('sync:state');
+        socket.off('chat:typing');
+        socket.off('reaction:new');
+        socket.off('sync:drift_update');
+        socket.off('room:new_host');
+      }
+      socketRef.current = null;
     };
   }, [roomId]);
 
@@ -128,7 +141,12 @@ export default function RoomPage() {
 
   const toggleVoice = () => {
     setIsInVoice(!isInVoice);
-    getSocket().emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId });
+    (async () => {
+      try {
+        const socket = await getSocket();
+        socket.emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId });
+      } catch (e) { console.error(e); }
+    })();
   };
 
   const isHost = currentRoom?.host_id === user?.id;
@@ -156,7 +174,12 @@ export default function RoomPage() {
                 currentEpisode={currentRoom.current_episode_number}
                 onSelect={(mediaId, ep) => {
                   setEpisode(`Episode ${ep}`);
-                  getSocket().emit('anime:set_episode', { roomId, mediaId, episode: ep });
+                  (async () => {
+                    try {
+                      const socket = await getSocket();
+                      socket.emit('anime:set_episode', { roomId, mediaId, episode: ep });
+                    } catch (e) { console.error(e); }
+                  })();
                 }}
               />
             )}

@@ -18,18 +18,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/api/payments/subscription', token)
+    api.get('/api/payments/subscription')
       .then((data: any) => setSubscription(data.subscription))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [token]);
-
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: Shield },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
-    { id: 'subscription', label: 'Subscription', icon: CreditCard },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-  ];
 
   const handleUpgrade = async () => {
     if (!token) return;
@@ -38,7 +31,7 @@ export default function SettingsPage() {
       const data = await api.post('/api/payments/create-checkout', {
         priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_premium',
         successUrl: `${window.location.origin}/settings`,
-      }, token);
+      });
       if (data.url) window.location.href = data.url;
     } catch (err) {
       console.error('Upgrade failed:', err);

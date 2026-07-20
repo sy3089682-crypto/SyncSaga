@@ -19,18 +19,17 @@ export function TasteGraph({ onSelect }: { onSelect?: (title: string) => void })
   const [reason, setReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const { token } = useAppStore();
+  const { } = useAppStore();
 
   useEffect(() => {
-    if (!token) return;
-    api.get<{ recommendations: Recommendation[]; reason?: string }>('/api/activity/recommendations', token)
+    api.get<{ recommendations: Recommendation[]; reason?: string }>('/api/activity/recommendations')
       .then(data => {
         setRecommendations(data.recommendations || []);
         setReason(data.reason || null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   if (loading) return null;
 

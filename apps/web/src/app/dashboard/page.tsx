@@ -41,8 +41,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!token) return;
     Promise.all([
-      api.get<{ rooms: Room[] }>('/api/rooms', token),
-      api.get<{ recent: ContinueWatching[] }>('/api/activity/continue-watching', token).catch(() => ({ recent: [] })),
+      api.get<{ rooms: Room[] }>('/api/rooms'),
+      api.get<{ recent: ContinueWatching[] }>('/api/activity/continue-watching').catch(() => ({ recent: [] })),
     ]).then(([roomsData, watchData]) => {
       setRooms(roomsData.rooms);
       setContinueWatching(watchData.recent || []);
@@ -53,7 +53,7 @@ export default function DashboardPage() {
     if (!newRoom.name.trim() || !token) return;
     setCreating(true);
     try {
-      const data = await api.post<{ room: Room }>('/api/rooms', { ...newRoom, userId: user?.id }, token);
+      const data = await api.post<{ room: Room }>('/api/rooms', { ...newRoom, userId: user?.id });
       setRooms([data.room, ...rooms]);
       recordRoomJoin();
       setShowCreate(false);

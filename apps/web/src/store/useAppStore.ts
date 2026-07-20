@@ -30,8 +30,24 @@ interface AppState {
   removeRoom: (roomId: string) => void;
 
   // Online users (presence)
-  onlineUsers: string[];
-  setOnlineUsers: (userIds: string[]) => void;
+  onlineUsers: Set<string>;
+  setOnlineUsers: (userIds: string[] | Set<string>) => void;
+
+  // Current room session state
+  currentRoom: Room | null;
+  setCurrentRoom: (room: Room | null) => void;
+  messages: any[];
+  setMessages: (messages: any[]) => void;
+  addMessage: (message: any) => void;
+  roomMembers: any[];
+  setRoomMembers: (members: any[]) => void;
+  addRoomMember: (member: any) => void;
+  removeRoomMember: (userId: string) => void;
+  updateRoomState: (state: any) => void;
+
+  // Auth token (cached; real auth via Supabase cookies)
+  token: string | null;
+  setToken: (token: string | null) => void;
 
   // Drift statuses (per-user sync quality in current room)
   driftStatuses: Record<string, { drift: number; status: 'synced' | 'slight' | 'desynced' }>;
@@ -55,8 +71,22 @@ export const useAppStore = create<AppState>((set) => ({
   addRoom: (room) => set((state) => ({ rooms: [room, ...state.rooms] })),
   removeRoom: (roomId) => set((state) => ({ rooms: state.rooms.filter((r) => r.id !== roomId) })),
 
-  onlineUsers: [],
-  setOnlineUsers: (userIds) => set({ onlineUsers: userIds }),
+  onlineUsers: new Set<string>(),
+  setOnlineUsers: (userIds) => set({ onlineUsers: userIds instanceof Set ? userIds : new Set(userIds) }),
+
+  currentRoom: null,
+  setCurrentRoom: (room) => set({ currentRoom: room }),
+  messages: [],
+  setMessages: (messages) => set({ messages }),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+  roomMembers: [],
+  setRoomMembers: (members) => set({ roomMembers: members }),
+  addRoomMember: (member) => set((state) => ({ roomMembers: [...state.roomMembers, member] })),
+  removeRoomMember: (userId) => set((state) => ({ roomMembers: state.roomMembers.filter((m: any) => m.userId !== userId) })),
+  updateRoomState: (state) => set((state) => ({ currentRoom: { ...state.currentRoom, ...state } as any })),
+
+  token: null,
+  setToken: (token) => set({ token }),
 
   driftStatuses: {},
   setDriftStatus: (userId, data) =>
@@ -68,11 +98,15 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: true,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
-  reset: () =>
+   reset: () =>
     set({
       user: null,
       rooms: [],
-      onlineUsers: [],
+      onlineUsers: new Set<string>(),
+      currentRoom: null,
+      messages: [],
+      roomMembers: [],
+      token: null,
       driftStatuses: {},
       sidebarOpen: true,
     }),

@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
 
 export default function FriendsPage() {
-  const { token, onlineUsers } = useAppStore();
+  const { onlineUsers } = useAppStore();
   const [friends, setFriends] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,15 +19,14 @@ export default function FriendsPage() {
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
 
   useEffect(() => {
-    if (!token) return;
     Promise.all([
-      api.get('/api/friends', token),
-      api.get('/api/friends/requests', token),
+      api.get('/api/friends'),
+      api.get('/api/friends/requests'),
     ]).then(([friendsData, requestsData]: any[]) => {
       setFriends(friendsData.friends || []);
       setRequests(requestsData.requests || []);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
@@ -37,7 +36,7 @@ export default function FriendsPage() {
     }
     setSearching(true);
     try {
-      const data = await api.get(`/api/users/search?q=${encodeURIComponent(query)}`, token);
+      const data = await api.get(`/api/users/search?q=${encodeURIComponent(query)}`);
       setSearchResults(data.users || []);
     } catch {} finally {
       setSearching(false);
@@ -46,7 +45,7 @@ export default function FriendsPage() {
 
   const sendFriendRequest = async (userId: string) => {
     try {
-      await api.post('/api/friends/request', { friendId: userId }, token);
+      await api.post('/api/friends/request', { friendId: userId });
       setSearchResults(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
       console.error('Failed to send request:', err);
@@ -55,7 +54,7 @@ export default function FriendsPage() {
 
   const acceptRequest = async (requestId: string) => {
     try {
-      await api.post('/api/friends/accept', { requestId }, token);
+      await api.post('/api/friends/accept', { requestId });
       setRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (err) {
       console.error('Failed to accept request:', err);
@@ -64,7 +63,7 @@ export default function FriendsPage() {
 
   const rejectRequest = async (requestId: string) => {
     try {
-      await api.post('/api/friends/reject', { requestId }, token);
+      await api.post('/api/friends/reject', { requestId });
       setRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (err) {
       console.error('Failed to reject request:', err);
@@ -73,7 +72,7 @@ export default function FriendsPage() {
 
   const removeFriend = async (friendId: string) => {
     try {
-      await api.delete(`/api/friends/${friendId}`, token);
+      await api.delete(`/api/friends/${friendId}`);
       setFriends(prev => prev.filter(f => f.id !== friendId));
     } catch (err) {
       console.error('Failed to remove friend:', err);

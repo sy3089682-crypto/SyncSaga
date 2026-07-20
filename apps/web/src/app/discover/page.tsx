@@ -37,7 +37,7 @@ interface TrendingAnime {
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const { token } = useAppStore();
+  const { } = useAppStore();
   const [rooms, setRooms] = useState<DiscoverRoom[]>([]);
   const [trending, setTrending] = useState<TrendingAnime[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,14 +49,13 @@ export default function DiscoverPage() {
   const genres = ['Action', 'Comedy', 'Romance', 'Fantasy', 'Sci-Fi', 'Slice of Life', 'Horror', 'Thriller'];
 
   useEffect(() => {
-    if (!token) return;
     setLoading(true);
     setError(null);
-    api.get<{ rooms: DiscoverRoom[] }>('/api/rooms/discover', token)
+    api.get<{ rooms: DiscoverRoom[] }>('/api/rooms/discover')
       .then(data => setRooms(data.rooms || []))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     setTrendingLoading(true);

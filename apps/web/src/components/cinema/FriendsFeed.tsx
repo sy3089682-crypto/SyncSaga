@@ -53,15 +53,14 @@ const activityLabels: Record<string, string> = {
 export function FriendsFeed({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const { token } = useAppStore();
+  const { } = useAppStore();
 
   useEffect(() => {
-    if (!token) return;
-    api.get<{ activities: Activity[] }>('/api/activity', token)
+    api.get<{ activities: Activity[] }>('/api/activity')
       .then(data => setActivities(data.activities.slice(0, 15)))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   const getLabel = (a: Activity) => {
     const label = activityLabels[a.type] || 'did something';

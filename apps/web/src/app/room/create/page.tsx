@@ -16,7 +16,7 @@ import Link from 'next/link';
 export default function CreateRoomPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { token } = useAppStore();
+  const { user } = useAppStore();
 
   const animeId = searchParams.get('animeId');
   const presetTitle = searchParams.get('title');
@@ -54,7 +54,7 @@ export default function CreateRoomPage() {
     try {
       const res = await api.post<{ suggestions: string[] }>('/api/ai/generate-room-names', {
         animeTitle: animeTitle || 'Anime',
-      }, token);
+      });
       setNameSuggestions(res.suggestions || []);
     } catch {
       const fallbacks = [
@@ -68,11 +68,11 @@ export default function CreateRoomPage() {
     } finally {
       setGenerating(false);
     }
-  }, [animeTitle, token]);
+  }, [animeTitle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !token) return;
+    if (!name.trim() || !user) return;
     setSubmitting(true);
     try {
       const { room } = await api.post<{ room: any }>('/api/rooms', {
@@ -82,7 +82,7 @@ export default function CreateRoomPage() {
         maxUsers,
         animeTitle: animeTitle || undefined,
         animeMediaId: animeId ? parseInt(animeId) : undefined,
-      }, token);
+      });
       router.push(`/room/${room.id}`);
     } catch (error: any) {
       console.error('Failed to create room:', error);
@@ -185,14 +185,14 @@ export default function CreateRoomPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={!name.trim() || submitting || !token}
+            <button type="submit" disabled={!name.trim() || submitting || !user}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white font-semibold hover:shadow-xl hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
               {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
               {submitting ? 'Creating...' : 'Create Room'}
             </button>
           </form>
 
-          {!token && (
+          {!user && (
             <div className="mt-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-sm text-center">
               Please <Link href="/auth/login" className="underline font-semibold">sign in</Link> to create a room.
             </div>

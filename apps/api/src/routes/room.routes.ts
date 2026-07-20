@@ -77,12 +77,14 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
-    const result = (rooms || []).map((room: any) => ({
-      ...room,
-      member_count: memberCounts[room.id] || 0,
-      host: room.profiles,
-    }));
-    delete result.forEach((r: any) => delete r.profiles);
+    const result = (rooms || []).map((room: any) => {
+      const { profiles, ...rest } = room;
+      return {
+        ...rest,
+        member_count: memberCounts[room.id] || 0,
+        host: profiles,
+      };
+    });
 
     return res.json({ rooms: result });
   } catch (error) {

@@ -164,8 +164,12 @@ export function useRetention() {
     recordReaction,
     recordFriendship,
     recordClip,
-    xpProgress: stats.xp % xpForNextLevel(calculateLevel(stats.xp)),
-    xpToNext: xpForNextLevel(calculateLevel(stats.xp)),
+    xpProgress: (() => {
+      const lvl = calculateLevel(stats.xp);
+      const xpIntoLevel = stats.xp - (lvl - 1) * XP_PER_LEVEL;
+      return xpIntoLevel;
+    })(),
+    xpToNext: XP_PER_LEVEL,
   };
 }
 

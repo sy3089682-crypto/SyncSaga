@@ -44,7 +44,7 @@ async function generateWithFallback(
   prompt: string,
   system: string,
   fallback: () => any,
-  opts: { cacheKey?: string; cacheTtl?: number; temperature?: number; maxTokens?: number } = {},
+  opts: { cacheKey?: string; cacheTtl?: number; temperature?: number; maxTokens?: number; priority?: 'speed' | 'quality' } = {},
 ) {
   try {
     const router = getAiRouter();
@@ -56,7 +56,7 @@ async function generateWithFallback(
       maxTokens: opts.maxTokens ?? 800,
       cacheKey: opts.cacheKey,
       cacheTtl: opts.cacheTtl ?? 600,
-      priority: 'speed',
+      priority: opts.priority ?? 'speed',
     });
 
     try {

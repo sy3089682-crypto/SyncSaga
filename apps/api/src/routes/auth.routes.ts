@@ -100,12 +100,17 @@ router.post('/login', async (req: Request, res: Response) => {
     if (error) return res.status(401).json({ error: 'Invalid email or password' });
     const { data: twoFactor } = await supabase
       .from('profiles')
-      .select('totp_enabled')
+      .select('totp_enabled, totp_secret')
       .eq('id', authData.user.id)
       .single();
     if (twoFactor?.totp_enabled) {
       const { totpToken } = req.body;
-      if (!totpToken) return res.json({ requireTotp: true, tempToken: authData.access_token });
+      if (!totpToken) {
+        return res.json({ requireTotp: true, tempToken: authData.access_token });
+      }
+      if (!twoFactor.totp_secret || !authenticator.verify({ token: totpToken, secret: twoFactor.totp_secret })) {
+        return res.status(401).json({ error: 'Invalid 2FA code' });
+      }
     }
     const result = createAuthResponse(authData.user.id, authData.user.email!, authData.user, req, res);
     res.json(result);

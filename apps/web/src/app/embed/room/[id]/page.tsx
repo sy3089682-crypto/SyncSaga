@@ -13,17 +13,30 @@ export default function EmbedRoomPage() {
   const [memberCount, setMemberCount] = useState(1);
 
   useEffect(() => {
-    const socket = getSocket();
-    socket.emit('room:join', { roomId });
-    const onConnect = () => setConnected(true);
-    const onDisconnect = () => setConnected(false);
-    const onJoined = () => setMemberCount(p => p + 1);
-    const onLeft = () => setMemberCount(p => Math.max(1, p - 1));
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('room:user_joined', onJoined);
-    socket.on('room:user_left', onLeft);
-    return () => { socket.emit('room:leave', { roomId }); socket.off('connect', onConnect); };
+    let cancelled = false;
+    let socket: Awaited<ReturnType<typeof getSocket>> | null = null;
+    (async () => {
+      try {
+        socket = await getSocket();
+        if (cancelled) return;
+        socket.emit('room:join', { roomId });
+        const onConnect = () => setConnected(true);
+        const onDisconnect = () => setConnected(false);
+        const onJoined = () => setMemberCount(p => p + 1);
+        const onLeft = () => setMemberCount(p => Math.max(1, p - 1));
+        socket.on('connect', onConnect);
+        socket.on('disconnect', onDisconnect);
+        socket.on('room:user_joined', onJoined);
+        socket.on('room:user_left', onLeft);
+      } catch (e) { console.error(e); }
+    })();
+    return () => {
+      cancelled = true;
+      if (socket) {
+        socket.emit('room:leave', { roomId });
+        socket.off('connect');
+      }
+    };
   }, [roomId]);
 
   return (

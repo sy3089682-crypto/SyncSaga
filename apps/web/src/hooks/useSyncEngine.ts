@@ -97,6 +97,7 @@ export function useSyncEngine(roomId: string, callbacks?: SyncEngineCallbacks) {
 
     let cancelled = false;
     let socket: Awaited<ReturnType<typeof getSocket>> | null = null;
+    let cleanup: (() => void) | null = null;
 
     (async () => {
       try {
@@ -197,7 +198,7 @@ export function useSyncEngine(roomId: string, callbacks?: SyncEngineCallbacks) {
         };
         document.addEventListener('visibilitychange', onVisibilityChange);
 
-        return () => {
+        cleanup = () => {
           socket?.off('sync:state', onSyncState);
           socket?.off('sync:event', onSyncEvent);
           socket?.off('disconnect', onDisconnect);
@@ -212,6 +213,7 @@ export function useSyncEngine(roomId: string, callbacks?: SyncEngineCallbacks) {
     return () => {
       cancelled = true;
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      cleanup?.();
     };
   }, [roomId, user, calculateDrift, measureRTT, callbacks]);
 }

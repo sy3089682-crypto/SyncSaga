@@ -349,12 +349,15 @@ export function syncHandler(
       const hostId = roomState.host_id as string;
 
       // Bolt: Check if host is actually disconnected using O(1) getUserSocketId
-      const hostSocketId = await redisService.getUserSocketId(roomId, hostId);
-      if (hostSocketId) {
-        // Host is still connected — check if they're stale
-        const hostSocket = io.sockets.sockets.get(hostSocketId);
-        if (hostSocket?.connected) {
-          return socket.emit('error', { code: 'HOST_ACTIVE', message: 'Host is still active' });
+      // Add safety check to prevent querying Redis with undefined hostId
+      if (hostId) {
+        const hostSocketId = await redisService.getUserSocketId(roomId, hostId);
+        if (hostSocketId) {
+          // Host is still connected — check if they're stale
+          const hostSocket = io.sockets.sockets.get(hostSocketId);
+          if (hostSocket?.connected) {
+            return socket.emit('error', { code: 'HOST_ACTIVE', message: 'Host is still active' });
+          }
         }
       }
 

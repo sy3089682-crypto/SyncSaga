@@ -38,8 +38,11 @@ export function chatHandler(
       if (!validation.success) return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       const { roomId, content, type } = validation.data;
       if (!socket.userId) return;
-      const roomUsers = await redisService.getRoomUsers(roomId);
-      if (!roomUsers.includes(socket.userId)) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
+
+      // O(1) user presence check (replaces O(N) getRoomUsers)
+      const userSocket = await redisService.getUserSocketId(roomId, socket.userId);
+      if (!userSocket) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
+
       const allowed = await redisService.checkRateLimit('chat:' + socket.userId, 30, 60);
       if (!allowed) return socket.emit('error:rate_limit', { event: 'chat:message', retryAfter: 60 });
       const sanitized = sanitizeContent(content);

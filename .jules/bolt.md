@@ -1,3 +1,7 @@
 ## 2025-02-23 - [TimelineReactions Optimization]
 **Learning:** React components containing list iterations often have duplicate or unused `reduce` iterations that cause unnecessary re-renders. We identified one such case in `TimelineReactions.tsx` where an entire list was mapped into a dictionary structure (`grouped`) in `TimelineReactions` itself but only used further down in a separate component (`ReactionBar`).
 **Action:** Always scan for unneeded O(N) operations in components that receive lists or arrays of data. Dead code removal should accompany memoization wherever applicable, and any remaining expensive computations should be enclosed in `useMemo`.
+
+## 2025-02-23 - [O(1) Redis User Presence Check Optimization]
+**Learning:** In the LiveKit + Yjs + Express backend architecture, user presence and socket event processing are extremely frequent. Using `getRoomUsers(roomId).includes(userId)` performs an O(N) lookup (where N is the number of users in a room) by fetching all user IDs with `hKeys` and then checking for inclusion. This creates unnecessary overhead. The `redisService` exposes `getUserSocketId(roomId, userId)` which performs an O(1) `hGet` directly for a specific user, returning their socket ID (or undefined), providing a much faster way to check if a user is currently in a room.
+**Action:** When validating user presence or authorization for socket events in `apps/api`, always prefer O(1) specific queries like `getUserSocketId` over retrieving the entire collection and checking it in Node.js.

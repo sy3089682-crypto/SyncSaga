@@ -38,6 +38,7 @@ export function chatHandler(
       if (!validation.success) return socket.emit('error', { code: 'VALIDATION_ERROR', message: validation.error });
       const { roomId, content, type } = validation.data;
       if (!socket.userId) return;
+      // ⚡ Bolt: O(1) Redis presence check instead of O(N) getRoomUsers array inclusion check
       const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);
       if (!userSocketId) return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
       const allowed = await redisService.checkRateLimit('chat:' + socket.userId, 30, 60);

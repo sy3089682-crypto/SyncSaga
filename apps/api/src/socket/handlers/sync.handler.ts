@@ -142,7 +142,7 @@ export function syncHandler(
       const isDup = await redisService.isDuplicateEvent(eventId, 30);
       if (isDup) return;
 
-      // Verify user is in the room
+      // ⚡ Bolt: O(1) Redis presence check instead of O(N) getRoomUsers array inclusion check
       const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);
       if (!userSocketId) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });
@@ -347,7 +347,7 @@ export function syncHandler(
 
       const hostId = roomState.host_id as string;
 
-      // Check if host is actually disconnected
+      // ⚡ Bolt: O(1) Redis presence check instead of O(N) getRoomUsers array inclusion check
       const hostSocketId = await redisService.getUserSocketId(roomId, hostId);
       if (hostSocketId) {
         // Host is still connected — check if they're stale
@@ -357,7 +357,7 @@ export function syncHandler(
         }
       }
 
-      // Verify requesting user is in the room
+      // ⚡ Bolt: O(1) Redis presence check instead of O(N) getRoomUsers array inclusion check
       const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);
       if (!userSocketId) {
         return socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in room' });

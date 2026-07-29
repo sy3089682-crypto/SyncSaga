@@ -33,7 +33,7 @@ jobs:
           npm run build --workspace=packages/config || true
           npm run build --workspace=packages/shared || true
       - name: ESLint
-        run: npm run lint 2>&1 || echo "Lint issues found"
+        run: npm run lint
 
   typecheck:
     name: TypeScript Type Check
@@ -50,7 +50,7 @@ jobs:
           npm run build --workspace=packages/config || true
           npm run build --workspace=packages/shared || true
       - name: Type Check
-        run: npm run typecheck 2>&1 || echo "Type check issues found"
+        run: npm run typecheck
 
   test:
     name: Tests
@@ -67,7 +67,7 @@ jobs:
           npm run build --workspace=packages/config || true
           npm run build --workspace=packages/shared || true
       - name: Run tests
-        run: npm run test 2>&1 || echo "No tests found"
+        run: npm run test
 
   build:
     name: Build
@@ -86,6 +86,6 @@ jobs:
           npm run build --workspace=packages/shared
           npm run build --workspace=packages/db || true
       - name: Build API
-        run: npm run build --workspace=@syncsaga/api 2>&1 || echo "API build issues"
+        run: npm run build --workspace=@syncsaga/api
       - name: Build Web
-        run: npm run build --workspace=@syncsaga/web 2>&1 || echo "Web build issues"
+        run: npm run build --workspace=@syncsaga/web

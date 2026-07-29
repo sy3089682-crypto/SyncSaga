@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../lib/supabase';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -77,12 +78,14 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
-    const result = (rooms || []).map((room: any) => ({
-      ...room,
-      member_count: memberCounts[room.id] || 0,
-      host: room.profiles,
-    }));
-    delete result.forEach((r: any) => delete r.profiles);
+    const result = (rooms || []).map((room: any) => {
+      const { profiles, ...rest } = room;
+      return {
+        ...rest,
+        member_count: memberCounts[room.id] || 0,
+        host: profiles,
+      };
+    });
 
     return res.json({ rooms: result });
   } catch (error) {
@@ -214,7 +217,6 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
     // Hash password if provided
     let passwordHash: string | null = null;
     if (data.password) {
-      const bcrypt = await import('bcryptjs');
       passwordHash = await bcrypt.hash(data.password, 10);
     }
 
@@ -440,7 +442,6 @@ router.post('/:id/join', authMiddleware, async (req: AuthenticatedRequest, res: 
       if (!password) {
         return res.status(401).json({ error: { code: 'PASSWORD_REQUIRED', message: 'This room requires a password' } });
       }
-      const bcrypt = await import('bcryptjs');
       const valid = await bcrypt.compare(password, room.password_hash);
       if (!valid) {
         return res.status(401).json({ error: { code: 'WRONG_PASSWORD', message: 'Incorrect password' } });

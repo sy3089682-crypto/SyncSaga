@@ -1,27 +1,34 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/useAppStore';
 import { LoadingSpinner } from '@/components/ui/Loading';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const setUser = useAppStore(s => s.setUser);
-  const setToken = useAppStore(s => s.setToken);
+  const setUser = useAppStore((s) => s.setUser);
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
+      // Exchange code for session if present (OAuth PKCE)
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+        typeof window !== 'undefined' ? window.location.href : ''
+      ).catch(() => ({ error: null }));
+
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
       if (error || !session) {
-        router.push('/auth/login?error=Auth failed');
+        router.push('/auth/login?error=Auth%20failed');
         return;
       }
 
-      setToken(session.access_token);
+      // Cache Supabase user for UI (token lives in Supabase session / useAuth)
+      setUser(session.user);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -29,13 +36,14 @@ export default function AuthCallbackPage() {
         .eq('id', session.user.id)
         .single();
 
-      if (profile) {
-        setUser(profile);
-      } else {
+      if (!profile) {
         await supabase.from('profiles').insert({
           id: session.user.id,
           username: session.user.email?.split('@')[0] || 'user',
-          display_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+          display_name:
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.username ||
+            session.user.email?.split('@')[0],
           avatar_url: session.user.user_metadata?.avatar_url,
         });
       }
@@ -44,7 +52,7 @@ export default function AuthCallbackPage() {
     };
 
     handleCallback();
-  }, [router, setUser, setToken]);
+  }, [router, setUser]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">

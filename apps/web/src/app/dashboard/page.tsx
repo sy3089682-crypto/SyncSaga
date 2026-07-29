@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Globe, Tv, Lock, Sparkles, Loader2, Flame, Star, Trophy, TrendingUp, Clock, Play, ChevronRight, Zap } from 'lucide-react';
+import { Plus, Users, Globe, Tv, Lock, Trophy, Flame, Clock, Play, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
@@ -10,10 +10,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useRetention, useStreakDisplay } from '@/hooks/useRetention';
 import { api } from '@/lib/api';
-import { anilist } from '@/lib/anime/anilist';
 import { Room } from '@syncsaga/shared';
 import { cn } from '@/lib/utils';
-import { LoadingSpinner, EmptyState, PageSkeleton, Skeleton } from '@/components/ui/Loading';
+import { EmptyState, PageSkeleton } from '@/components/ui/Loading';
 
 interface ContinueWatching {
   animeTitle: string;
@@ -32,7 +31,6 @@ export default function DashboardPage() {
   const [newRoom, setNewRoom] = useState({ name: '', description: '', isPrivate: false });
   const [creating, setCreating] = useState(false);
   const [continueWatching, setContinueWatching] = useState<ContinueWatching[]>([]);
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useAnalytics();
   const { stats, recordRoomJoin, xpProgress, xpToNext } = useRetention();
@@ -47,7 +45,7 @@ export default function DashboardPage() {
       setRooms(roomsData.rooms);
       setContinueWatching(watchData.recent || []);
     }).catch(console.error).finally(() => setLoading(false));
-  }, [token]);
+  }, [token, setRooms]);
 
   const createRoom = async () => {
     if (!newRoom.name.trim() || !token) return;
@@ -67,20 +65,23 @@ export default function DashboardPage() {
 
   if (loading) return <PageSkeleton />;
 
+  const displayName =
+    (user as any)?.user_metadata?.display_name ||
+    (user as any)?.user_metadata?.username ||
+    user?.email?.split('@')[0];
+
   return (
     <div className="min-h-screen bg-background text-text-primary pb-20 lg:pb-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Header + XP/Streak */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">
-                Welcome back{user?.display_name ? `, ${user.display_name}` : ''}
+                Welcome back{displayName ? `, ${displayName}` : ''}
               </h1>
               <p className="text-text-secondary text-sm mt-1">Find a room or create your own watch party.</p>
             </div>
 
-            {/* XP + Streak Card */}
             <div className="flex items-center gap-3">
               <div className="px-4 py-2 rounded-xl bg-surface-light border border-border flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-yellow-500" />
@@ -96,7 +97,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Streak Week */}
           {stats.currentStreak > 0 && (
             <div className="flex items-center gap-1.5 mt-3">
               {weekDays.map(d => (
@@ -111,15 +111,13 @@ export default function DashboardPage() {
           )}
         </motion.div>
 
-        {/* Online Friends */}
-        {onlineUsers.size > 0 && (
+        {onlineUsers.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-1.5 mb-6 text-sm text-text-secondary">
             <div className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
-            <span>{onlineUsers.size} friend{onlineUsers.size !== 1 ? 's' : ''} online</span>
+            <span>{onlineUsers.length} friend{onlineUsers.length !== 1 ? 's' : ''} online</span>
           </motion.div>
         )}
 
-        {/* Continue Watching */}
         {continueWatching.length > 0 && (
           <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <div className="flex items-center justify-between mb-3">
@@ -165,7 +163,6 @@ export default function DashboardPage() {
           </motion.section>
         )}
 
-        {/* Quick Actions */}
         <div className="flex flex-wrap gap-3 mb-8">
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
             onClick={() => setShowCreate(!showCreate)}
@@ -189,7 +186,6 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Create Room Form */}
         {showCreate && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
             className="mb-8 p-6 rounded-2xl bg-card-gradient border border-border">
@@ -214,7 +210,6 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Rooms Grid */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -267,7 +262,6 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Achievements Preview */}
         {stats.achievements.some(a => a.unlockedAt) && (
           <section className="mt-10">
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">

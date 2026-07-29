@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Film, Star, UserPlus, MessageCircle, Clock, Activity, ChevronRight } from 'lucide-react';
+import { Bell, Film, Star, UserPlus, MessageCircle, Activity, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
-import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 
-interface Activity {
+interface ActivityItem {
   id: string;
   user_id: string;
   type: string;
@@ -51,19 +51,19 @@ const activityLabels: Record<string, string> = {
 };
 
 export function FriendsFeed({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { token } = useAppStore();
+  const { token } = useAuth();
 
   useEffect(() => {
     if (!token) return;
-    api.get<{ activities: Activity[] }>('/api/activity', token)
+    api.get<{ activities: ActivityItem[] }>('/api/activity', token)
       .then(data => setActivities(data.activities.slice(0, 15)))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [token]);
 
-  const getLabel = (a: Activity) => {
+  const getLabel = (a: ActivityItem) => {
     const label = activityLabels[a.type] || 'did something';
     if (a.type === 'watching') return `${label} ${a.data?.animeTitle || ''}`;
     if (a.type === 'clip_created') return `${label}: ${a.data?.animeTitle || ''} ep.${a.data?.episodeNumber || ''}`;

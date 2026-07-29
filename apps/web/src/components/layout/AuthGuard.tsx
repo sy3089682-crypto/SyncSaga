@@ -1,25 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAppStore } from '@/store/useAppStore';
 import { LoadingSpinner } from '@/components/ui/Loading';
 import { useAuth } from '@/hooks/useAuth';
 
-const publicPaths = ['/', '/auth/login', '/auth/register', '/auth/callback'];
+const publicPaths = [
+  '/',
+  '/auth/login',
+  '/auth/register',
+  '/auth/callback',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+];
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   const pathname = usePathname();
-  const isAuthenticated = useAppStore(s => s.isAuthenticated);
   const router = useRouter();
+
+  const isPublic =
+    publicPaths.includes(pathname) ||
+    pathname?.startsWith('/auth/');
 
   useEffect(() => {
     if (loading) return;
-    if (!isAuthenticated && !publicPaths.includes(pathname)) {
+    if (!isAuthenticated && !isPublic) {
       router.push('/auth/login');
     }
-  }, [isAuthenticated, loading, pathname, router]);
+  }, [isAuthenticated, loading, isPublic, pathname, router]);
 
   if (loading) {
     return (

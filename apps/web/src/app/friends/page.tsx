@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, Users, Search, MessageCircle, Check, X, Loader2, UserMinus, Clock } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
 
 export default function FriendsPage() {
-  const { token, onlineUsers } = useAppStore();
+  const { token } = useAuth();
+  const { onlineUsers } = useAppStore();
   const [friends, setFriends] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function FriendsPage() {
     }
     setSearching(true);
     try {
-      const data = await api.get(`/api/users/search?q=${encodeURIComponent(query)}`, token);
+      const data = await api.get(`/api/users/search?q=${encodeURIComponent(query)}`, token!);
       setSearchResults(data.users || []);
     } catch {} finally {
       setSearching(false);
@@ -46,7 +48,7 @@ export default function FriendsPage() {
 
   const sendFriendRequest = async (userId: string) => {
     try {
-      await api.post('/api/friends/request', { friendId: userId }, token);
+      await api.post('/api/friends/request', { friendId: userId }, token!);
       setSearchResults(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
       console.error('Failed to send request:', err);
@@ -55,7 +57,7 @@ export default function FriendsPage() {
 
   const acceptRequest = async (requestId: string) => {
     try {
-      await api.post('/api/friends/accept', { requestId }, token);
+      await api.post('/api/friends/accept', { requestId }, token!);
       setRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (err) {
       console.error('Failed to accept request:', err);
@@ -64,7 +66,7 @@ export default function FriendsPage() {
 
   const rejectRequest = async (requestId: string) => {
     try {
-      await api.post('/api/friends/reject', { requestId }, token);
+      await api.post('/api/friends/reject', { requestId }, token!);
       setRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (err) {
       console.error('Failed to reject request:', err);
@@ -73,7 +75,7 @@ export default function FriendsPage() {
 
   const removeFriend = async (friendId: string) => {
     try {
-      await api.delete(`/api/friends/${friendId}`, token);
+      await api.delete(`/api/friends/${friendId}`, token!);
       setFriends(prev => prev.filter(f => f.id !== friendId));
     } catch (err) {
       console.error('Failed to remove friend:', err);
@@ -132,7 +134,7 @@ export default function FriendsPage() {
                     <motion.div key={friend.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-4 p-4 rounded-xl bg-surface-light border border-border hover:border-primary/30 transition-all">
                       <Avatar name={friend.username} src={friend.avatar_url}
-                        status={onlineUsers.has(friend.id) ? 'online' : 'offline'} size="md" />
+                        status={onlineUsers.includes(friend.id) ? 'online' : 'offline'} size="md" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{friend.display_name || friend.username}</p>
                         <p className="text-xs text-text-muted">@{friend.username}</p>

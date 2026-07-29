@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Clock, Film, Trash2, Earth } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { Play, Clock, Film, Earth } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import { formatTime } from '@/lib/utils';
 
 export default function ClipsPage() {
-  const { token, user } = useAppStore();
+  const { token } = useAuth();
   const [clips, setClips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

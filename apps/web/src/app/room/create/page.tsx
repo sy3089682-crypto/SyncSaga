@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Sparkles, Globe, Lock, Users, ArrowLeft, Wand2,
-  Loader2, ImageIcon,
+  Loader2,
 } from 'lucide-react';
 import { anilist } from '@/lib/anime/anilist';
-import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ import Link from 'next/link';
 export default function CreateRoomPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { token } = useAppStore();
+  const { token } = useAuth();
 
   const animeId = searchParams.get('animeId');
   const presetTitle = searchParams.get('title');
@@ -43,7 +43,7 @@ export default function CreateRoomPage() {
         if (!presetTitle) {
           const t = Media.title?.english || Media.title?.romaji || '';
           setAnimeTitle(t);
-          if (!name) setName(`${t} Watch Party`);
+          setName((prev) => prev || `${t} Watch Party`);
         }
       }).catch(() => {});
     }
@@ -54,7 +54,7 @@ export default function CreateRoomPage() {
     try {
       const res = await api.post<{ suggestions: string[] }>('/api/ai/generate-room-names', {
         animeTitle: animeTitle || 'Anime',
-      }, token);
+      }, token!);
       setNameSuggestions(res.suggestions || []);
     } catch {
       const fallbacks = [

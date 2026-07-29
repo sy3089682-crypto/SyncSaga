@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Star, Users, Play, Info } from 'lucide-react';
+import { TrendingUp, Users, Play } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAppStore } from '@/store/useAppStore';
-import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Recommendation {
   anime_id: string;
@@ -19,7 +18,7 @@ export function TasteGraph({ onSelect }: { onSelect?: (title: string) => void })
   const [reason, setReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const { token } = useAppStore();
+  const { token } = useAuth();
 
   useEffect(() => {
     if (!token) return;
@@ -35,7 +34,7 @@ export function TasteGraph({ onSelect }: { onSelect?: (title: string) => void })
   if (loading) return null;
 
   if (!recommendations.length) {
-    if (reason) return null; // Not enough data yet
+    if (reason) return null;
     return null;
   }
 

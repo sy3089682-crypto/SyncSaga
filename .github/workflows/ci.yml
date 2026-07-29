@@ -15,6 +15,7 @@ env:
   JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-must-be-long-enough-for-test-32-chars
   SUPABASE_URL: https://example.supabase.co
   SUPABASE_SERVICE_KEY: test-supabase-service-key-value
+  SUPABASE_ANON_KEY: test-supabase-anon-key-value
   REDIS_URL: redis://localhost:6379
 
 jobs:
@@ -27,11 +28,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Build shared packages
         run: |
-          npm run build --workspace=packages/config || true
-          npm run build --workspace=packages/shared || true
+          npm run build --workspace=packages/config
+          npm run build --workspace=packages/shared
       - name: ESLint
         run: npm run lint
 
@@ -44,11 +45,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Build shared packages
         run: |
-          npm run build --workspace=packages/config || true
-          npm run build --workspace=packages/shared || true
+          npm run build --workspace=packages/config
+          npm run build --workspace=packages/shared
       - name: Type Check
         run: npm run typecheck
 
@@ -61,11 +62,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Build shared packages
         run: |
-          npm run build --workspace=packages/config || true
-          npm run build --workspace=packages/shared || true
+          npm run build --workspace=packages/config
+          npm run build --workspace=packages/shared
       - name: Run tests
         run: npm run test
 
@@ -79,7 +80,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Build all packages
         run: |
           npm run build --workspace=packages/config

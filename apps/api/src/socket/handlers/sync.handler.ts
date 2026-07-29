@@ -142,6 +142,8 @@ export function syncHandler(
       const isDup = await redisService.isDuplicateEvent(eventId, 30);
       if (isDup) return;
 
+      if (!socket.userId) return;
+
       // Verify user is in the room
       // ⚡ Bolt: Replaced O(N) getRoomUsers().includes() with O(1) getUserSocketId() to reduce latency for high-frequency sync events
       const userSocketId = await redisService.getUserSocketId(roomId, socket.userId);

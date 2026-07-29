@@ -58,6 +58,7 @@ vi.mock('./redis.service', () => ({
     getRoomState: vi.fn().mockResolvedValue(null),
     addUserToRoom: vi.fn().mockResolvedValue(undefined),
     getRoomUsers: vi.fn().mockResolvedValue(['user-1']),
+    getUserSocketId: vi.fn().mockResolvedValue('socket-1'),
   },
 }));
 

@@ -3,15 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, LockKeyhole } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, signInWithOAuth } from '@/lib/supabase';
+import { signInWithOAuth } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setToken, setUser } = useAuth();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -25,14 +24,10 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const { token, user } = await api.post('/api/auth/register', {
-        email, password, username,
-      });
-      setToken(token);
-      setUser(user);
+      await signUp(email, password, username);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.error || err.message || 'Registration failed');
+      setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -54,8 +49,8 @@ export default function RegisterPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
             <UserPlus className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Create your account</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Join the SyncSaga community</p>
+          <h1 className="text-2xl font-bold">Create account</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Join SyncSaga and start watching together</p>
         </div>
 
         <div className="flex gap-3">
@@ -83,11 +78,9 @@ export default function RegisterPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
-              placeholder="Your username"
+              placeholder="coolwatcher"
               required
               minLength={3}
-              maxLength={30}
-              pattern="^[a-zA-Z0-9_]+$"
             />
           </div>
 
@@ -124,13 +117,13 @@ export default function RegisterPage() {
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading ? 'Creating account...' : <><LockKeyhole className="mr-1 h-4 w-4" /> Create account</>}
           </Button>
         </form>
 
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/auth/login" className="text-primary hover:underline">Log in</Link>
+          <Link href="/auth/login" className="text-primary hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

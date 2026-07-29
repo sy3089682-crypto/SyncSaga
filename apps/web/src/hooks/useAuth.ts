@@ -7,14 +7,12 @@ import { supabase, getAccessToken } from '@/lib/supabase';
 /**
  * useAuth — unified authentication hook
  *
- * Replaces the dual useAuth + useAppStore pattern.
  * Uses Supabase Auth exclusively for all auth operations.
- *
  * Session is managed by Supabase (cookie-based, auto-refresh).
- * No manual token storage in Zustand or localStorage.
  *
- * Usage:
- *   const { user, loading, signIn, signOut } = useAuth();
+ * Compatibility aliases:
+ *   - token      → accessToken  (legacy consumers)
+ *   - logout     → signOut
  */
 
 interface AuthState {
@@ -187,12 +185,16 @@ export function useAuth() {
   return {
     user: state.user,
     accessToken: state.accessToken,
+    /** @deprecated use accessToken — kept for backward compatibility */
+    token: state.accessToken,
     loading: state.loading,
     error: state.error,
     isAuthenticated: !!state.user,
     signIn,
     signUp,
     signOut,
+    /** @deprecated use signOut — kept for backward compatibility */
+    logout: signOut,
     resetPassword,
     updatePassword,
     refreshToken,

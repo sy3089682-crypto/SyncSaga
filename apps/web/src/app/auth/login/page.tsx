@@ -5,13 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Eye, EyeOff, LogIn, LockKeyhole } from 'lucide-react';
 import Link from 'next/link';
-import { supabase, signInWithOAuth } from '@/lib/supabase';
+import { signInWithOAuth } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setToken, setUser } = useAuth();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,12 +23,10 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { token, user } = await api.post('/api/auth/login', { email, password });
-      setToken(token);
-      setUser(user);
+      await signIn(email, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.error || err.message || 'Invalid email or password');
+      setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }

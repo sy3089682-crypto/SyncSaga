@@ -1,6 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
-import { generateAccessToken, generateRefreshToken, storeRefreshToken, verifyRefreshToken, rotateRefreshToken, revokeRefreshToken, revokeAllRefreshTokens } from '../lib/jwt';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  storeRefreshToken,
+  verifyRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  revokeAllRefreshTokens,
+} from '../lib/jwt';
 import { verifySupabaseToken } from '../lib/supabase';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
@@ -49,18 +57,39 @@ async function requireAuth(req: Request, res: Response): Promise<string | null> 
   return userId;
 }
 
-function createAuthResponse(userId: string, email: string, user: any, req: Request, res: Response) {
-  const accessToken = generateAccessToken({ userId, email });
-  const refreshToken = generateRefreshToken({ userId, email });
-  storeRefreshToken(userId, refreshToken.id);
-  res.cookie('refreshToken', refreshToken.token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/api/auth',
-  });
-  return { token: accessToken, refreshToken: refreshToken.token, user };
+/**
+ * Build auth response using Supabase session tokens as primary.
+ * Custom JWT refresh cookie is kept only for the legacy /refresh path.
+ */
+function createAuthResponse(
+  userId: string,
+  email: string,
+  user: any,
+  session: { access_token: string; refresh_token: string } | null,
+  res: Response
+) {
+  // Preferred: Supabase session tokens (verified by authMiddleware + socket middleware)
+  const token = session?.access_token;
+  const refreshToken = session?.refresh_token;
+
+  // Legacy custom refresh cookie for /api/auth/refresh compatibility
+  if (refreshToken) {
+    const legacy = generateRefreshToken({ userId, email });
+    storeRefreshToken(userId, legacy.id).catch(() => {});
+    res.cookie('refreshToken', legacy.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/api/auth',
+    });
+  }
+
+  return {
+    token: token || generateAccessToken({ userId, email }),
+    refreshToken: refreshToken || undefined,
+    user,
+  };
 }
 
 router.post('/register', async (req: Request, res: Response) => {
@@ -78,7 +107,13 @@ router.post('/register', async (req: Request, res: Response) => {
         display_name: data.username,
       });
     }
-    const result = createAuthResponse(authData.user!.id, data.email, authData.user, req, res);
+    const result = createAuthResponse(
+      authData.user!.id,
+      data.email,
+      authData.user,
+      authData.session,
+      res
+    );
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -105,9 +140,15 @@ router.post('/login', async (req: Request, res: Response) => {
       .single();
     if (twoFactor?.totp_enabled) {
       const { totpToken } = req.body;
-      if (!totpToken) return res.json({ requireTotp: true, tempToken: authData.access_token });
+      if (!totpToken) return res.json({ requireTotp: true, tempToken: authData.session?.access_token });
     }
-    const result = createAuthResponse(authData.user.id, authData.user.email!, authData.user, req, res);
+    const result = createAuthResponse(
+      authData.user.id,
+      authData.user.email!,
+      authData.user,
+      authData.session,
+      res
+    );
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -139,7 +180,7 @@ router.post('/google', async (req: Request, res: Response) => {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
     }
-    const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
+    const result = createAuthResponse(data.user.id, data.user.email!, data.user, data.session, res);
     res.json(result);
   } catch (error) {
     logger.error('Google auth error:', error as Error);
@@ -169,7 +210,7 @@ router.post('/github', async (req: Request, res: Response) => {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
     }
-    const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
+    const result = createAuthResponse(data.user.id, data.user.email!, data.user, data.session, res);
     res.json(result);
   } catch (error) {
     logger.error('GitHub auth error:', error as Error);
@@ -199,7 +240,7 @@ router.post('/discord', async (req: Request, res: Response) => {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
     }
-    const result = createAuthResponse(data.user.id, data.user.email!, data.user, req, res);
+    const result = createAuthResponse(data.user.id, data.user.email!, data.user, data.session, res);
     res.json(result);
   } catch (error) {
     logger.error('Discord auth error:', error as Error);
@@ -210,6 +251,20 @@ router.post('/discord', async (req: Request, res: Response) => {
 
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
+    // Prefer Supabase refresh token from body
+    const supabaseRefresh = req.body?.supabaseRefreshToken;
+    if (supabaseRefresh) {
+      const { data, error } = await supabase.auth.refreshSession({ refresh_token: supabaseRefresh });
+      if (error || !data.session) {
+        return res.status(401).json({ error: 'Invalid refresh token' });
+      }
+      return res.json({
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      });
+    }
+
+    // Legacy custom JWT refresh path
     const token = req.cookies?.refreshToken || req.body?.refreshToken;
     if (!token) return res.status(401).json({ error: 'Refresh token required' });
     const decoded = verifyRefreshToken(token);
@@ -373,7 +428,12 @@ router.get('/sessions', async (req: Request, res: Response) => {
       keys.map(async (key) => {
         const ttl = await redisService.getClient().ttl(key);
         const refreshId = key.split(':').pop();
-        return { refreshId, device: 'Unknown', expiresIn: ttl, createdAt: new Date(Date.now() - (7 * 86400 - ttl) * 1000).toISOString() };
+        return {
+          refreshId,
+          device: 'Unknown',
+          expiresIn: ttl,
+          createdAt: new Date(Date.now() - (7 * 86400 - ttl) * 1000).toISOString(),
+        };
       })
     );
     res.json({ sessions });

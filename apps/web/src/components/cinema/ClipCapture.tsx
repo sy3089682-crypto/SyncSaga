@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Scissors, Film, Download, Share2, Check, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
-import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 
 export function ClipCapture({
   roomId,
@@ -23,7 +23,7 @@ export function ClipCapture({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [clipTitle, setClipTitle] = useState('');
-  const { token } = useAppStore();
+  const { token } = useAuth();
   const previewRef = useRef<HTMLDivElement>(null);
 
   const startCapture = useCallback(() => {
@@ -63,7 +63,8 @@ export function ClipCapture({
     } finally {
       setSaving(false);
     }
-  }, [token, roomId, clipStart, clipEnd, clipTitle, episode]);
+  }, [token, roomId, clipStart, clipEnd, clipT
+itle, episode]);
 
   const duration = Math.abs(clipEnd - clipStart);
   const formattedDuration = `${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}`;
@@ -113,7 +114,8 @@ export function ClipCapture({
               </div>
 
               {/* Clip preview area */}
-              <div ref={previewRef} className="aspect-video rounded-xl bg-surface-light flex items-center justify-center mb-4 border border-border">
+              <div ref={previewRef} classN
+ame="aspect-video rounded-xl bg-surface-light flex items-center justify-center mb-4 border border-border">
                 <div className="text-center">
                   <Film className="w-10 h-10 text-text-muted mx-auto mb-2" />
                   <p className="text-sm text-text-secondary">{formattedDuration} clip</p>
@@ -146,7 +148,8 @@ export function ClipCapture({
                   <button className="p-2.5 rounded-xl bg-surface-light border border-border text-text-secondary hover:border-primary/50 transition-colors">
                     <Share2 className="w-5 h-5" />
                   </button>
-                </div>
+      
+          </div>
               </div>
             </motion.div>
           </motion.div>

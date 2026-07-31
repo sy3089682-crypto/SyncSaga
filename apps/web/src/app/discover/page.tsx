@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Calendar, Clock, Users, ChevronRight, Sparkles, Globe, Lock, Loader2, Tv, ArrowRight } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { anilist } from '@/lib/anime/anilist';
 import { cn } from '@/lib/utils';
@@ -37,7 +37,7 @@ interface TrendingAnime {
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const { token } = useAppStore();
+  const { token } = useAuth();
   const [rooms, setRooms] = useState<DiscoverRoom[]>([]);
   const [trending, setTrending] = useState<TrendingAnime[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,7 @@ export default function DiscoverPage() {
       .then(data => setRooms(data.rooms || []))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
+
   }, [token]);
 
   useEffect(() => {
@@ -104,7 +105,8 @@ export default function DiscoverPage() {
           {trendingLoading ? (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="shrink-0 w-36 sm:w-40">
+                <div key={i} className="sh
+rink-0 w-36 sm:w-40">
                   <Skeleton className="aspect-[3/4] rounded-xl mb-2" />
                   <Skeleton className="h-4 w-24 mb-1" />
                   <Skeleton className="h-3 w-16" />
@@ -143,7 +145,8 @@ export default function DiscoverPage() {
 
         {/* Filters */}
         <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-thin">
-          {['all', 'airing', 'popular'].map(f => (
+        
+  {['all', 'airing', 'popular'].map(f => (
             <button key={f} onClick={() => setFilter(f as any)}
               className={cn(
                 'px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
@@ -183,7 +186,8 @@ export default function DiscoverPage() {
             description="Create your own watch party and it will appear here!"
             action={
               <button onClick={() => router.push('/room/create')}
-                className="px-6 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary-dark transition-colors">
+                className="px-6 py-2.5 rounded-x
+l bg-primary text-white font-medium hover:bg-primary-dark transition-colors">
                 Create Room
               </button>
             }
@@ -215,7 +219,8 @@ export default function DiscoverPage() {
                         <p className="text-xs text-text-muted mt-0.5 truncate">{room.anime_title}{room.current_episode_number ? ` Ep.${room.current_episode_number}` : ''}</p>
                       )}
                       <div className="flex items-center gap-3 mt-2 text-xs text-text-secondary">
-                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {room.member_count}/{room.max_users}</span>
+                        <span className="flex items-center g
+ap-1"><Users className="w-3 h-3" /> {room.member_count}/{room.max_users}</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {room.playback_state === 'playing' ? 'Playing' : room.playback_state === 'paused' ? 'Paused' : 'Waiting'}

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Loader2, X, Star, Quote, TrendingUp, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RecapData {
   title: string;
@@ -26,7 +26,7 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
   const [loading, setLoading] = useState(false);
   const [recap, setRecap] = useState<RecapData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAppStore();
+  const { token } = useAuth();
 
   const generateRecap = async () => {
     setLoading(true);
@@ -59,7 +59,8 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresen
+ce>
       {loading && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -107,7 +108,8 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
             <h4 className="text-sm text-text-secondary mb-6">{recap.title}</h4>
 
             <div className="flex flex-wrap gap-2 mb-6">
-              <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-medium flex items-center gap-1">
+              <div className="px-3 py-1.5 rounded-lg bg-primary/1
+0 border border-primary/20 text-xs font-medium flex items-center gap-1">
                 <Zap className="w-3 h-3" /> {recap.partyVibe} Vibe
               </div>
               <div className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs flex items-center gap-1">
@@ -145,7 +147,8 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
                 </h5>
                 <div className="space-y-2">
                   {recap.memorableQuotes.map((q, i) => (
-                    <div key={i} className="p-3 rounded-xl bg-surface border border-border">
+                    <div key={i} className="p-3 rounded-x
+l bg-surface border border-border">
                       <p className="text-sm italic text-text-secondary">&ldquo;{q.quote}&rdquo;</p>
                       <p className="text-xs text-text-muted mt-1">— {q.user}</p>
                     </div>

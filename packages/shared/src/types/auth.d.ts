@@ -49,7 +49,5 @@ export interface UseAuthReturn extends AuthState {
   get logout(): () => Promise<void>;
 }
 
-// Type assertion for useAuth return type
-export function assertUseAuthReturn(value: any): asserts value is UseAuthReturn {
-  // Runtime type checking can be added here if needed
-}
+// Type assertion for useAuth return type (declaration only — no implementation allowed in .d.ts)
+export declare function assertUseAuthReturn(value: any): asserts value is UseAuthReturn;

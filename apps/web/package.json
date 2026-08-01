@@ -30,7 +30,7 @@
     "zod": "^3.22.0",
     "@stripe/react-stripe-js": "^2.7.0",
     "@stripe/stripe-js": "^3.0.0",
-    "posthog-js": "^3.6.0",
+    "posthog-js": "^1.409.5",
     "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0"
   },

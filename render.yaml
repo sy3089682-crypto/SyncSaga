@@ -14,8 +14,6 @@ services:
         value: production
       - key: PORT
         value: 4000
-      - key: REDIS_URL
-        fromKeyValue: syncsaga-redis
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET

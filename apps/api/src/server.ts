@@ -83,7 +83,26 @@ export async function createServer() {
     next();
   });
 
-  // Rate limiting and CSRF
+  // Liveness probe — process is running (before rate limiting so health checks always pass)
+  app.get('/health/live', (_req, res) => {
+    res.status(200).json({
+      status: 'alive',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Legacy health endpoint — lightweight, no external deps (before rate limiting)
+  app.get('/health', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+    });
+  });
+
+  // Rate limiting and CSRF (after health so probes aren't rate-limited or blocked by Redis)
   app.use(rateLimitMiddleware(100, 60));
   app.use(csrfProtection);
 

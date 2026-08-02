@@ -10,3 +10,4 @@ coverage/
 *.tsbuildinfo
 apps/extension/dist/
 apps/extension/icons/
+.vercel

@@ -149,19 +149,11 @@ export async function createServer() {
     });
   });
 
-  // Legacy health endpoint (backward compatibility)
-  app.get('/health', async (_req, res) => {
-    let dbPing = false;
-    let redisPing = false;
-    dbPing = await pingDatabase();
-    redisPing = await pingRedis();
-    const healthy = dbPing && redisPing;
-    res.status(healthy ? 200 : 503).json({
-      status: healthy ? 'ok' : 'degraded',
+  // Legacy health endpoint (backward compatibility) - lightweight, no external deps
+  app.get('/health', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
       uptime: process.uptime(),
-      dbPing,
-      redisPing,
-      version: process.env.npm_package_version || '1.0.0',
       timestamp: new Date().toISOString(),
       environment: env.NODE_ENV,
     });

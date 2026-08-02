@@ -90,7 +90,6 @@ export const jikan = {
   },
 
   async popularSeason(page = 1, perPage = 20, season?: string, seasonYear?: number) {
-    const year = seasonYear || new Date().getFullYear();
     const data = await fetchJikan('/seasons/now', { page: page.toString(), limit: perPage.toString() });
     return { 
       Page: { 
@@ -158,5 +157,10 @@ export const jikan = {
   async characters(id: number) {
     const data = await fetchJikan(`/anime/${id}/characters`);
     return data?.characters || data || [];
+  },
+
+  async themes(id: number) {
+    const data = await fetchJikan(`/anime/${id}/themes`);
+    return data?.themes || data || [];
   },
 };

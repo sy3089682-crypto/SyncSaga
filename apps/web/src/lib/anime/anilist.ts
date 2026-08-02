@@ -121,6 +121,11 @@ export const anilist = {
     return fetchAniList(SEARCH_QUERY, params);
   },
 
+  // Alias for AnimeInfoSidebar compatibility
+  async guess(search: string, page = 1, perPage = 10) {
+    return fetchAniList(SEARCH_QUERY, { search, page, perPage });
+  },
+
   async trending(page = 1, perPage = 20) {
     return fetchAniList(SEARCH_QUERY, {
       page,

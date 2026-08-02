@@ -39,8 +39,7 @@ export default function AnimeDetailPage() {
             setCharacters(Array.isArray(chars) ? chars.slice(0, 20) : []);
           } catch {}
         }
-      } catch (error) {
-        console.error('Failed to load anime:', error);
+      } catch {
       } finally {
         setLoading(false);
       }

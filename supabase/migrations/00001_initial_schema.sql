@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS public.rooms (
   anime_title       TEXT,
   episode_number    INTEGER CHECK (episode_number IS NULL OR episode_number >= 1),
   playback_state    TEXT NOT NULL DEFAULT 'paused' CHECK (playback_state IN ('playing', 'paused', 'buffering')),
-  current_time      DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (current_time >= 0),
+  current_timestamp DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (current_timestamp >= 0),
   duration          DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (duration >= 0),
   sync_locked       BOOLEAN NOT NULL DEFAULT FALSE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),

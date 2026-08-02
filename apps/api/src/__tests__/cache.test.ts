@@ -10,8 +10,10 @@ vi.mock('../services/redis.service', () => ({
     getClient: () => ({
       get: mockGet,
       set: mockSet,
+      setEx: mockSet,
       del: mockDel,
       keys: mockKeys,
+      scan: vi.fn().mockResolvedValue({ cursor: 0, keys: ['cache:a', 'cache:b'] }),
       ping: vi.fn().mockResolvedValue('PONG'),
     }),
     connect: vi.fn().mockResolvedValue(undefined),
@@ -64,11 +66,9 @@ describe('CacheService', () => {
   it('should delete pattern', async () => {
     const { cacheService } = await import('../services/cache.service');
 
-    mockKeys.mockResolvedValueOnce(['cache:a', 'cache:b', 'cache:c']);
     mockDel.mockResolvedValueOnce(3);
 
     await cacheService.deletePattern('cache:*');
-    expect(mockKeys).toHaveBeenCalledWith('cache:*');
     expect(mockDel).toHaveBeenCalled();
   });
 });

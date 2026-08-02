@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node';
+import type { ErrorRequestHandler } from 'express';
 import { getEnv } from '@syncsaga/config';
 
 let initialized = false;
@@ -41,8 +42,8 @@ export function initSentry(): void {
  * Sentry error handler middleware — must be registered after all routes
  * but before the custom error handler.
  */
-export function sentryErrorHandler() {
-  return Sentry.expressErrorHandler();
+export function sentryErrorHandler(): ErrorRequestHandler {
+  return Sentry.expressErrorHandler() as ErrorRequestHandler;
 }
 
 /**

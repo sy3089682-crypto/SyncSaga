@@ -1,6 +1,6 @@
 import express from 'express';
 import { createServer as createHttpServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -25,7 +25,7 @@ import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
 import { setNotificationSocket } from './services/notification.service';
 import { supabase } from './lib/supabase';
-import { logger } from './lib/logger';
+import { logger, pinoLogger } from './lib/logger';
 import { AuthenticatedSocket } from './socket/middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimitMiddleware, csrfProtection } from './middleware/security';
@@ -71,7 +71,7 @@ export async function createServer() {
   app.use(cookieParser());
   app.set('trust proxy', 1);
   app.use(pinoHttp({
-    logger,
+    logger: pinoLogger,
     autoLogging: { ignore: (req) => req.url === '/health/live' || req.url === '/health/ready' || req.url === '/metrics' },
   }));
 
@@ -213,11 +213,12 @@ export async function createServer() {
   setQueueSocket(io);
 
   // Socket-level reaction handler
-  io.on('connection', (socket: AuthenticatedSocket) => {
+  io.on('connection', (socket: Socket) => {
+    const authSocket = socket as AuthenticatedSocket;
     metrics.setConnectedSockets(io.engine.clientsCount);
     socket.on('reaction:add', async (data) => {
       try {
-        if (!socket.userId) return;
+        if (!authSocket.userId) return;
         const { roomId, timestampSec, type, content } = data;
         if (!roomId || timestampSec === undefined || !type) return;
 
@@ -225,7 +226,7 @@ export async function createServer() {
           .from('timeline_reactions')
           .insert({
             room_id: roomId,
-            user_id: socket.userId,
+            user_id: authSocket.userId,
             timestamp_sec: timestampSec,
             type,
             content,
@@ -236,7 +237,7 @@ export async function createServer() {
         if (reaction) {
           socket.to(roomId).emit('reaction:new', reaction);
           await supabase.from('activity_feed').insert({
-            user_id: socket.userId,
+            user_id: authSocket.userId,
             type: 'reaction',
             data: { roomId, timestampSec, reactionType: type },
           });

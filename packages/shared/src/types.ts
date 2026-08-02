@@ -44,7 +44,10 @@ export interface Room {
   skip_intro_votes: Record<string, boolean>;
   banned_users: string[];
   password?: string;
+
+  members?: RoomMember[];
 }
+
 
 export interface RoomMember {
   id: string;
@@ -139,6 +142,7 @@ export interface ServerToClientEvents {
   'room:kick': (data: { reason?: string }) => void;
   'room:banned': (data: { reason?: string }) => void;
   'room:new_host': (data: { newHostId: string }) => void;
+  'notification:new': (data: { type: string; title: string; body: string; link?: string }) => void;
   'error:rate_limit': (data: { event: string; retryAfter: number }) => void;
   'error': (error: { code: string; message: string }) => void;
 }

@@ -13,11 +13,11 @@ const STALE_CLEANUP_INTERVAL_MS = 30000;
 const HOST_CHECK_INTERVAL_MS = 10000;
 
 export function initializeSocketHandlers(io: Server<ClientToServerEvents, ServerToClientEvents>) {
-  io.use((socket: AuthenticatedSocket, next) => {
-    socketAuthMiddleware(socket, next);
+  io.use((socket, next) => {
+    socketAuthMiddleware(socket as AuthenticatedSocket, next);
   });
 
-  io.on('connection', async (socket: AuthenticatedSocket) => {
+  io.on('connection', (async (socket: AuthenticatedSocket) => {
     logger.info({ socketId: socket.id, userId: socket.userId }, 'Socket connected');
 
     const uid = socket.userId;
@@ -109,7 +109,7 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
         logger.error({ err: error, socketId: socket.id, userId: uid }, 'Disconnect cleanup error');
       }
     });
-  });
+  }) as any);
 
   // Stale connection cleanup — periodic sweep
   const cleanupInterval = setInterval(async () => {
@@ -136,7 +136,7 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
       // Check all rooms with active state
       const presenceData = await redisService.getOnlineUsers();
       for (const [userId, data] of Object.entries(presenceData)) {
-        const parsed = data as { current_room_id?: string; status?: string };
+        const parsed = data as { current_room_id?: string; status?: string; lastPing?: string };
         if (parsed.current_room_id) {
           const roomState = await redisService.getRoomState(parsed.current_room_id);
           if (roomState && (roomState.host_id as string) === userId) {

@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import type { User } from '@supabase/supabase-js';
-import type { Room } from '@syncsaga/shared';
+import type { Message, Room, RoomMember } from '@syncsaga/shared';
 
 /**
  * Application Store
@@ -29,6 +29,19 @@ interface AppState {
   addRoom: (room: Room) => void;
   removeRoom: (roomId: string) => void;
 
+  // Active room session
+  currentRoom: Room | null;
+  setCurrentRoom: (room: Room | null) => void;
+  messages: Message[];
+  setMessages: (messages: Message[]) => void;
+  addMessage: (message: Message) => void;
+  roomMembers: RoomMember[];
+  setRoomMembers: (members: RoomMember[]) => void;
+  addRoomMember: (member: RoomMember) => void;
+  removeRoomMember: (userId: string) => void;
+  updateRoomState: (patch: Partial<Room>) => void;
+  updatePresence: (userId: string, online: boolean) => void;
+
   // Online users (presence)
   onlineUsers: string[];
   setOnlineUsers: (userIds: string[]) => void;
@@ -54,6 +67,21 @@ export const useAppStore = create<AppState>((set) => ({
   setRooms: (rooms) => set({ rooms }),
   addRoom: (room) => set((state) => ({ rooms: [room, ...state.rooms] })),
   removeRoom: (roomId) => set((state) => ({ rooms: state.rooms.filter((r) => r.id !== roomId) })),
+
+  currentRoom: null,
+  setCurrentRoom: (currentRoom) => set({ currentRoom }),
+  messages: [],
+  setMessages: (messages) => set({ messages }),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+  roomMembers: [],
+  setRoomMembers: (roomMembers) => set({ roomMembers }),
+  addRoomMember: (member) => set((state) => (state.roomMembers.some((m) => m.user_id === member.user_id) ? state : { roomMembers: [...state.roomMembers, member] })),
+  removeRoomMember: (userId) => set((state) => ({ roomMembers: state.roomMembers.filter((m) => m.user_id !== userId) })),
+  updateRoomState: (patch) => set((state) => (state.currentRoom ? { currentRoom: { ...state.currentRoom, ...patch } } : state)),
+  updatePresence: (userId, online) => set((state) => {
+    if (!online) return { onlineUsers: state.onlineUsers.filter((u) => u !== userId) };
+    return state.onlineUsers.includes(userId) ? state : { onlineUsers: [...state.onlineUsers, userId] };
+  }),
 
   onlineUsers: [],
   setOnlineUsers: (userIds) => set({ onlineUsers: userIds }),

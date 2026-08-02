@@ -141,7 +141,7 @@ describe('Health Route', () => {
       timestamp: expect.any(String),
     };
     expect(response.status).toBe('alive');
-    expect(typeof response.uptime).toBe('number');
+    expect(response.uptime).toEqual(expect.any(Number));
   });
 
   it('should check database connectivity for readiness', async () => {
@@ -180,8 +180,8 @@ describe('Security Middleware', () => {
       '/api/ai': { max: 30, window: 60 },
     };
 
-    expect(tiers['/api/auth'].max).toBeLessThan(tiers['/api/rooms'].max);
-    expect(tiers['/api/payments'].max).toBe(30);
+    expect(tiers['/api/auth']!.max).toBeLessThan(tiers['/api/rooms']!.max);
+    expect(tiers['/api/payments']!.max).toBe(30);
   });
 });
 

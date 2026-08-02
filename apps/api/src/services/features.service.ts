@@ -58,9 +58,12 @@ class FeatureService {
       if (keys.length > 0) {
         const values = await redisService.getClient().mGet(keys);
         for (let i = 0; i < keys.length; i++) {
-          const flag = keys[i].replace(OVERRIDE_PREFIX, '') as FeatureFlag;
-          if (values[i] !== null) {
-            map.set(flag, values[i] === 'true');
+          const key = keys[i];
+          if (key === undefined) continue;
+          const flag = key.replace(OVERRIDE_PREFIX, '') as FeatureFlag;
+          const value = values[i];
+          if (value !== null && value !== undefined) {
+            map.set(flag, value === 'true');
           }
         }
       }

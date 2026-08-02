@@ -52,7 +52,7 @@ export default function DiscoverPage() {
     if (!token) return;
     setLoading(true);
     setError(null);
-    api.get<{ rooms: DiscoverRoom[] }>('/api/rooms/discover', token)
+    api.get<{ rooms: DiscoverRoom[] }>('/api/rooms/discover')
       .then(data => setRooms(data.rooms || []))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));

@@ -4,6 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase, getAccessToken } from '@/lib/supabase';
 
+/** App-facing user shape: Supabase auth user + app profile fields. */
+export type AppUser = User & {
+  username?: string | null;
+  display_name?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+};
+
 /**
  * useAuth — unified authentication hook
  *
@@ -16,7 +24,7 @@ import { supabase, getAccessToken } from '@/lib/supabase';
  */
 
 interface AuthState {
-  user: User | null;
+  user: AppUser | null;
   accessToken: string | null;
   loading: boolean;
   error: string | null;
@@ -44,7 +52,7 @@ export function useAuth() {
 
         if (session) {
           setState({
-            user: session.user,
+            user: session.user as AppUser,
             accessToken: session.access_token,
             loading: false,
             error: null,

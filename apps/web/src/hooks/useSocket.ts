@@ -54,7 +54,7 @@ export function useSocket(token?: string | null) {
               role: 'member',
               joined_at: new Date().toISOString(),
             });
-            updatePresence({ user_id: user.id, status: 'online' });
+            updatePresence(user.id, true);
           } catch (e) {
             console.error('Error handling room:user_joined:', e);
           }
@@ -91,7 +91,7 @@ export function useSocket(token?: string | null) {
 
         socket.on('presence:update', (event) => {
           try {
-            updatePresence(event);
+            updatePresence(event.user_id ?? '', event.status === 'online');
           } catch (e) {
             console.error('Error handling presence:update:', e);
           }

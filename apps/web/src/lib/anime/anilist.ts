@@ -116,6 +116,11 @@ export const anilist = {
     return fetchAniList(SEARCH_QUERY, variables);
   },
 
+  // Alias for search page compatibility
+  async searchAdvanced(params: any) {
+    return fetchAniList(SEARCH_QUERY, params);
+  },
+
   async trending(page = 1, perPage = 20) {
     return fetchAniList(SEARCH_QUERY, {
       page,
@@ -134,11 +139,8 @@ export const anilist = {
   // Alias for compatibility with search page
   async popularThisSeason(page = 1, perPage = 20, season?: string, seasonYear?: number) {
     const variables: any = { page, perPage };
-    const currentMonth = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
     if (season) variables.season = season.toUpperCase() as any;
     if (seasonYear) variables.seasonYear = seasonYear;
-    else variables.seasonYear = currentYear;
     return fetchAniList(SEARCH_QUERY, variables);
   },
 

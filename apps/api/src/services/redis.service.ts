@@ -39,9 +39,10 @@ class RedisService {
   }
 
   async connect() {
-    this.client = this.createConnectedClient();
-    this.pubClient = this.createConnectedClient();
-    this.subClient = this.createConnectedClient();
+    // Reuse clients lazily created by getClient() (e.g. BullMQ queues at module load)
+    this.client = this.client ?? this.createConnectedClient();
+    this.pubClient = this.pubClient ?? this.createConnectedClient();
+    this.subClient = this.subClient ?? this.createConnectedClient();
 
     const errorHandler = (err: Error) => logger.error({ err }, 'Redis connection error');
     this.client.on('error', errorHandler);
@@ -49,9 +50,9 @@ class RedisService {
     this.subClient.on('error', errorHandler);
 
     await Promise.all([
-      this.client.connect(),
-      this.pubClient.connect(),
-      this.subClient.connect(),
+      this.client.isOpen ? Promise.resolve() : this.client.connect(),
+      this.pubClient.isOpen ? Promise.resolve() : this.pubClient.connect(),
+      this.subClient.isOpen ? Promise.resolve() : this.subClient.connect(),
     ]);
 
     logger.info('Redis connected');
@@ -70,7 +71,13 @@ class RedisService {
   }
 
   getClient(): RedisClientType {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) {
+      // Lazy auto-connect: BullMQ queues are constructed at module load,
+      // before connect() runs. node-redis buffers commands until ready.
+      this.client = this.createConnectedClient();
+      this.client.on('error', (err: Error) => logger.error({ err }, 'Redis connection error'));
+      void this.client.connect().catch((err: Error) => logger.error({ err }, 'Redis connection error'));
+    }
     return this.client;
   }
 

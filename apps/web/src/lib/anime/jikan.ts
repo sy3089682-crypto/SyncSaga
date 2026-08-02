@@ -91,7 +91,6 @@ export const jikan = {
 
   async popularSeason(page = 1, perPage = 20, season?: string, seasonYear?: number) {
     const year = seasonYear || new Date().getFullYear();
-    const s = season || (['winter', 'spring', 'summer', 'fall'][Math.floor(new Date().getMonth() / 3)]);
     const data = await fetchJikan('/seasons/now', { page: page.toString(), limit: perPage.toString() });
     return { 
       Page: { 
@@ -149,5 +148,15 @@ export const jikan = {
         }
       }
     };
+  },
+
+  async episodes(id: number) {
+    const data = await fetchJikan(`/anime/${id}/episodes`);
+    return data || [];
+  },
+
+  async characters(id: number) {
+    const data = await fetchJikan(`/anime/${id}/characters`);
+    return data?.characters || data || [];
   },
 };

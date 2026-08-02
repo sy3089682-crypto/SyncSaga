@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "video-analysis": {
+      "source": "starchild-ai-agent/official-skills",
+      "sourceType": "github",
+      "skillPath": "video-analysis/SKILL.md",
+      "computedHash": "5b45ae17540bd2f0fd6bf830d65820cdb6fcc7704a643ba96bb6de7023e25795"
+    }
+  }
+}

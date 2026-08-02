@@ -24,18 +24,25 @@
     "prepare": "husky || true"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "vitest": "^1.6.0",
-    "prettier": "^3.2.0",
+    "@playwright/test": "^1.42.0",
     "husky": "^9.0.0",
     "lint-staged": "^15.2.0",
-    "@playwright/test": "^1.42.0"
+    "prettier": "^3.2.0",
+    "turbo": "^2.0.0",
+    "vitest": "^1.6.0"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": ["eslint --fix"],
-    "*.{ts,tsx,js,jsx,json,css,md}": ["prettier --write"]
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ],
+    "*.{ts,tsx,js,jsx,json,css,md}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "playwright": "^1.62.1"
   }
 }

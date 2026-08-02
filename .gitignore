@@ -11,3 +11,4 @@ coverage/
 apps/extension/dist/
 apps/extension/icons/
 .vercel
+.env*

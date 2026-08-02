@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS public.rooms (
 CREATE INDEX IF NOT EXISTS idx_rooms_host ON public.rooms(host_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_private ON public.rooms(is_private);
 CREATE INDEX IF NOT EXISTS idx_rooms_created_at ON public.rooms(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_rooms_media ON public.rooms(media_id) WHERE media_id IS NOT NULL;
+-- idx_rooms_media is created in 00005 after media_id is guaranteed to exist
 
 CREATE TRIGGER trg_rooms_updated_at
   BEFORE UPDATE ON public.rooms

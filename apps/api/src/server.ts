@@ -106,20 +106,38 @@ export async function createServer() {
     });
   });
 
+  // Ping Redis with a hard timeout — ping() on an unconnected client can
+  // queue forever while reconnectStrategy retries a dead endpoint.
+  async function pingRedis(): Promise<boolean> {
+    const client = redisService.getClient();
+    if (!client || !client.isOpen) return false;
+    try {
+      await Promise.race([client.ping(), new Promise((_, rej) => setTimeout(() => rej(new Error('redis ping timeout')), 2000))]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Ping Supabase with a hard timeout — a slow/dead DB must not block probes.
+  async function pingDatabase(): Promise<boolean> {
+    try {
+      await Promise.race([
+        supabase.from('rooms').select('id').limit(1),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('db ping timeout')), 3000)),
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // Readiness probe — dependencies are ready
   app.get('/health/ready', async (_req, res) => {
     let dbPing = false;
     let redisPing = false;
-    try {
-      const { data } = await supabase.from('rooms').select('id').limit(1);
-      dbPing = !!data || true;
-    } catch { /* db not ready */ }
-    try {
-      if (redisService.getClient()) {
-        await redisService.getClient().ping();
-        redisPing = true;
-      }
-    } catch { /* redis not ready */ }
+    dbPing = await pingDatabase();
+    redisPing = await pingRedis();
     const ready = dbPing && redisPing;
     res.status(ready ? 200 : 503).json({
       status: ready ? 'ready' : 'degraded',
@@ -135,16 +153,8 @@ export async function createServer() {
   app.get('/health', async (_req, res) => {
     let dbPing = false;
     let redisPing = false;
-    try {
-      const { data } = await supabase.from('rooms').select('id').limit(1);
-      dbPing = true;
-    } catch {}
-    try {
-      if (redisService.getClient()) {
-        await redisService.getClient().ping();
-        redisPing = true;
-      }
-    } catch {}
+    dbPing = await pingDatabase();
+    redisPing = await pingRedis();
     const healthy = dbPing && redisPing;
     res.status(healthy ? 200 : 503).json({
       status: healthy ? 'ok' : 'degraded',
@@ -206,7 +216,17 @@ export async function createServer() {
     perMessageDeflate: { threshold: 1024 },
   });
 
-  await redisService.connect();
+  // Redis is optional at boot: if it's down (bad URL, cold start), start
+  // the server anyway and let node-redis's reconnectStrategy retry in the
+  // background. The /health and /health/ready probes report degraded state.
+  // Race the connect against a timeout — node-redis can hang on DNS failures
+  // instead of rejecting, and boot must never block on Redis.
+  await Promise.race([
+    redisService.connect(),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]).catch((err: Error) => {
+    logger.warn({ err }, 'Redis connect failed at boot — continuing without Redis');
+  });
   initializeSocketHandlers(io);
   wsBridge.initialize(io);
   setNotificationSocket(io);

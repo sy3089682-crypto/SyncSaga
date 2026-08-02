@@ -135,6 +135,11 @@ export const anilist = {
     return fetchAniList(DETAIL_QUERY, { id });
   },
 
+  // Alias for compatibility
+  async detail(id: number) {
+    return fetchAniList(DETAIL_QUERY, { id });
+  },
+
   async getRecommendations(id: number, perPage = 10) {
     const RECOMMENDATIONS_QUERY = `
       query ($id: Int, $perPage: Int) {

@@ -66,7 +66,7 @@ export const rooms = pgTable('rooms', {
   animeTitle: text('anime_title'),
   episodeNumber: integer('episode_number'),
   playbackState: text('playback_state').default('paused').notNull(),
-  currentTime: doublePrecision('current_time').default(0).notNull(),
+  currentTimestamp: doublePrecision('current_timestamp').default(0).notNull(),
   duration: doublePrecision('duration').default(0).notNull(),
   syncLocked: boolean('sync_locked').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

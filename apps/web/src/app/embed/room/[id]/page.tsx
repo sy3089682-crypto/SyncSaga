@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Play, Pause, MessageSquare, Users, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getSocket } from '@/lib/socket';
+import { getSocket, getSocketSync } from '@/lib/socket';
 
 export default function EmbedRoomPage() {
   const params = useParams();
@@ -13,17 +13,30 @@ export default function EmbedRoomPage() {
   const [memberCount, setMemberCount] = useState(1);
 
   useEffect(() => {
-    const socket = getSocket();
-    socket.emit('room:join', { roomId });
+    let cancelled = false;
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
     const onJoined = () => setMemberCount(p => p + 1);
     const onLeft = () => setMemberCount(p => Math.max(1, p - 1));
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('room:user_joined', onJoined);
-    socket.on('room:user_left', onLeft);
-    return () => { socket.emit('room:leave', { roomId }); socket.off('connect', onConnect); };
+
+    (async () => {
+      try {
+        const socket = await getSocket();
+        if (cancelled) return;
+        socket.emit('room:join', { roomId });
+        socket.on('connect', onConnect);
+        socket.on('disconnect', onDisconnect);
+        socket.on('room:user_joined', onJoined);
+        socket.on('room:user_left', onLeft);
+      } catch {
+        // Not authenticated or connection failed — stay disconnected
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      getSocketSync()?.emit('room:leave', { roomId });
+    };
   }, [roomId]);
 
   return (

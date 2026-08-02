@@ -15,7 +15,7 @@ export default function ClipsPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.get<{ clips: any[] }>('/api/clips', token)
+    api.get<{ clips: any[] }>('/api/clips')
       .then(({ clips }) => setClips(clips))
       .catch(() => {})
       .finally(() => setLoading(false));

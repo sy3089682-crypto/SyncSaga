@@ -18,7 +18,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/api/payments/subscription', token)
+    api.get('/api/payments/subscription')
       .then((data: any) => setSubscription(data.subscription))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -35,10 +35,10 @@ export default function SettingsPage() {
     if (!token) return;
     setUpdating(true);
     try {
-      const data = await api.post('/api/payments/create-checkout', {
+      const data = await api.post<{ url: string }>('/api/payments/create-checkout', {
         priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_premium',
         successUrl: `${window.location.origin}/settings`,
-      }, token);
+      });
       if (data.url) window.location.href = data.url;
     } catch (err) {
       console.error('Upgrade failed:', err);

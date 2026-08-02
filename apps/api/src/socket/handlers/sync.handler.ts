@@ -282,7 +282,7 @@ export function syncHandler(
         server_time: Date.now(),
       };
 
-      await redisService.appendRoomEvent(roomId, syncEvent, MAX_EVENT_LOG);
+      await redisService.appendRoomEvent(roomId, syncEvent as unknown as Record<string, unknown>, MAX_EVENT_LOG);
       io.to(roomId).emit('sync:event', syncEvent);
       io.to(roomId).emit('sync:state', {
         timestamp: 0,
@@ -420,7 +420,7 @@ export function syncHandler(
       // Replay recent events for catch-up
       const recentEvents = await redisService.getRoomEvents(roomId, 0);
       for (const event of recentEvents) {
-        socket.emit('sync:event', event as SyncEvent);
+        socket.emit('sync:event', event as unknown as SyncEvent);
       }
 
       logger.info({ roomId, socketId: socket.id, eventCount: recentEvents.length }, 'Late join state recovery sent');

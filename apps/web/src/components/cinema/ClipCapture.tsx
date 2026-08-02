@@ -54,7 +54,7 @@ export function ClipCapture({
         startTime: Math.min(clipStart, clipEnd),
         endTime: Math.max(clipStart, clipEnd),
         title: clipTitle || `Clip from ${episode || 'room'}`,
-      }, token);
+      });
 
       setSaved(true);
       setTimeout(() => { setShowPreview(false); setSaved(false); }, 2000);
@@ -63,8 +63,7 @@ export function ClipCapture({
     } finally {
       setSaving(false);
     }
-  }, [token, roomId, clipStart, clipEnd, clipT
-itle, episode]);
+  }, [token, roomId, clipStart, clipEnd, clipTitle, episode]);
 
   const duration = Math.abs(clipEnd - clipStart);
   const formattedDuration = `${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}`;
@@ -114,8 +113,7 @@ itle, episode]);
               </div>
 
               {/* Clip preview area */}
-              <div ref={previewRef} classN
-ame="aspect-video rounded-xl bg-surface-light flex items-center justify-center mb-4 border border-border">
+              <div ref={previewRef} className="aspect-video rounded-xl bg-surface-light flex items-center justify-center mb-4 border border-border">
                 <div className="text-center">
                   <Film className="w-10 h-10 text-text-muted mx-auto mb-2" />
                   <p className="text-sm text-text-secondary">{formattedDuration} clip</p>

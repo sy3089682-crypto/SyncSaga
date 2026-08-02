@@ -1,9 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const store = new Map<string, string>();
+
+vi.mock('../services/redis.service', () => ({
+  redisService: {
+    getClient: () => ({
+      get: vi.fn(async (k: string) => store.get(k) ?? null),
+      set: vi.fn(async (k: string, v: string) => { store.set(k, v); return 'OK'; }),
+      setEx: vi.fn(async (k: string, _s: number, v: string) => { store.set(k, v); return 'OK'; }),
+      del: vi.fn(async (k: string) => { store.delete(k); return 1; }),
+      keys: vi.fn(async () => Array.from(store.keys())),
+      scan: vi.fn(async () => ({ cursor: 0, keys: Array.from(store.keys()) })),
+      ping: vi.fn(async () => 'PONG'),
+      eval: vi.fn(async () => 'OK'),
+    }),
+    connect: vi.fn(async () => undefined),
+    disconnect: vi.fn(async () => undefined),
+    checkRateLimit: vi.fn(async () => true),
+  },
+}));
 
 describe('FeatureService', () => {
   let featureService: any;
 
   beforeEach(async () => {
+    store.clear();
     const mod = await import('../services/features.service');
     featureService = mod.featureService;
   });

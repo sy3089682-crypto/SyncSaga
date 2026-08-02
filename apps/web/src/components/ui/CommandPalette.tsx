@@ -79,7 +79,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   };
 
-  const categories = [...new Set(filtered.map(c => c.category))];
+  const categories = Array.from(new Set(filtered.map(c => c.category)));
 
   return (
     <AnimatePresence>

@@ -39,12 +39,13 @@ export function TimelineReactions({
   const [floatingReactions, setFloatingReactions] = useState<{ id: string; emoji: string; x: number }[]>([]);
 
   const addReaction = useCallback((type: string) => {
-    const socket = getSocket();
+    getSocket().then((socket) => {
     socket.emit('reaction:add', {
       roomId,
       timestampSec: currentTime,
       type,
     });
+    }).catch(() => {});
 
     // Show floating reaction
     const id = Math.random().toString(36).slice(2);

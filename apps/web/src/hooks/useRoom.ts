@@ -2,43 +2,43 @@
 
 import { useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { getSocket } from '@/lib/socket';
+import { getSocketSync } from '@/lib/socket';
 
 export function useRoom(roomId: string) {
   const { currentRoom, messages, roomMembers, setCurrentRoom, setMessages, setRoomMembers, addMessage, addRoomMember, removeRoomMember, updateRoomState } = useAppStore();
 
   const join = useCallback(() => {
-    const socket = getSocket();
-    socket.emit('room:join', { roomId });
-    socket.emit('sync:request', { roomId });
+    const socket = getSocketSync();
+    socket?.emit('room:join', { roomId });
+    socket?.emit('sync:request', { roomId });
   }, [roomId]);
 
   const leave = useCallback(() => {
-    const socket = getSocket();
-    socket.emit('room:leave', { roomId });
+    const socket = getSocketSync();
+    socket?.emit('room:leave', { roomId });
     setCurrentRoom(null);
     setMessages([]);
     setRoomMembers([]);
   }, [roomId, setCurrentRoom, setMessages, setRoomMembers]);
 
   const sendMessage = useCallback((content: string, type: 'text' | 'gif' | 'reaction' = 'text') => {
-    const socket = getSocket();
-    socket.emit('chat:message', { roomId, content, type });
+    const socket = getSocketSync();
+    socket?.emit('chat:message', { roomId, content, type });
   }, [roomId]);
 
   const sendTyping = useCallback((isTyping: boolean) => {
-    const socket = getSocket();
-    socket.emit('chat:typing', { roomId, isTyping });
+    const socket = getSocketSync();
+    socket?.emit('chat:typing', { roomId, isTyping });
   }, [roomId]);
 
   const sendSyncEvent = useCallback((event: { type: string; timestamp: number; playback_speed?: number; episode?: string }) => {
-    const socket = getSocket();
-    socket.emit('sync:event', { room_id: roomId, ...event });
+    const socket = getSocketSync();
+    socket?.emit('sync:event', { room_id: roomId, ...event });
   }, [roomId]);
 
   const sendReaction = useCallback((messageId: string, emoji: string) => {
-    const socket = getSocket();
-    socket.emit('chat:reaction', { messageId, emoji });
+    const socket = getSocketSync();
+    socket?.emit('chat:reaction', { messageId, emoji });
   }, []);
 
   return { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent, sendReaction };

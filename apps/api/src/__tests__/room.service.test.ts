@@ -49,7 +49,7 @@ vi.mock('../lib/supabase', () => ({
   },
 }));
 
-vi.mock('./redis.service', () => ({
+vi.mock('../services/redis.service', () => ({
   redisService: {
     acquireLock: vi.fn().mockResolvedValue('lock-id'),
     releaseLock: vi.fn().mockResolvedValue(undefined),
@@ -125,13 +125,13 @@ describe('RoomService - Capacity Limits', () => {
 
 describe('RoomService - Distributed Lock', () => {
   it('should acquire lock for room join', async () => {
-    const { redisService } = await import('./redis.service');
+    const { redisService } = await import('../services/redis.service');
     const lockId = await redisService.acquireLock('room:join:room-1', 2000);
     expect(lockId).toBe('lock-id');
   });
 
   it('should release lock after operation', async () => {
-    const { redisService } = await import('./redis.service');
+    const { redisService } = await import('../services/redis.service');
     await redisService.releaseLock('room:join:room-1', 'lock-id');
     expect(redisService.releaseLock).toHaveBeenCalledWith('room:join:room-1', 'lock-id');
   });

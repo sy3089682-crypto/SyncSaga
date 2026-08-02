@@ -57,7 +57,7 @@ export function FriendsFeed({ collapsed, onToggle }: { collapsed: boolean; onTog
 
   useEffect(() => {
     if (!token) return;
-    api.get<{ activities: ActivityItem[] }>('/api/activity', token)
+    api.get<{ activities: ActivityItem[] }>('/api/activity')
       .then(data => setActivities(data.activities.slice(0, 15)))
       .catch(() => {})
       .finally(() => setLoading(false));

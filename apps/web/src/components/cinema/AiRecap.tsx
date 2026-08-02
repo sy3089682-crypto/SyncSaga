@@ -17,8 +17,8 @@ interface RecapData {
 
 interface AiRecapProps {
   roomId: string;
-  animeTitle?: string;
-  episodeNumber?: number;
+  animeTitle?: string | null;
+  episodeNumber?: number | null;
 }
 
 export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
@@ -36,7 +36,7 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
         roomId,
         animeTitle: animeTitle || undefined,
         episodeNumber: episodeNumber || undefined,
-      }, token);
+      });
       setRecap(data.recap);
       setOpen(true);
     } catch (err) {
@@ -59,8 +59,7 @@ export function AiRecap({ roomId, animeTitle, episodeNumber }: AiRecapProps) {
   }
 
   return (
-    <AnimatePresen
-ce>
+    <AnimatePresence>
       {loading && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -108,8 +107,7 @@ ce>
             <h4 className="text-sm text-text-secondary mb-6">{recap.title}</h4>
 
             <div className="flex flex-wrap gap-2 mb-6">
-              <div className="px-3 py-1.5 rounded-lg bg-primary/1
-0 border border-primary/20 text-xs font-medium flex items-center gap-1">
+              <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-medium flex items-center gap-1">
                 <Zap className="w-3 h-3" /> {recap.partyVibe} Vibe
               </div>
               <div className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs flex items-center gap-1">
@@ -147,8 +145,7 @@ ce>
                 </h5>
                 <div className="space-y-2">
                   {recap.memorableQuotes.map((q, i) => (
-                    <div key={i} className="p-3 rounded-x
-l bg-surface border border-border">
+                    <div key={i} className="p-3 rounded-xl bg-surface border border-border">
                       <p className="text-sm italic text-text-secondary">&ldquo;{q.quote}&rdquo;</p>
                       <p className="text-xs text-text-muted mt-1">— {q.user}</p>
                     </div>

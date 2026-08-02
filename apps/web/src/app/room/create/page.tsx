@@ -54,7 +54,7 @@ export default function CreateRoomPage() {
     try {
       const res = await api.post<{ suggestions: string[] }>('/api/ai/generate-room-names', {
         animeTitle: animeTitle || 'Anime',
-      }, token!);
+      });
       setNameSuggestions(res.suggestions || []);
     } catch {
       const fallbacks = [
@@ -82,7 +82,7 @@ export default function CreateRoomPage() {
         maxUsers,
         animeTitle: animeTitle || undefined,
         animeMediaId: animeId ? parseInt(animeId) : undefined,
-      }, token);
+      });
       router.push(`/room/${room.id}`);
     } catch (error: any) {
       console.error('Failed to create room:', error);

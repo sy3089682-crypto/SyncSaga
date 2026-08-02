@@ -54,7 +54,6 @@ export default function RoomPage() {
 
   useEffect(() => {
     join();
-    const socket = getSocket();
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
     const onSync = (event: any) => {
@@ -78,12 +77,19 @@ export default function RoomPage() {
     };
     const onReaction = (r: TimelineReaction) => setTimelineReactions(prev => [...prev, r]);
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('sync:event', onSync);
-    socket.on('sync:state', onState);
-    socket.on('chat:typing', onTyping);
-    socket.on('reaction:new', onReaction);
+    let socket: Awaited<ReturnType<typeof getSocket>> | null = null;
+    getSocket().then((sock) => {
+      if (cancelled) return;
+      socket = sock;
+      sock.emit('room:join', { roomId });
+      sock.on('connect', onConnect);
+      sock.on('disconnect', onDisconnect);
+      sock.on('sync:event', onSync);
+      sock.on('sync:state', onState);
+      sock.on('chat:typing', onTyping);
+      sock.on('reaction:new', onReaction);
+    }).catch(() => {});
+    let cancelled = false;
     const onDriftUpdate = (data: { userId: string; drift: number; status: 'synced' | 'slight' | 'desynced' }) => {
       setDriftStatus(data.userId, { drift: data.drift, status: data.status });
     };
@@ -92,19 +98,25 @@ export default function RoomPage() {
         setEpisode(prev => prev); // Force re-render
       }
     };
-    socket.on('sync:drift_update', onDriftUpdate);
-    socket.on('room:new_host', onNewHost);
+    getSocket().then((sock) => {
+      if (cancelled) return;
+      sock.on('sync:drift_update', onDriftUpdate);
+      sock.on('room:new_host', onNewHost);
+    }).catch(() => {});
 
     return () => {
+      cancelled = true;
       leave();
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('sync:event', onSync);
-      socket.off('sync:state', onState);
-      socket.off('chat:typing', onTyping);
-      socket.off('reaction:new', onReaction);
-      socket.off('sync:drift_update', onDriftUpdate);
-      socket.off('room:new_host', onNewHost);
+      if (socket) {
+        socket.off('connect', onConnect);
+        socket.off('disconnect', onDisconnect);
+        socket.off('sync:event', onSync);
+        socket.off('sync:state', onState);
+        socket.off('chat:typing', onTyping);
+        socket.off('reaction:new', onReaction);
+        socket.off('sync:drift_update', onDriftUpdate);
+        socket.off('room:new_host', onNewHost);
+      }
     };
   }, [roomId]);
 
@@ -128,7 +140,7 @@ export default function RoomPage() {
 
   const toggleVoice = () => {
     setIsInVoice(!isInVoice);
-    getSocket().emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId });
+    getSocket().then((sock) => sock.emit(isInVoice ? 'voice:leave' : 'voice:join', { roomId })).catch(() => {});
   };
 
   const isHost = currentRoom?.host_id === user?.id;
@@ -156,7 +168,7 @@ export default function RoomPage() {
                 currentEpisode={currentRoom.current_episode_number}
                 onSelect={(mediaId, ep) => {
                   setEpisode(`Episode ${ep}`);
-                  getSocket().emit('anime:set_episode', { roomId, mediaId, episode: ep });
+                  getSocket().then((sock) => sock.emit('anime:set_episode', { roomId, mediaId, episode: ep })).catch(() => {});
                 }}
               />
             )}
@@ -172,7 +184,7 @@ export default function RoomPage() {
               </span>
             )}
             <FriendsFeed collapsed={!showFeed} onToggle={() => setShowFeed(!showFeed)} />
-            <AiRecap roomId={roomId} animeTitle={currentRoom?.anime_title} episodeNumber={currentRoom?.current_episode_number} />
+            <AiRecap roomId={roomId} animeTitle={currentRoom?.anime_title ?? null} episodeNumber={currentRoom?.current_episode_number ?? null} />
             <button onClick={() => setShowSidebar(!showSidebar)}
               className={cn("p-2 rounded-lg transition-colors", showSidebar ? 'bg-primary/20 text-primary' : 'hover:bg-surface-light text-text-secondary')}>
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -341,11 +353,11 @@ export default function RoomPage() {
                     <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                       <div className="flex items-start gap-2">
                         <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
-                          {msg.sender?.username?.[0]?.toUpperCase() || '?'}
+                          {(msg as any).sender?.username?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-primary">{msg.sender?.username || 'User'}</span>
+                            <span className="text-sm font-medium text-primary">{(msg as any).sender?.username || 'User'}</span>
                             <span className="text-[10px] text-text-muted">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                           <p className="text-sm text-text-primary break-words">{msg.content}</p>
@@ -375,16 +387,16 @@ export default function RoomPage() {
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-primary/5">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent-pink flex items-center justify-center text-sm font-semibold shrink-0">
-                    {user?.username?.[0]?.toUpperCase() || 'U'}
+                    {(user as any)?.username?.[0]?.toUpperCase() || 'U'}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{user?.username || 'You'}</p>
+                    <p className="text-sm font-medium truncate">{(user as any)?.username || 'You'}</p>
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 text-xs text-accent-green">
                         <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />Online
                       </span>
                       {(() => {
-                        const ds = driftStatuses.get(user?.id || '');
+                        const ds = driftStatuses[user?.id || ''];
                         if (!ds) return null;
                         const dc = ds.status === 'synced' ? 'bg-accent-green' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
                         const tc = ds.status === 'synced' ? 'text-accent-green' : ds.status === 'slight' ? 'text-yellow-500' : 'text-red-500';
@@ -401,7 +413,7 @@ export default function RoomPage() {
                 <div className="pt-2 border-t border-border">
                   <p className="text-xs text-text-muted uppercase tracking-wider mb-2 px-1">In Room — {totalMembers}</p>
                   {roomMembers.map(m => {
-                    const ds = driftStatuses.get(m.user_id);
+                    const ds = driftStatuses[m.user_id];
                     const dc = !ds ? 'bg-text-muted' : ds.status === 'synced' ? 'bg-accent-green' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
                     return (
                       <div key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-light transition-colors">

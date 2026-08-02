@@ -22,7 +22,7 @@ export function TasteGraph({ onSelect }: { onSelect?: (title: string) => void })
 
   useEffect(() => {
     if (!token) return;
-    api.get<{ recommendations: Recommendation[]; reason?: string }>('/api/activity/recommendations', token)
+    api.get<{ recommendations: Recommendation[]; reason?: string }>('/api/activity/recommendations')
       .then(data => {
         setRecommendations(data.recommendations || []);
         setReason(data.reason || null);

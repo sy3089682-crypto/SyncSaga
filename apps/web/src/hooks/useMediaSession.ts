@@ -29,7 +29,10 @@ export function useMediaSession(opts: {
     navigator.mediaSession.setActionHandler('pause', opts.onPause || (() => {}));
     navigator.mediaSession.setActionHandler('seekbackward', opts.onSeekBackward || (() => {}));
     navigator.mediaSession.setActionHandler('seekforward', opts.onSeekForward || (() => {}));
-    navigator.mediaSession.setActionHandler('seekto', opts.onSeekTo || (() => {}));
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      const time = details.seekTime ?? 0;
+      opts.onSeekTo?.(time);
+    });
   }, [opts.title, opts.artist, opts.playbackState]);
 
   useEffect(() => { update(); }, [update]);

@@ -742,9 +742,33 @@ CREATE POLICY "embed_configs_delete_own" ON public.embed_configs
 
 -- ============================================================
 -- REALTIME PUBLICATION
--- Enable Supabase Realtime for tables that need live updates
+-- Enable Supabase Realtime for tables that need live updates.
+-- Idempotent: ignore if the table is already a member.
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.room_members;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.timeline_reactions;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.room_members;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.timeline_reactions;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

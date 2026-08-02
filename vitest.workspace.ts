@@ -7,6 +7,7 @@ export default defineWorkspace([
       root: './apps/api',
       globals: true,
       environment: 'node',
+      setupFiles: ['dotenv/config'],
     },
   },
   {
@@ -22,6 +23,14 @@ export default defineWorkspace([
     test: {
       name: 'shared',
       root: './packages/shared',
+      globals: true,
+      environment: 'node',
+    },
+  },
+  {
+    test: {
+      name: 'config',
+      root: './packages/config',
       globals: true,
       environment: 'node',
     },

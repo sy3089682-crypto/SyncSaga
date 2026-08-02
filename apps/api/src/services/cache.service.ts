@@ -36,14 +36,15 @@ export class CacheService {
   async deletePattern(pattern: string): Promise<void> {
     try {
       const client = redisService.getClient();
-      let cursor = 0;
+      let cursor: number | string = 0;
       do {
-        const reply = await client.scan(cursor, { MATCH: pattern, COUNT: 100 });
+        // scan's cursor arg type varies by @redis/client major version
+        const reply: { cursor: number | string; keys: string[] } = await (client as any).scan(cursor as any, { MATCH: pattern, COUNT: 100 });
         cursor = reply.cursor;
         if (reply.keys.length > 0) {
           await client.del(reply.keys);
         }
-      } while (cursor !== 0);
+      } while (Number(cursor) !== 0);
     } catch (error) {
       logger.error({ pattern, error }, 'Cache deletePattern error');
     }

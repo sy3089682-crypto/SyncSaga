@@ -32,8 +32,8 @@ class RedisService {
       url,
       socket: {
         tls: isUpstash,
-        reconnectStrategy: (retries) => Math.min(retries * 100, 5000),
-      },
+        reconnectStrategy: (retries: number) => Math.min(retries * 100, 5000),
+      } as any,
       pingInterval: 30000,
     });
   }

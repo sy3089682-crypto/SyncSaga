@@ -39,7 +39,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
         anime_title,
         episode_number,
         playback_state,
-        current_time,
+        current_timestamp,
         duration,
         created_at,
         profiles!rooms_host_id_fkey (

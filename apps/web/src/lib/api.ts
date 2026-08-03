@@ -99,7 +99,7 @@ async function request<T>(
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetchWithTimeout(
-        `${apiUrl}/api${path}`,
+        `${apiUrl}${path}`,
         fetchOptions,
         timeout,
         options.signal
@@ -113,7 +113,7 @@ async function request<T>(
           headers['Authorization'] = `Bearer ${session.access_token}`;
           // Retry with new token
           const retryResponse = await fetchWithTimeout(
-            `${apiUrl}/api${path}`,
+            `${apiUrl}${path}`,
             { ...fetchOptions, headers },
             timeout,
             options.signal

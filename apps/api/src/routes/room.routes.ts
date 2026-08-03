@@ -37,10 +37,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
         max_users,
         host_id,
         anime_title,
-        episode_number,
+        current_episode,
         playback_state,
-        current_timestamp,
-        duration,
         created_at,
         profiles!rooms_host_id_fkey (
           id,
@@ -109,7 +107,22 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
     const { data: room, error } = await supabaseAdmin
       .from('rooms')
       .select(`
-        *,
+        id,
+        name,
+        description,
+        banner_url,
+        is_private,
+        password_hash,
+        max_users,
+        host_id,
+        co_hosts,
+        current_episode,
+        media_id,
+        anime_title,
+        playback_state,
+        sync_locked,
+        created_at,
+        updated_at,
         profiles!rooms_host_id_fkey (
           id,
           username,

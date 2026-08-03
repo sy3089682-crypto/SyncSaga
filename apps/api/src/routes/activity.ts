@@ -101,4 +101,41 @@ router.get('/recommendations', async (req, res) => {
   res.json({ recommendations: unique });
 });
 
+
+// GET /api/activity/continue-watching — User's in-progress anime
+router.get('/continue-watching', async (req, res) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { data, error } = await supabase
+    .from('watch_events')
+    .select('*, profiles:user_id(username, display_name, avatar_url)')
+    .eq('user_id', userId)
+    .eq('completed', false)
+    .order('updated_at', { ascending: false })
+    .limit(20);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Group by anime_id and get latest episode per anime
+  const byAnime = new Map<number, any>();
+  for (const event of data || []) {
+    const existing = byAnime.get(event.anime_id);
+    if (!existing || new Date(event.updated_at) > new Date(existing.updated_at)) {
+      byAnime.set(event.anime_id, event);
+    }
+  }
+
+  const recent = Array.from(byAnime.values()).map(event => ({
+    animeTitle: event.anime_title,
+    mediaId: event.anime_id,
+    episode: event.episode_number,
+    coverImage: null, // Would need to fetch from AniList
+    progress: event.duration_seconds ? Math.min(event.duration_seconds / 1440 * 100, 100) : 0,
+    updatedAt: event.updated_at,
+  }));
+
+  res.json({ recent });
+});
+
 export default router;

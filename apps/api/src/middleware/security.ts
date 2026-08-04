@@ -19,6 +19,12 @@ const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
  * X-CSRF-Token header matches the cookie value.
  */
 export function csrfProtection(req: Request, res: Response, next: NextFunction) {
+  // Skip CSRF for requests with Authorization header (Bearer token auth is CSRF-safe)
+  const hasAuthHeader = req.headers.authorization?.startsWith('Bearer ');
+  if (hasAuthHeader) {
+    return next();
+  }
+
   if (SAFE_METHODS.includes(req.method)) {
     const token = randomBytes(32).toString('hex');
     res.cookie(CSRF_COOKIE, token, {

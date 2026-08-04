@@ -19,6 +19,7 @@ import aiRouter from './routes/ai';
 import featuresRouter from './routes/features';
 import metricsRouter from './routes/metrics';
 import paymentsRouter from './routes/payments';
+import friendsRouter from './routes/friends';
 import { docsRouter } from './routes/docs';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
@@ -189,6 +190,7 @@ export async function createServer() {
   v1Router.use('/ai', aiRouter);
   v1Router.use('/features', featuresRouter);
   v1Router.use('/payments', paymentsRouter);
+v1Router.use('/friends', friendsRouter);
   v1Router.use('/docs', docsRouter);
 
   app.use('/api/v1', v1Router);
@@ -203,6 +205,7 @@ export async function createServer() {
   app.use('/api/ai', aiRouter);
   app.use('/api/features', featuresRouter);
   app.use('/api/payments', paymentsRouter);
+app.use('/api/friends', friendsRouter);
 
   // Metrics endpoint
   app.use('/metrics', metricsRouter);

@@ -17,10 +17,10 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: 'SyncSaga - Watch Anime Together',
+    default: 'SyncSaga — Together, in sync.',
     template: '%s | SyncSaga',
   },
-  description: 'Synchronized anime watch-party platform with voice chat, realtime messaging, and friends. Watch anime in perfect sync with anyone, anywhere.',
+  description: 'A considered place for shared stories. Watch together, in perfect sync, wherever everyone is.',
   keywords: ['anime', 'watch party', 'sync', 'voice chat', 'streaming', 'anime together', 'syncsaga', 'co-watch'],
   authors: [{ name: 'SyncSaga' }],
   creator: 'SyncSaga',
@@ -30,14 +30,14 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     siteName: 'SyncSaga',
-    title: 'SyncSaga - Watch Anime Together',
-    description: 'Synchronized anime watch-party platform with voice chat, realtime messaging, and friends.',
+    title: 'SyncSaga — Together, in sync.',
+    description: 'A considered place for shared stories. Watch together, in perfect sync, wherever everyone is.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'SyncSaga' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SyncSaga - Watch Anime Together',
-    description: 'Synchronized anime watch-party platform with voice chat, realtime messaging, and friends.',
+    title: 'SyncSaga — Together, in sync.',
+    description: 'A considered place for shared stories. Watch together, in perfect sync, wherever everyone is.',
     images: ['/og-image.png'],
   },
   icons: {
@@ -70,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark bg-background">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

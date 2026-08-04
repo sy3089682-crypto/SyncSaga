@@ -121,7 +121,10 @@ router.get('/continue-watching', async (req: AuthenticatedRequest, res) => {
   const byAnime = new Map<number, any>();
   for (const event of data || []) {
     const existing = byAnime.get(event.anime_id);
-    if (!existing || new Date(event.updated_at) > new Date(existing.updated_at)) {
+    // Use created_at as fallback if updated_at doesn't exist
+    const eventTime = event.updated_at || event.created_at;
+    const existingTime = existing?.updated_at || existing?.created_at;
+    if (!existing || new Date(eventTime) > new Date(existingTime)) {
       byAnime.set(event.anime_id, event);
     }
   }

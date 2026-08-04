@@ -4,12 +4,14 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Apply auth middleware to all routes in this router
+router.use(authMiddleware);
+
 
 
 // GET /api/activity — Friends activity feed
-router.get('/', async (req, res) => {
-  const userId = req.userId;
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.get('/', async (req: AuthenticatedRequest, res) => {
+  const userId = req.userId!;
 
   const { limit = '30' } = req.query;
 
@@ -39,9 +41,8 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/activity/recommendations — Taste graph recommendations
-router.get('/recommendations', async (req, res) => {
-  const userId = req.userId;
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.get('/recommendations', async (req: AuthenticatedRequest, res) => {
+  const userId = req.userId!;
 
   // Get user's completed anime IDs
   const { data: myAnime } = await supabase
@@ -103,9 +104,8 @@ router.get('/recommendations', async (req, res) => {
 
 
 // GET /api/activity/continue-watching — User's in-progress anime
-router.get('/continue-watching', async (req, res) => {
-  const userId = req.userId;
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.get('/continue-watching', async (req: AuthenticatedRequest, res) => {
+  const userId = req.userId!;
 
   const { data, error } = await supabase
     .from('watch_events')

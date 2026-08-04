@@ -21,6 +21,7 @@ import metricsRouter from './routes/metrics';
 import paymentsRouter from './routes/payments';
 import friendsRouter from './routes/friends';
 import usersRouter from './routes/users';
+import profileRouter from './routes/profile';
 import { docsRouter } from './routes/docs';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
@@ -193,6 +194,7 @@ export async function createServer() {
   v1Router.use('/payments', paymentsRouter);
 v1Router.use('/friends', friendsRouter);
 v1Router.use('/users', usersRouter);
+v1Router.use('/profile', profileRouter);
   v1Router.use('/docs', docsRouter);
 
   app.use('/api/v1', v1Router);
@@ -209,6 +211,7 @@ v1Router.use('/users', usersRouter);
   app.use('/api/payments', paymentsRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/profile', profileRouter);
 
   // Metrics endpoint
   app.use('/metrics', metricsRouter);

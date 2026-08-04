@@ -112,7 +112,7 @@ router.get('/continue-watching', async (req: AuthenticatedRequest, res) => {
     .select('*, profiles:user_id(username, display_name, avatar_url)')
     .eq('user_id', userId)
     .eq('completed', false)
-    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(20);
 
   if (error) return res.status(500).json({ error: error.message });
@@ -121,10 +121,8 @@ router.get('/continue-watching', async (req: AuthenticatedRequest, res) => {
   const byAnime = new Map<number, any>();
   for (const event of data || []) {
     const existing = byAnime.get(event.anime_id);
-    // Use created_at as fallback if updated_at doesn't exist
-    const eventTime = event.updated_at || event.created_at;
-    const existingTime = existing?.updated_at || existing?.created_at;
-    if (!existing || new Date(eventTime) > new Date(existingTime)) {
+    // Use created_at since updated_at column doesn't exist in the actual DB
+    if (!existing || new Date(event.created_at) > new Date(existing.created_at)) {
       byAnime.set(event.anime_id, event);
     }
   }
@@ -135,7 +133,7 @@ router.get('/continue-watching', async (req: AuthenticatedRequest, res) => {
     episode: event.episode_number,
     coverImage: null, // Would need to fetch from AniList
     progress: event.duration_seconds ? Math.min(event.duration_seconds / 1440 * 100, 100) : 0,
-    updatedAt: event.updated_at,
+    updatedAt: event.updated_at || event.created_at,
   }));
 
   res.json({ recent });

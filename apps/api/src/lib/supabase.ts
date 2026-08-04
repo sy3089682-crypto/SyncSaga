@@ -60,7 +60,7 @@ export async function verifySupabaseToken(token: string): Promise<string | null>
       return null;
     }
 
-    const userData = await response.json();
+    const userData = await response.json() as { id: string };
     logger.debug('Token verified for user:', userData.id);
     return userData.id;
   } catch (error) {

@@ -243,9 +243,9 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
         password_hash: passwordHash,
         max_users: data.maxUsers,
         host_id: req.userId!,
-        media_id: data.mediaId || null,
+        anime_media_id: data.mediaId || null,
         anime_title: data.animeTitle || null,
-        episode_number: data.episodeNumber || null,
+        current_episode_number: data.episodeNumber || null,
         current_episode: data.currentEpisode || null,
       })
       .select('*')

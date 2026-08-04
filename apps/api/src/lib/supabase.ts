@@ -33,39 +33,36 @@ export const supabaseAdmin = createClient(
 export const supabase = supabaseAdmin;
 
 /**
- * Anon client for token verification.
- * Created once and reused — not per-request.
- */
-const anonClient = createClient(
-  env.SUPABASE_URL,
-  env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
-
-/**
  * Verify a Supabase JWT access token and return the user ID.
  *
- * Uses the anon client with the user's token in the Authorization header.
- * Supabase's auth.getUser() validates the token server-side.
+ * Uses the Supabase Admin API (auth/v1/user) with the service key.
+ * This is the correct way to verify tokens server-side with the service key.
  *
  * @param token - The access token from the Authorization header
  * @returns The user ID if valid, null if invalid or expired
  */
 export async function verifySupabaseToken(token: string): Promise<string | null> {
   try {
-    const { data, error } = await anonClient.auth.getUser(token);
+    logger.debug('Verifying token:', token.slice(0, 20) + '...');
+    
+    const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+      method: 'GET',
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-    if (error || !data.user) {
-      logger.debug('Token verification failed:', error?.message || 'No user');
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.debug('Token verification failed:', errorText);
       return null;
     }
 
-    return data.user.id;
+    const userData = await response.json();
+    logger.debug('Token verified for user:', userData.id);
+    return userData.id;
   } catch (error) {
     logger.error('Token verification error:', error);
     return null;

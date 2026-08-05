@@ -1,44 +1,54 @@
-import type { Config } from "tailwindcss";
+import './resolve-tailwind';
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  content: ['./src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
-      colors: {
-        canvas: "#0A0A0C",
-        surface: "#1A1A1E",
-        elevated: "#202025",
-        ink: "#E8E0D5",
-        "ink-soft": "#9A9488",
-        "ink-mute": "#666160",
-        "ink-faint": "#444048",
-        amber: "#E8A840",
-        "amber-hover": "#D49730",
-        "amber-glow": "rgba(232,168,64,0.08)",
-        "amber-strong": "rgba(232,168,64,0.15)",
-        "amber-text": "rgba(232,168,64,0.90)",
-        border: "rgba(255,255,255,0.05)",
-        "border-hover": "rgba(255,255,255,0.09)",
-        success: "#4ae09e",
-        error: "#fca5a5",
-      },
       fontFamily: {
-        display: ["Fraunces", "Georgia", "serif"],
-        body: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-fraunces)', 'Georgia', 'serif'],
       },
-      fontWeight: { body: "420", "ui-medium": "500" },
-      borderRadius: { sm: "4px", md: "8px", lg: "12px", xl: "16px", full: "9999px" },
-      spacing: { xs: "4px", sm: "8px", md: "12px", lg: "16px", xl: "24px", "2xl": "32px", "3xl": "48px" },
-      boxShadow: {
-        surface: "0 0 4px 0 rgba(255,255,255,0.05)",
-        elevated: "0 0 8px 0 rgba(255,255,255,0.09)",
-        "glow-amber": "0 0 24px 2px rgba(232,168,64,0.08)",
-        "glow-amber-strong": "0 0 32px 4px rgba(232,168,64,0.15)",
+      colors: {
+        primary: { DEFAULT: '#FF6A5B', dark: '#FF8175' },
+        'accent-sync': '#79E6B2',
+        'accent-cyan': '#06b6d4',
+        'accent-pink': '#ec4899',
+        'accent-green': '#10b981',
+        background: '#0E0E10',
+        surface: { DEFAULT: '#16161A', light: '#1C1C22' },
+        border: 'rgba(255,255,255,.07)',
+        'text-primary': '#F4F2ED',
+        'text-secondary': '#B7B5B0',
+        'text-muted': '#77767A',
+        ink: { DEFAULT: '#F4F2ED', soft: '#B7B5B0', mute: '#77767A', faint: '#4E4D52' },
+        canvas: '#0E0E10',
+        coral: { DEFAULT: '#FF6A5B', hover: '#FF8175' },
       },
-      keyframes: { "sync-pulse": { "0%": { boxShadow: "0 0 0 0 rgba(232,168,64,0.08)" }, "50%": { boxShadow: "0 0 10px 4px rgba(232,168,64,0.15)" }, "100%": { boxShadow: "0 0 0 0 rgba(232,168,64,0.08)" } } },
-      animation: { "sync-pulse": "sync-pulse 3s ease-in-out infinite" },
-      transitionTimingFunction: { spring: "cubic-bezier(.22, .61, .36, 1)" },
+      borderRadius: {
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+      },
+      animation: {
+        float: 'float 8s ease-in-out infinite',
+        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
     },
   },
   plugins: [],

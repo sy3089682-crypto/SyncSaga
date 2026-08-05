@@ -79,7 +79,14 @@ export async function middleware(request: NextRequest) {
         cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]
       ) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
+          // Ensure cookies are secure in production (HTTPS)
+          const cookieOptions: { secure: boolean; sameSite: 'none' | 'lax' | 'strict'; path: string } = {
+            ...options,
+            secure: true, // Vercel always uses HTTPS
+            sameSite: ((options?.sameSite as string) || 'lax') as 'none' | 'lax' | 'strict',
+            path: (options?.path as string) || '/',
+          };
+          response.cookies.set(name, value, cookieOptions);
         });
       },
     },

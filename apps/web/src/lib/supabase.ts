@@ -20,6 +20,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
 }
 
+// Use default cookie handling - @supabase/ssr handles secure/httpOnly correctly on HTTPS
 export const supabase: SupabaseClient = createBrowserClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key'
@@ -29,11 +30,11 @@ export const supabase: SupabaseClient = createBrowserClient(
  * OAuth sign-in helper.
  * Redirects to the provider's OAuth flow and returns to the callback page.
  */
-export async function signInWithOAuth(provider: 'google' | 'github' | 'discord') {
+export async function signInWithOAuth(provider: 'google' | 'discord') {
   return supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: window.location.origin + '/auth/callback',
       queryParams:
         provider === 'google'
           ? { access_type: 'offline', prompt: 'consent' }

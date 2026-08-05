@@ -32,7 +32,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'discord') => {
+  const handleOAuth = async (provider: 'google' | 'discord') => {
     try {
       const { error } = await signInWithOAuth(provider);
       if (error) throw error;
@@ -56,12 +56,10 @@ export default function LoginPage() {
           <button onClick={() => handleOAuth('google')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
             Google
           </button>
-          <button onClick={() => handleOAuth('github')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
-            GitHub
-          </button>
           <button onClick={() => handleOAuth('discord')} className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">
             Discord
           </button>
+
         </div>
 
         <div className="relative">

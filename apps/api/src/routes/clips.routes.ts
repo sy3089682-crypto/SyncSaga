@@ -29,7 +29,7 @@ router.get('/room/:roomId', (req: Request, res: Response) => {
     const { roomId } = req.params;
     const { limit = 20, offset = 0, sort = 'newest' } = req.query;
     
-    let roomClips = Array.from(clips.values())
+    const roomClips = Array.from(clips.values())
       .filter(c => c.roomId === roomId && c.privacy !== 'private');
     
     // Sort

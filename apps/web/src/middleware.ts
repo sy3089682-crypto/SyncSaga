@@ -97,10 +97,11 @@ export async function middleware(request: NextRequest) {
   // token to get a new one and update the cookies.
   const {
     data: { session },
+    error,
   } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
-  const isAuthenticated = !!session;
+  const isAuthenticated = !!session && !error;
 
   // Redirect authenticated users away from auth pages
   if (isAuthenticated && isAuthPath(pathname)) {
@@ -111,13 +112,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect unauthenticated users to login for protected routes
-  if (!isAuthenticated && !isPublicPath(pathname)) {
+  // Only redirect if we're sure they're not authenticated (no session AND no error)
+  // If there's an error, we don't know their auth state, so don't redirect
+  if (!session && !error && !isPublicPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/auth/login';
     redirectUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
+  // If we couldn't verify (error), don't redirect - let client-side handle it
   return response;
 }
 

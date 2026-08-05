@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase';
 import * as webpush from 'web-push';
-declare module 'web-push';
 
 const router = Router();
 

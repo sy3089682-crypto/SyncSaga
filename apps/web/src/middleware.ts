@@ -1,139 +1,78 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 
-/**
- * Next.js Middleware — Authentication Guard
- *
- * This middleware runs on every request and:
- * 1. Refreshes the Supabase session (handles token rotation)
- * 2. Redirects unauthenticated users to /auth/login for protected routes
- * 3. Redirects authenticated users away from auth pages
- *
- * The session is refreshed by passing the cookies through the
- * Supabase client and updating them in the response.
- */
-
-const publicPaths = [
-  '/',
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/auth/callback',
+// Mobile detection patterns
+const MOBILE_USER_AGENTS = [
+  /Android/i,
+  /iPhone/i,
+  /iPad/i,
+  /iPod/i,
+  /BlackBerry/i,
+  /Windows Phone/i,
+  /Opera Mini/i,
+  /Mobile/i,  // Generic mobile
 ];
 
-const authPaths = [
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/auth/callback',
+// Tablet detection (we want to treat tablets more like desktop for hosting)
+const TABLET_USER_AGENTS = [
+  /iPad/i,
+  /Android(?!.*Mobile)/i,  // Android tablet without "Mobile"
+  /Silk/i,
 ];
 
-function isPublicPath(pathname: string): boolean {
-  // Exact match for public paths
-  if (publicPaths.includes(pathname)) return true;
-  // Allow API routes (they handle their own auth)
-  if (pathname.startsWith('/api/')) return true;
-  // Allow embed routes (they handle auth via token)
-  if (pathname.startsWith('/embed/')) return true;
-  // Allow search routes (public anime browsing)
-  if (pathname.startsWith('/search')) return true;
-  // Allow static assets
-  if (pathname.startsWith('/_next/')) return true;
-  if (pathname.startsWith('/icon')) return true;
-  if (pathname.startsWith('/manifest')) return true;
-  if (pathname.startsWith('/sw.js')) return true;
-  return false;
+function isMobileDevice(userAgent: string): boolean {
+  return MOBILE_USER_AGENTS.some(pattern => pattern.test(userAgent));
 }
 
-function isAuthPath(pathname: string): boolean {
-  return authPaths.some((p) => pathname === p || pathname.startsWith(p + '/'));
+function isTablet(userAgent: string): boolean {
+  return TABLET_USER_AGENTS.some(pattern => pattern.test(userAgent));
 }
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    // If Supabase env vars are not set, allow the request through.
-    // The app will show errors at runtime, but we don't want to
-    // block all requests during development/CI.
-    return response;
+function getDeviceType(userAgent: string): 'mobile' | 'tablet' | 'desktop' {
+  if (isTablet(userAgent)) {
+    return 'tablet';
   }
-
-  // Create a Supabase client that reads and updates cookies
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll().map((c) => ({ name: c.name, value: c.value }));
-      },
-      setAll(
-        cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]
-      ) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          // Ensure cookies are secure in production (HTTPS)
-          const cookieOptions: { secure: boolean; sameSite: 'none' | 'lax' | 'strict'; path: string } = {
-            ...options,
-            secure: true, // Vercel always uses HTTPS
-            sameSite: ((options?.sameSite as string) || 'lax') as 'none' | 'lax' | 'strict',
-            path: (options?.path as string) || '/',
-          };
-          response.cookies.set(name, value, cookieOptions);
-        });
-      },
-    },
-  });
-
-  // Refresh the session — this is critical for token rotation.
-  // If the access token is expired, Supabase will use the refresh
-  // token to get a new one and update the cookies.
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  const pathname = request.nextUrl.pathname;
-  const isAuthenticated = !!session && !error;
-
-  // Redirect authenticated users away from auth pages
-  if (isAuthenticated && isAuthPath(pathname)) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/dashboard';
-    redirectUrl.search = '';
-    return NextResponse.redirect(redirectUrl);
+  if (isMobileDevice(userAgent)) {
+    return 'mobile';
   }
+  return 'desktop';
+}
 
-  // Redirect unauthenticated users to login for protected routes
-  // Only redirect if we're sure they're not authenticated (no session AND no error)
-  // If there's an error, we don't know their auth state, so don't redirect
-  if (!session && !error && !isPublicPath(pathname)) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/auth/login';
-    redirectUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(redirectUrl);
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const userAgent = request.headers.get('user-agent') || '';
+  const deviceType = getDeviceType(userAgent);
+  
+  // Add device type header for use in components
+  const response = NextResponse.next();
+  response.headers.set('X-Device-Type', deviceType);
+  
+  // For mobile devices, redirect landing page to mobile-optimized flow
+  if (deviceType === 'mobile' && pathname === '/') {
+    const url = request.nextUrl.clone();
+    url.searchParams.set('mobile', 'true');
+    return NextResponse.rewrite(url);
   }
-
-  // If we couldn't verify (error), don't redirect - let client-side handle it
+  
+  // For mobile, redirect old room URLs to mobile-friendly versions
+  if (deviceType === 'mobile' && pathname.startsWith('/room/')) {
+    // The room page itself handles mobile rendering
+    // Just add a header for client-side detection
+  }
+  
+  // Handle PWA install prompt
+  if (deviceType === 'mobile' && pathname === '/install') {
+    // Show install instructions
+  }
+  
   return response;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder assets
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|bmp|tiff|js|css|woff|woff2|ttf|eot|otf|map)$).*)',
+    '/',
+    '/room/:path*',
+    '/install',
+    '/auth/:path*',
   ],
 };

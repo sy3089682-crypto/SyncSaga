@@ -84,7 +84,6 @@ export default function RoomPage() {
     getSocket().then((sock) => {
       if (cancelled) return;
       socket = sock;
-      sock.emit('room:join', { roomId });
       sock.on('connect', onConnect);
       sock.on('disconnect', onDisconnect);
       sock.on('sync:event', onSync);

@@ -39,7 +39,6 @@ class RedisService {
   }
 
   async connect() {
-    // Reuse clients lazily created by getClient() (e.g. BullMQ queues at module load)
     this.client = this.client ?? this.createConnectedClient();
     this.pubClient = this.pubClient ?? this.createConnectedClient();
     this.subClient = this.subClient ?? this.createConnectedClient();
@@ -72,8 +71,6 @@ class RedisService {
 
   getClient(): RedisClientType {
     if (!this.client) {
-      // Lazy auto-connect: BullMQ queues are constructed at module load,
-      // before connect() runs. node-redis buffers commands until ready.
       this.client = this.createConnectedClient();
       this.client.on('error', (err: Error) => logger.error({ err }, 'Redis connection error'));
       void this.client.connect().catch((err: Error) => logger.error({ err }, 'Redis connection error'));
@@ -112,7 +109,7 @@ class RedisService {
     return sid || undefined;
   }
 
-  // Room state — atomic read-modify-write using Lua script
+  // Room state
   private static readonly CAS_SCRIPT = `
     local key = KEYS[1]
     local current = redis.call('GET', key)
@@ -136,11 +133,6 @@ class RedisService {
     await withRetry(() => this.client!.setEx(`room:${roomId}:state`, ttl, JSON.stringify(state)));
   }
 
-  /**
-   * Atomically update room state using a Lua script.
-   * Reads current state, applies a transform function, and writes back
-   * only if the state hasn't changed since the read (compare-and-swap).
-   */
   async updateRoomStateAtomic(
     roomId: string,
     transform: (current: Record<string, unknown> | null) => Record<string, unknown>
@@ -154,7 +146,6 @@ class RedisService {
       const newState = transform(currentState);
       const newStateStr = JSON.stringify(newState);
 
-      // Use WATCH/MULTI/EXEC for optimistic concurrency
       try {
         await this.client!.watch(key);
         const multi = this.client!.multi();
@@ -163,13 +154,11 @@ class RedisService {
         if (results) {
           return newState;
         }
-        // WATCH was triggered — retry
       } catch (error) {
         logger.debug({ roomId, attempt, error }, 'CAS retry for room state');
       }
     }
 
-    // Fallback: direct write after retries
     const newState = transform(await this.getRoomState(roomId));
     await this.setRoomState(roomId, newState);
     return newState;
@@ -180,7 +169,6 @@ class RedisService {
     return state ? JSON.parse(state) : null;
   }
 
-  // Room event log for reconnect recovery
   async appendRoomEvent(roomId: string, event: Record<string, unknown>, maxEvents = 100): Promise<void> {
     const key = `room:${roomId}:events`;
     await withRetry(() => this.client!.rPush(key, JSON.stringify(event)));
@@ -230,7 +218,7 @@ class RedisService {
     return parsed.socketId || null;
   }
 
-  // Rate limiting — atomic using INCR
+  // Rate limiting
   async checkRateLimit(key: string, maxRequests: number, windowSeconds: number): Promise<boolean> {
     const rateLimitKey = `ratelimit:${key}`;
     return withRetry(async () => {
@@ -252,7 +240,6 @@ class RedisService {
   }
 
   async releaseLock(key: string, lockId: string): Promise<void> {
-    // Lua script to ensure we only release our own lock
     const script = `
       if redis.call('GET', KEYS[1]) == ARGV[1] then
         return redis.call('DEL', KEYS[1])
@@ -269,7 +256,7 @@ class RedisService {
     const result = await withRetry(() =>
       this.client!.set(key, '1', { EX: ttlSeconds, NX: true })
     );
-    return !result; // true if already exists (duplicate)
+    return !result;
   }
 
   // Stale connection cleanup
@@ -294,6 +281,22 @@ class RedisService {
       parsed.lastPing = new Date().toISOString();
       await withRetry(() => this.client!.hSet('presence:online', userId, JSON.stringify(parsed)));
     }
+  }
+
+  // Voice state tracking
+  async setUserVoiceState(roomId: string, userId: string, inVoice: boolean): Promise<void> {
+    const key = `room:${roomId}:voice`;
+    if (inVoice) {
+      await withRetry(() => this.client!.hSet(key, userId, '1'));
+      await withRetry(() => this.client!.expire(key, 3600));
+    } else {
+      await withRetry(() => this.client!.hDel(key, userId));
+    }
+  }
+
+  async getRoomVoiceUsers(roomId: string): Promise<string[]> {
+    const users = await withRetry(() => this.client!.hKeys(`room:${roomId}:voice`));
+    return users || [];
   }
 }
 

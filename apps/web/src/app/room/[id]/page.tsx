@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useParams, useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, MessageSquare, Mic, MicOff, PhoneOff, Send, Smile,
   Play, Pause, Settings, Crown, Volume2, WifiOff, Bell, Tv,
+  Monitor, ChevronLeft, Maximize2, Minimize2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useRoom } from '@/hooks/useRoom';
@@ -19,6 +20,8 @@ import { TasteGraph } from '@/components/cinema/TasteGraph';
 import { AiRecap } from '@/components/cinema/AiRecap';
 import { AnimeInfoSidebar } from '@/components/anime/AnimeInfoSidebar';
 import { EpisodePicker } from '@/components/anime/EpisodePicker';
+import { MobileRoom } from '@/components/mobile/MobileRoom';
+import { isMobile } from '@/hooks/useMobileHost';
 
 interface TimelineReaction {
   id: string;
@@ -31,7 +34,9 @@ interface TimelineReaction {
 
 export default function RoomPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const roomId = params.id as string;
+  const isMobileDevice = searchParams.get('mobile') === 'true' || isMobile();
   const { user } = useAppStore();
   const { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent } = useRoom(roomId);
   const { driftStatuses, setDriftStatus } = useAppStore();
@@ -41,7 +46,7 @@ export default function RoomPage() {
   const [playbackState, setPlaybackState] = useState<'playing' | 'paused'>('paused');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(!isMobileDevice);
   const [showFeed, setShowFeed] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -95,7 +100,7 @@ export default function RoomPage() {
     };
     const onNewHost = (data: { newHostId: string }) => {
       if (data.newHostId === user?.id) {
-        setEpisode(prev => prev); // Force re-render
+        setEpisode(prev => prev);
       }
     };
     getSocket().then((sock) => {
@@ -146,6 +151,12 @@ export default function RoomPage() {
   const isHost = currentRoom?.host_id === user?.id;
   const totalMembers = roomMembers.length + 1;
 
+  // Render mobile version for mobile devices
+  if (isMobileDevice) {
+    return <MobileRoom roomId={roomId} />;
+  }
+
+  // Desktop version
   return (
     <div className="h-screen bg-background text-text-primary flex overflow-hidden">
       {/* Main Content */}
@@ -209,6 +220,11 @@ export default function RoomPage() {
                   <p className="text-text-secondary text-xs sm:text-sm max-w-xs sm:max-w-md mx-auto">
                     Open your anime with the SyncSaga extension installed.
                   </p>
+                  {/* Mobile host hint */}
+                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-text-muted">
+                    <Monitor className="w-3 h-3" />
+                    <span>Host from mobile: use browser share or paste URL</span>
+                  </div>
                 </div>
               </div>
 
@@ -317,20 +333,17 @@ export default function RoomPage() {
             transition={{ duration: 0.2 }}
             className="border-l border-border bg-surface flex flex-col overflow-hidden hidden sm:flex"
           >
-            <LayoutGroup>
-              <div className="flex border-b border-border shrink-0">
-                {(['chat', 'users', 'anime'] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
-                    className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-primary' : 'text-text-secondary hover:text-text-primary')}>
-                    <span className="flex items-center justify-center gap-1.5">
-                      {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : tab === 'users' ? <Users className="w-4 h-4" /> : <Tv className="w-4 h-4" />}
-                      {tab === 'chat' ? 'Chat' : tab === 'users' ? `Users (${totalMembers})` : 'Anime'}
-                    </span>
-                    {activeTab === tab && <motion.div layoutId="room-sidebar-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-                  </button>
-                ))}
-              </div>
-            </LayoutGroup>
+            <div className="flex border-b border-border shrink-0">
+              {(['chat', 'users', 'anime'] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-primary' : 'text-text-secondary hover:text-text-primary')}>
+                  <span className="flex items-center justify-center gap-1.5">
+                    {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : tab === 'users' ? <Users className="w-4 h-4" /> : <Tv className="w-4 h-4" />}
+                    {tab === 'chat' ? 'Chat' : tab === 'users' ? `Users (${totalMembers})` : 'Anime'}
+                  </span>
+                </button>
+              ))}
+            </div>
 
             {activeTab === 'anime' ? (
               <div className="flex-1 overflow-y-auto min-h-0">
@@ -350,7 +363,7 @@ export default function RoomPage() {
                     <div className="text-center text-text-muted text-sm py-8">No messages yet. Say hello!</div>
                   )}
                   {messages.map(msg => (
-                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div key={msg.id}>
                       <div className="flex items-start gap-2">
                         <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
                           {(msg as any).sender?.username?.[0]?.toUpperCase() || '?'}
@@ -363,7 +376,7 @@ export default function RoomPage() {
                           <p className="text-sm text-text-primary break-words">{msg.content}</p>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                   {typingUsers.length > 0 && (
                     <div className="text-xs text-text-muted italic">{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</div>

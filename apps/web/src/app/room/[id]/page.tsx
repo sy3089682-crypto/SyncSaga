@@ -37,7 +37,7 @@ export default function RoomPage() {
   const searchParams = useSearchParams();
   const roomId = params.id as string;
   const isMobileDevice = searchParams.get('mobile') === 'true' || isMobile();
-  const { user, addMessage } = useAppStore();
+  const { user, addMessage, driftStatuses, setDriftStatus } = useAppStore();
   const { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent } = useRoom(roomId);
 
   const [input, setInput] = useState('');

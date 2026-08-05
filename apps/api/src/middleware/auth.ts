@@ -159,3 +159,8 @@ export function requireRoomRole(roles: string[]) {
     res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
   };
 }
+
+/**
+ * Alias for authMiddleware - used by newer routes (achievements, clips, polls, etc.)
+ */
+export const requireAuth = authMiddleware;

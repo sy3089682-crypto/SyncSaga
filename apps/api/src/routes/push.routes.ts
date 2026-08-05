@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { getSupabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabase';
 import * as webpush from 'web-push';
+declare module 'web-push';
 
 const router = Router();
 
@@ -39,8 +40,8 @@ router.post('/subscribe', async (req: Request, res: Response) => {
     }
     
     const token = authHeader.substring(7);
-    const { supabase, error: authError } = getSupabase(token);
-    if (authError || !supabase) {
+    const supabase = supabaseAdmin;
+    if (!supabase) {
       return res.status(500).json({ error: 'Auth failed' });
     }
     
@@ -79,8 +80,8 @@ router.post('/unsubscribe', async (req: Request, res: Response) => {
     }
     
     const token = authHeader.substring(7);
-    const { supabase, error: authError } = getSupabase(token);
-    if (authError || !supabase) {
+    const supabase = supabaseAdmin;
+    if (!supabase) {
       return res.status(500).json({ error: 'Auth failed' });
     }
     

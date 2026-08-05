@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -63,11 +63,11 @@ router.get('/room/:roomId', (req: Request, res: Response) => {
 });
 
 // Add reaction
-router.post('/add', requireAuth, (req: Request, res: Response) => {
+router.post('/add', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, type, timestamp, episodeTimestamp, fullscreen } = req.body;
-    const userId = req.user?.id;
-    const username = req.user?.username || 'User';
+    const userId = req.user!.id;
+    const username = req.user!.username || 'User';
     
     if (!roomId || !type) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -76,7 +76,7 @@ router.post('/add', requireAuth, (req: Request, res: Response) => {
     const reaction = {
       id: `reaction_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       roomId,
-      userId,
+      userId: req.user!.id,
       username,
       type,
       timestamp: timestamp || Date.now(),
@@ -96,23 +96,23 @@ router.post('/add', requireAuth, (req: Request, res: Response) => {
 });
 
 // Like reaction
-router.post('/like', requireAuth, (req: Request, res: Response) => {
+router.post('/like', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { reactionId } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     
-    const reaction = reactions.get(reactionId);
+    const reaction = reactions.get(reactionId as string);
     if (!reaction) {
       return res.status(404).json({ error: 'Reaction not found' });
     }
     
-    const hasLiked = reaction.likedBy.includes(userId);
+    const hasLiked = reaction.likedBy.includes(req.user!.id);
     
     if (hasLiked) {
       reaction.likedBy = reaction.likedBy.filter(id => id !== userId);
       reaction.likes -= 1;
     } else {
-      reaction.likedBy.push(userId);
+      reaction.likedBy.push(req.user!.id);
       reaction.likes += 1;
     }
     
@@ -124,22 +124,22 @@ router.post('/like', requireAuth, (req: Request, res: Response) => {
 });
 
 // Remove reaction
-router.delete('/:reactionId', requireAuth, (req: Request, res: Response) => {
+router.delete('/:reactionId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { reactionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     
-    const reaction = reactions.get(reactionId);
+    const reaction = reactions.get(reactionId as string);
     if (!reaction) {
       return res.status(404).json({ error: 'Reaction not found' });
     }
     
     // Only creator or host can remove
-    if (reaction.userId !== userId && req.user?.role !== 'host') {
+    if (reaction.userId !== req.user!.id && (req.user as any)?.role !== 'host') {
       return res.status(403).json({ error: 'Permission denied' });
     }
     
-    reactions.delete(reactionId);
+    reactions.delete(reactionId as string);
     res.json({ success: true });
   } catch (error) {
     console.error('Remove reaction error:', error);

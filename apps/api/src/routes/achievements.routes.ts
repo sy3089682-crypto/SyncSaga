@@ -1,8 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
+
+interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  category: 'viewing' | 'hosting' | 'social' | 'reactions' | 'clips' | 'special';
+  requirement: number;
+  currentProgress?: number;
+  isCompleted?: boolean;
+  completedAt?: number;
+  unlockedAt?: number;
+}
 
 // Achievement definitions
 const ACHIEVEMENTS = [
@@ -65,7 +79,7 @@ const userAchievements = new Map<string, {
 
 // Check and award achievements
 function checkAchievements(userId: string, statType: string, value: number) {
-  const user = userAchievements.get(userId);
+  const user = userAchievements.get(userId as string);
   if (!user) return;
 
   ACHIEVEMENTS.forEach(ach => {
@@ -134,9 +148,9 @@ function getRarityPoints(rarity: string): number {
 }
 
 // Get user achievements
-router.get('/', requireAuth, (req: Request, res: Response) => {
+router.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { userId } = req.query;
+    const userId = ((req.query.userId as string) || req.userId)!;
     
     const user = userAchievements.get(userId as string);
     
@@ -165,10 +179,11 @@ router.get('/all', (req: Request, res: Response) => {
 });
 
 // Get user progress for achievements
-router.get('/progress/:userId', (req: Request, res: Response) => {
+router.get('/progress/:userId', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { userId } = req.params;
-    const user = userAchievements.get(userId);
+    const finalUserId = userId as string;
+    const user = userAchievements.get(userId as string);
     
     if (!user) {
       return res.json({ progress: {} });
@@ -177,9 +192,9 @@ router.get('/progress/:userId', (req: Request, res: Response) => {
     const progress = user.achievements.reduce((acc, ach) => {
       if (!ach.isCompleted) {
         acc[ach.id] = {
-          current: ach.currentProgress,
+          current: ach.currentProgress ?? 0,
           required: ach.requirement,
-          percentage: Math.round((ach.currentProgress / ach.requirement) * 100),
+          percentage: Math.round(((ach.currentProgress ?? 0) / ach.requirement) * 100),
         };
       }
       return acc;
@@ -193,11 +208,12 @@ router.get('/progress/:userId', (req: Request, res: Response) => {
 });
 
 // Update user stats (called by other services)
-router.post('/update-stat', requireAuth, (req: Request, res: Response) => {
+router.post('/update-stat', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { userId, statType, value } = req.body;
+    const finalUserId = userId || req.userId!;
     
-    let user = userAchievements.get(userId);
+    let user = userAchievements.get(finalUserId);
     if (!user) {
       user = {
         achievements: [],
@@ -214,9 +230,9 @@ router.post('/update-stat', requireAuth, (req: Request, res: Response) => {
     user.stats[statType] = Math.max(currentValue, value);
     
     // Check achievements
-    checkAchievements(userId, statType, user.stats[statType]);
+    checkAchievements(finalUserId, statType, user.stats[statType]);
     
-    userAchievements.set(userId, user);
+    userAchievements.set(finalUserId, user);
 
     res.json({ success: true });
   } catch (error) {
@@ -226,10 +242,11 @@ router.post('/update-stat', requireAuth, (req: Request, res: Response) => {
 });
 
 // Get achievements for a specific user (public)
-router.get('/public/:userId', (req: Request, res: Response) => {
+router.get('/public/:userId', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { userId } = req.params;
-    const user = userAchievements.get(userId);
+    const finalUserId = userId as string;
+    const user = userAchievements.get(userId as string);
     
     if (!user) {
       return res.json({ achievements: [], totalPoints: 0, level: 1 });

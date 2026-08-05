@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -65,10 +65,10 @@ router.get('/room/:roomId', (req: Request, res: Response) => {
 });
 
 // Create clip
-router.post('/', requireAuth, (req: Request, res: Response) => {
+router.post('/', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, startTime, endTime, episodeTitle, episodeId, privacy = 'public', tags } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const username = req.user?.username || 'User';
     
     if (!roomId || !startTime || !endTime) {
@@ -112,12 +112,12 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
 });
 
 // Like clip
-router.post('/like', requireAuth, (req: Request, res: Response) => {
+router.post('/like', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { clipId } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     
-    const clip = clips.get(clipId);
+    const clip = clipId ? clips.get(clipId) : undefined;
     if (!clip) {
       return res.status(404).json({ error: 'Clip not found' });
     }
@@ -140,11 +140,11 @@ router.post('/like', requireAuth, (req: Request, res: Response) => {
 });
 
 // Share clip
-router.post('/share', requireAuth, (req: Request, res: Response) => {
+router.post('/share', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { clipId, platform } = req.body;
     
-    const clip = clips.get(clipId);
+    const clip = clipId ? clips.get(clipId) : undefined;
     if (!clip) {
       return res.status(404).json({ error: 'Clip not found' });
     }
@@ -164,7 +164,7 @@ router.post('/view', (req: Request, res: Response) => {
   try {
     const { clipId } = req.body;
     
-    const clip = clips.get(clipId);
+    const clip = clipId ? clips.get(clipId) : undefined;
     if (clip) {
       clip.views += 1;
     }
@@ -177,10 +177,10 @@ router.post('/view', (req: Request, res: Response) => {
 });
 
 // Get single clip
-router.get('/:clipId', (req: Request, res: Response) => {
+router.get('/:clipId', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { clipId } = req.params;
-    const clip = clips.get(clipId);
+    const clip = clipId! ? clips.get(clipId!) : undefined;
     
     if (!clip) {
       return res.status(404).json({ error: 'Clip not found' });
@@ -199,22 +199,22 @@ router.get('/:clipId', (req: Request, res: Response) => {
 });
 
 // Delete clip
-router.delete('/:clipId', requireAuth, (req: Request, res: Response) => {
+router.delete('/:clipId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { clipId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     
-    const clip = clips.get(clipId);
+    const clip = clipId ? clips.get(clipId) : undefined;
     if (!clip) {
       return res.status(404).json({ error: 'Clip not found' });
     }
     
     // Only creator can delete
-    if (clip.createdBy !== userId) {
+    if (clip.createdBy !== req.user!.id) {
       return res.status(403).json({ error: 'Permission denied' });
     }
     
-    clips.delete(clipId);
+    clips.delete(clipId!);
     res.json({ success: true });
   } catch (error) {
     console.error('Delete clip error:', error);

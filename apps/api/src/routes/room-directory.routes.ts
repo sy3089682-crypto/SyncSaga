@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -36,7 +36,7 @@ function getActivityStatus(lastActivity: number): 'active' | 'idle' | 'ending' {
 }
 
 // Get room directory
-router.get('/', requireAuth, (req: Request, res: Response) => {
+router.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       query,
@@ -97,7 +97,7 @@ router.get('/', requireAuth, (req: Request, res: Response) => {
     // Sort
     switch (sortBy) {
       case 'activity':
-        rooms.sort((a, b) => b.viewerCount - a.viewerCount || b.lastActivity - a.lastActivity);
+        rooms.sort((a, b) => b.viewerCount - a.viewerCount);
         break;
       case 'participants':
         rooms.sort((a, b) => b.participantCount - a.participantCount);
@@ -129,10 +129,10 @@ router.get('/', requireAuth, (req: Request, res: Response) => {
 });
 
 // Get single room details
-router.get('/:roomId', requireAuth, (req: Request, res: Response) => {
+router.get('/:roomId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
-    const room = roomDirectory.get(roomId);
+    const room = roomId! ? roomDirectory.get(roomId!) : undefined;
     
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
@@ -160,10 +160,10 @@ router.get('/:roomId', requireAuth, (req: Request, res: Response) => {
 });
 
 // Update room activity (called by room service)
-router.post('/:roomId/activity', (req: Request, res: Response) => {
+router.post('/:roomId/activity', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
-    const room = roomDirectory.get(roomId);
+    const room = roomId! ? roomDirectory.get(roomId!) : undefined;
     
     if (room) {
       room.lastActivity = Date.now();
@@ -178,9 +178,10 @@ router.post('/:roomId/activity', (req: Request, res: Response) => {
 });
 
 // Add room to directory (called when room is created)
-router.post('/', requireAuth, (req: Request, res: Response) => {
+router.post('/', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id, name, hostUsername, maxParticipants, isPrivate, animeTitle, animeCover, currentEpisode, tags } = req.body;
+    const roomId = req.params.roomId;
     
     if (!id || !name || !hostUsername) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -212,10 +213,10 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
 });
 
 // Remove room from directory (called when room is deleted)
-router.delete('/:roomId', requireAuth, (req: Request, res: Response) => {
+router.delete('/:roomId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
-    roomDirectory.delete(roomId);
+    roomDirectory.delete(roomId!);
     res.json({ success: true });
   } catch (error) {
     console.error('Remove room error:', error);
@@ -224,10 +225,10 @@ router.delete('/:roomId', requireAuth, (req: Request, res: Response) => {
 });
 
 // Update room info
-router.patch('/:roomId', requireAuth, (req: Request, res: Response) => {
+router.patch('/:roomId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
-    const room = roomDirectory.get(roomId);
+    const room = roomId! ? roomDirectory.get(roomId!) : undefined;
     
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
@@ -252,12 +253,11 @@ router.patch('/:roomId', requireAuth, (req: Request, res: Response) => {
 });
 
 // Update viewer count
-router.post('/:roomId/viewers', (req: Request, res: Response) => {
+router.post('/:roomId/viewers', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
-    const { userId, action } = req.body; // action: 'join' | 'leave'
-    
-    const room = roomDirectory.get(roomId);
+    const { userId, action } = req.body;
+    const room = roomId! ? roomDirectory.get(roomId!) : undefined;
     
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });

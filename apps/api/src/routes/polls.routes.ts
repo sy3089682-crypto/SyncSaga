@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -65,7 +65,7 @@ function broadcastPollUpdate(pollId: string, io: any) {
 }
 
 // Create poll
-router.post('/create', requireAuth, (req: Request, res: Response) => {
+router.post('/create', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, question, options, durationSeconds } = req.body;
     
@@ -75,7 +75,7 @@ router.post('/create', requireAuth, (req: Request, res: Response) => {
     const optionIds = options.map(() => `opt_${uuidv4().slice(0, 6)}`);
     
     const optionMap = new Map<string, { id: string; text: string; votes: number; voters: string[] }>();
-    options.forEach((text, index) => {
+    options.forEach((text: string, index: number) => {
       optionMap.set(optionIds[index], {
         id: optionIds[index],
         text,
@@ -95,7 +95,7 @@ router.post('/create', requireAuth, (req: Request, res: Response) => {
       totalVotes: 0,
       isOpen: true,
       expiresAt,
-      createdBy: req.user?.id || 'unknown',
+      createdBy: req.user!.id || 'unknown',
       createdAt: Date.now(),
       roomId,
     };
@@ -135,7 +135,7 @@ router.post('/create', requireAuth, (req: Request, res: Response) => {
 });
 
 // Vote on poll
-router.post('/vote', requireAuth, (req: Request, res: Response) => {
+router.post('/vote', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, pollId, optionId } = req.body;
     
@@ -163,7 +163,7 @@ router.post('/vote', requireAuth, (req: Request, res: Response) => {
     }
     
     // Check if already voted
-    if (option.voters.includes(req.user?.id)) {
+    if (option.voters.includes(req.user!.id)) {
       return res.status(400).json({ error: 'Already voted' });
     }
     
@@ -202,7 +202,7 @@ router.post('/vote', requireAuth, (req: Request, res: Response) => {
 });
 
 // Close poll
-router.post('/close', requireAuth, (req: Request, res: Response) => {
+router.post('/close', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, pollId } = req.body;
     
@@ -248,9 +248,9 @@ router.post('/close', requireAuth, (req: Request, res: Response) => {
 });
 
 // Get poll
-router.get('/:pollId', (req: Request, res: Response) => {
+router.get('/:pollId', (req: AuthenticatedRequest, res: Response) => {
   const { pollId } = req.params;
-  const poll = polls.get(pollId);
+  const poll = pollId! ? polls.get(pollId!) : undefined;
   
   if (!poll) {
     return res.status(404).json({ error: 'Poll not found' });

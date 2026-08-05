@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,13 +52,14 @@ router.post('/join', async (req: Request, res: Response) => {
     
     // Generate a temporary token for the guest
     // In production, this should be a proper JWT with guest claims
-    const token = Buffer.from(JSON.stringify({
+    const payload = JSON.stringify({
       type: 'guest',
       userId: guestId,
       username: finalUsername,
-      roomId,
+      roomId: roomId as string,
       exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-    })).toString('base64');
+    });
+    const token = Buffer.from(payload).toString('base64');
     
     res.json({
       guest: {
@@ -73,10 +75,11 @@ router.post('/join', async (req: Request, res: Response) => {
 });
 
 // Validate guest token
-router.get('/verify/:token', (req: Request, res: Response) => {
+router.get('/verify/:token', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { token } = req.params;
-    const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+    const payload = Buffer.from(token!).toString();
+    const decoded = JSON.parse(payload);
     
     if (decoded.type !== 'guest') {
       return res.status(401).json({ valid: false });
@@ -101,7 +104,7 @@ router.get('/verify/:token', (req: Request, res: Response) => {
 });
 
 // Get room as guest (limited access)
-router.get('/room/:roomId', (req: Request, res: Response) => {
+router.get('/room/:roomId', (req: AuthenticatedRequest, res: Response) => {
   const { roomId } = req.params;
   const authHeader = req.headers.authorization;
   
@@ -131,7 +134,7 @@ router.get('/room/:roomId', (req: Request, res: Response) => {
 });
 
 // Convert guest to registered user
-router.post('/upgrade', async (req: Request, res: Response) => {
+router.post('/upgrade', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { token, email, password, username } = req.body;
     

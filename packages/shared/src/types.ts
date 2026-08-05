@@ -39,6 +39,7 @@ export interface Room {
   anime_cover_url: string | null;
   anime_episode_count: number | null;
   sync_lock: boolean;
+  videoUrl?: string;
   allow_soundboard: boolean;
   allow_reactions: boolean;
   skip_intro_votes: Record<string, boolean>;

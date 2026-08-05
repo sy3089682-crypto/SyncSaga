@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { getSupabase } from '../lib/supabase';
-import { requireAuth } from '../middleware/auth';
+import { supabaseAdmin } from '../lib/supabase';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -39,7 +39,7 @@ function getRoomQueue(roomId: string): Map<string, any> {
 
 // Helper to broadcast queue update
 function broadcastQueueUpdate(roomId: string, io: any) {
-  const queue = getRoomQueue(roomId);
+  const queue = getRoomQueue(roomId as string);
   const items = Array.from(queue.values())
     .sort((a, b) => b.votes - a.votes || b.addedAt - a.addedAt);
   
@@ -47,9 +47,9 @@ function broadcastQueueUpdate(roomId: string, io: any) {
 }
 
 // Get room queue
-router.get('/:roomId', requireAuth, (req: Request, res: Response) => {
+router.get('/:roomId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const { roomId } = req.params;
-  const queue = getRoomQueue(roomId);
+  const queue = getRoomQueue(roomId as string);
   
   const items = Array.from(queue.values())
     .sort((a, b) => b.votes - a.votes || b.addedAt - a.addedAt);
@@ -58,12 +58,12 @@ router.get('/:roomId', requireAuth, (req: Request, res: Response) => {
 });
 
 // Add item to queue
-router.post('/add', requireAuth, async (req: Request, res: Response) => {
+router.post('/add', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, item } = req.body;
     const validatedItem = queueItemSchema.parse(item);
     
-    const queue = getRoomQueue(roomId);
+    const queue = getRoomQueue(roomId as string);
     const id = `item_${uuidv4().slice(0, 8)}`;
     
     const newItem = {
@@ -73,7 +73,7 @@ router.post('/add', requireAuth, async (req: Request, res: Response) => {
       thumbnail: validatedItem.thumbnail,
       episode: validatedItem.episode,
       animeId: validatedItem.animeId,
-      addedBy: req.user?.id || 'unknown',
+      addedBy: req.user!.id || 'unknown',
       addedAt: Date.now(),
       votes: 0,
       voters: [],
@@ -96,7 +96,7 @@ router.post('/add', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Vote for item
-router.post('/vote', requireAuth, (req: Request, res: Response) => {
+router.post('/vote', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, itemId } = req.body;
     
@@ -104,7 +104,7 @@ router.post('/vote', requireAuth, (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing roomId or itemId' });
     }
     
-    const queue = getRoomQueue(roomId);
+    const queue = getRoomQueue(roomId as string);
     const item = queue.get(itemId);
     
     if (!item) {
@@ -112,7 +112,7 @@ router.post('/vote', requireAuth, (req: Request, res: Response) => {
     }
     
     // Check if user already voted
-    if (item.voters.includes(req.user?.id)) {
+    if (item.voters.includes(req.user!.id)) {
       return res.status(400).json({ error: 'Already voted' });
     }
     
@@ -128,10 +128,10 @@ router.post('/vote', requireAuth, (req: Request, res: Response) => {
 });
 
 // Remove item
-router.post('/remove', requireAuth, (req: Request, res: Response) => {
+router.post('/remove', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, itemId } = req.body;
-    const queue = getRoomQueue(roomId);
+    const queue = getRoomQueue(roomId as string);
     const item = queue.get(itemId);
     
     if (!item) {
@@ -140,7 +140,7 @@ router.post('/remove', requireAuth, (req: Request, res: Response) => {
     
     // Check permissions (only adder or host can remove)
     const userId = req.user?.id;
-    if (item.addedBy !== userId) {
+    if (item.addedBy !== req.user!.id) {
       // Would check if user is host in production
       return res.status(403).json({ error: 'Permission denied' });
     }
@@ -155,10 +155,10 @@ router.post('/remove', requireAuth, (req: Request, res: Response) => {
 });
 
 // Move item (reorder)
-router.post('/move', requireAuth, (req: Request, res: Response) => {
+router.post('/move', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, itemId, newIndex } = req.body;
-    const queue = getRoomQueue(roomId);
+    const queue = getRoomQueue(roomId as string);
     const item = queue.get(itemId);
     
     if (!item) {
@@ -176,13 +176,15 @@ router.post('/move', requireAuth, (req: Request, res: Response) => {
 });
 
 // Clear queue (host only)
-router.post('/clear', requireAuth, (req: Request, res: Response) => {
+router.post('/clear', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.body;
-    const queue = getRoomQueue(roomId);
+    const queue = getRoomQueue(roomId as string);
     
     // Would check if user is host in production
+    // For now allow anyone to clear
     queue.clear();
+    res.json({ success: true });
     
     res.json({ success: true });
   } catch (error) {
@@ -192,9 +194,9 @@ router.post('/clear', requireAuth, (req: Request, res: Response) => {
 });
 
 // Get top items (for recommendations)
-router.get('/:roomId/top/:limit', (req: Request, res: Response) => {
-  const { roomId } = req.params;
-  const limit = parseInt(req.params.limit) || 5;
+router.get('/:roomId/top/:limit', (req: AuthenticatedRequest, res: Response) => {
+  const roomId = req.params.roomId as string;
+  const limit = parseInt(req.params.limit as string) || 5;
   
   const queue = getRoomQueue(roomId);
   const items = Array.from(queue.values())

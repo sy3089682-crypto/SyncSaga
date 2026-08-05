@@ -136,6 +136,10 @@ export interface ServerToClientEvents {
   'chat:reaction': (message: Message & { sender: User }) => void;
   'presence:update': (event: PresenceEvent & { user: User }) => void;
   'voice:participant_update': (participant: VoiceParticipant) => void;
+  'voice:user_joined': (data: { userId: string; user: User }) => void;
+  'voice:user_left': (data: { userId: string }) => void;
+  'voice:joined': (data: { roomId: string }) => void;
+  'voice:left': (data: { roomId: string }) => void;
   'reaction:new': (reaction: any) => void;
   'skip:intro_vote_update': (data: { votes: number; needed: number }) => void;
   'skip:intro_skipping': (data: { countdown: number; targetTimestamp: number }) => void;

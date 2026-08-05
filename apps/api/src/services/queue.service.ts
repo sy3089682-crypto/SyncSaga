@@ -239,7 +239,11 @@ export const queueService = {
    * Enqueue an audit log entry (fire-and-forget).
    */
   async audit(action: string, userId: string, metadata?: Record<string, unknown>): Promise<void> {
-    await auditQueue.add('log', { action, userId, metadata });
+    try {
+      await auditQueue.add('log', { action, userId, metadata });
+    } catch (error) {
+      logger.error({ action, userId, error }, 'Failed to enqueue audit log');
+    }
   },
 
   /**

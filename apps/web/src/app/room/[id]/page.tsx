@@ -37,9 +37,8 @@ export default function RoomPage() {
   const searchParams = useSearchParams();
   const roomId = params.id as string;
   const isMobileDevice = searchParams.get('mobile') === 'true' || isMobile();
-  const { user } = useAppStore();
+  const { user, addMessage } = useAppStore();
   const { currentRoom, messages, roomMembers, join, leave, sendMessage, sendTyping, sendSyncEvent } = useRoom(roomId);
-  const { driftStatuses, setDriftStatus } = useAppStore();
 
   const [input, setInput] = useState('');
   const [activeTab, setActiveTab] = useState<'chat' | 'users' | 'anime'>('chat');
@@ -83,16 +82,21 @@ export default function RoomPage() {
     const onReaction = (r: TimelineReaction) => setTimelineReactions(prev => [...prev, r]);
 
     let socket: Awaited<ReturnType<typeof getSocket>> | null = null;
+    const onMessage = (msg: any) => addMessage(msg);
+    const onVoiceJoined = () => setIsInVoice(true);
+    const onVoiceLeft = () => setIsInVoice(false);
     getSocket().then((sock) => {
       if (cancelled) return;
       socket = sock;
-      sock.emit('room:join', { roomId });
       sock.on('connect', onConnect);
       sock.on('disconnect', onDisconnect);
       sock.on('sync:event', onSync);
       sock.on('sync:state', onState);
+      sock.on('chat:message', onMessage);
       sock.on('chat:typing', onTyping);
       sock.on('reaction:new', onReaction);
+      sock.on('voice:joined', onVoiceJoined);
+      sock.on('voice:left', onVoiceLeft);
     }).catch(() => {});
     let cancelled = false;
     const onDriftUpdate = (data: { userId: string; drift: number; status: 'synced' | 'slight' | 'desynced' }) => {
@@ -121,6 +125,9 @@ export default function RoomPage() {
         socket.off('reaction:new', onReaction);
         socket.off('sync:drift_update', onDriftUpdate);
         socket.off('room:new_host', onNewHost);
+        socket.off('chat:message', onMessage);
+        socket.off('voice:joined', onVoiceJoined);
+        socket.off('voice:left', onVoiceLeft);
       }
     };
   }, [roomId]);
@@ -134,10 +141,11 @@ export default function RoomPage() {
   }, [playbackState, duration]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim()) return;
-    sendMessage(input.trim());
+    const content = input.trim();
+    if (!content) return;
     setInput('');
-  }, [input, sendMessage]);
+    getSocket().then((sock) => sock.emit('chat:message', { roomId, content, type: 'text' })).catch(() => {});
+  }, [input, roomId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }

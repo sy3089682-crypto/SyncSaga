@@ -9,14 +9,6 @@ export interface MemberProfile {
   avatar_url: string | null;
 }
 
-/**
- * Resolves a set of user_ids to their profile (username/avatar) via Supabase.
- *
- * RoomMember records only carry `user_id` — without this, the UI has nothing
- * to show but the raw UUID, which is what the room member list used to do.
- * Results are cached in module scope for the session since profiles rarely
- * change mid-room.
- */
 const cache = new Map<string, MemberProfile>();
 
 export function useMemberProfiles(userIds: string[]) {
@@ -69,7 +61,6 @@ export function useMemberProfiles(userIds: string[]) {
   return profiles;
 }
 
-/** Best-effort display name — falls back gracefully, never to a raw UUID slice. */
 export function memberLabel(userId: string, profile?: MemberProfile) {
   return profile?.display_name || profile?.username || 'Guest';
 }

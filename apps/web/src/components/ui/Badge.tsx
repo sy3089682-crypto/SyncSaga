@@ -46,5 +46,3 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
 
 Badge.displayName = 'Badge';
 export { Badge };
-BADGEOF
-echo "Badge.tsx written — $(wc -l < /tmp/syncsaga/apps/web/src/components/ui/Badge.tsx) lines"

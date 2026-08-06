@@ -27,5 +27,3 @@ export default defineConfig({
     },
   ],
 });
-PWCONFIG
-echo "playwright.config.ts written — $(wc -l < /tmp/syncsaga/apps/web/playwright.config.ts) lines"

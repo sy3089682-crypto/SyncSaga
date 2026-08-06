@@ -27,12 +27,12 @@ export default function RoomError({
   return (
     <div className="flex min-h-[80vh] flex-col items-center justify-center gap-4 p-8">
       <div className={`rounded-full p-4 ${isBanned ? 'bg-red-500/10' : isFull ? 'bg-yellow-500/10' : 'bg-red-500/10'}`}>
-        <AlertTriangle className={`h-10 w-10 ${isBanned ? 'text-red-400' : isFull ? 'text-yellow-400' : 'text-red-400'}`} />
+        <AlertTriangle className={`h-10 w-10 ${isBanned ? 'text-error' : isFull ? 'text-yellow-400' : 'text-error'}`} />
       </div>
       <h2 className="text-xl font-semibold">
         {isNotFound ? 'Room not found' : isBanned ? 'Banned from room' : isFull ? 'Room is full' : 'Something went wrong'}
       </h2>
-      <p className="max-w-md text-center text-sm text-muted-foreground">
+      <p className="max-w-md text-center text-sm text-ink-soft">
         {isNotFound ? 'This room doesn\'t exist or has been closed.' :
          isBanned ? 'You have been banned from this room.' :
          isFull ? 'This room has reached its member limit.' :
@@ -40,7 +40,7 @@ export default function RoomError({
       </p>
       <div className="flex gap-3">
         {!isBanned && <Button onClick={reset}><RefreshCw className="mr-1 h-4 w-4" /> Try again</Button>}
-        <Link href="/discover" className="inline-flex items-center justify-center rounded-xl font-medium transition-all px-4 py-2 text-sm bg-surface-light border border-border text-text-primary hover:border-primary/50">
+        <Link href="/discover" className="inline-flex items-center justify-center rounded-xl font-medium transition-all px-4 py-2 text-sm bg-elevated border border-border text-ink hover:border-amber/50">
           Browse rooms
         </Link>
       </div>

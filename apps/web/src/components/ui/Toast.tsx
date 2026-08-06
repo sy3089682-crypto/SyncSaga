@@ -66,7 +66,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 className={cn(
                   'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border',
                   'bg-elevated shadow-lg backdrop-blur-sm min-w-[280px]',
-                  toastClasses[t.type],
+                  typeClasses[t.type],
                 )}
               >
                 <Icon className="w-4 h-4 shrink-0" />

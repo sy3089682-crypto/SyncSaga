@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'icon';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
@@ -29,6 +29,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             // Ghost: borderless, subtle
             'text-ink-soft hover:text-ink hover:bg-surface':
               variant === 'ghost',
+            // Icon: ghost with equal padding (square button)
+            'text-ink-soft hover:text-ink hover:bg-surface p-2 rounded-md min-h-[36px] min-w-[36px]':
+              variant === 'icon',
+
             // Danger: warm error
             'bg-error text-canvas':
               variant === 'danger',

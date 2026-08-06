@@ -19,7 +19,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       default: 'bg-surface border border-border',
       elevated: 'bg-elevated border border-border-hover shadow-lg shadow-black/20',
       ghost: 'bg-transparent border border-transparent hover:border-border',
-      accent: 'bg-surface border border-border hover:border-amber/25',
+      'accent-border': 'bg-surface border border-border hover:border-amber/25',
     };
 
     const paddingClasses = {
@@ -52,4 +52,4 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
 
 Card.displayName = 'Card';
 export { Card };
-export type { Props as CardProps };
+

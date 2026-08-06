@@ -12,3 +12,13 @@ apps/extension/dist/
 apps/extension/icons/
 .vercel
 .env*
+
+# Local QA / test artifacts (not committed)
+test-comprehensive-live.js
+test-every-feature.js
+real-user-session.js
+verify-auth-bodies.js
+verify-auth-flow.js
+verify-login-only.js
+playwright-report/
+test-results/

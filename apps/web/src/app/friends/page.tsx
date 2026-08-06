@@ -89,7 +89,7 @@ export default function FriendsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-text-primary pb-20 lg:pb-0">
+    <div className="min-h-screen bg-canvas text-ink pb-20 lg:pb-0">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-bold mb-6">
           Friends
@@ -100,7 +100,7 @@ export default function FriendsPage() {
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-                activeTab === tab.id ? 'bg-primary text-white' : 'bg-surface-light text-text-secondary hover:text-text-primary'
+                activeTab === tab.id ? 'bg-amber text-canvas' : 'bg-elevated text-ink-soft hover:text-ink'
               )}>
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -116,15 +116,15 @@ export default function FriendsPage() {
             <motion.div key="friends" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {loading ? (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <Loader2 className="w-8 h-8 text-amber animate-spin" />
                 </div>
               ) : friends.length === 0 ? (
                 <div className="text-center py-16">
-                  <Users className="w-12 h-12 text-text-muted mx-auto mb-4" />
+                  <Users className="w-12 h-12 text-ink-mute mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No friends yet</h3>
-                  <p className="text-text-secondary mb-4">Search for people to watch anime with!</p>
+                  <p className="text-ink-soft mb-4">Search for people to watch anime with!</p>
                   <button onClick={() => setActiveTab('search')}
-                    className="px-6 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary-dark transition-colors">
+                    className="px-6 py-2.5 rounded-xl bg-amber text-canvas font-medium hover:bg-amber-hover transition-colors">
                     Find Friends
                   </button>
                 </div>
@@ -132,19 +132,19 @@ export default function FriendsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {friends.map((friend, i) => (
                     <motion.div key={friend.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-surface-light border border-border hover:border-primary/30 transition-all">
+                      className="flex items-center gap-4 p-4 rounded-xl bg-elevated border border-border hover:border-amber/30 transition-all">
                       <Avatar name={friend.username} src={friend.avatar_url}
                         status={onlineUsers.includes(friend.id) ? 'online' : 'offline'} size="md" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{friend.display_name || friend.username}</p>
-                        <p className="text-xs text-text-muted">@{friend.username}</p>
+                        <p className="text-xs text-ink-mute">@{friend.username}</p>
                       </div>
                       <div className="flex gap-1">
-                        <button className="p-2 rounded-lg hover:bg-surface text-text-secondary transition-colors" title="Message">
+                        <button className="p-2 rounded-lg hover:bg-surface text-ink-soft transition-colors" title="Message">
                           <MessageCircle className="w-4 h-4" />
                         </button>
                         <button onClick={() => removeFriend(friend.id)}
-                          className="p-2 rounded-lg hover:bg-red-500/10 text-text-muted hover:text-red-500 transition-colors" title="Remove">
+                          className="p-2 rounded-lg hover:bg-red-500/10 text-ink-mute hover:text-red-500 transition-colors" title="Remove">
                           <UserMinus className="w-4 h-4" />
                         </button>
                       </div>
@@ -159,23 +159,23 @@ export default function FriendsPage() {
             <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {requests.length === 0 ? (
                 <div className="text-center py-16">
-                  <Clock className="w-12 h-12 text-text-muted mx-auto mb-4" />
+                  <Clock className="w-12 h-12 text-ink-mute mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No pending requests</h3>
-                  <p className="text-text-secondary">Friend requests will appear here</p>
+                  <p className="text-ink-soft">Friend requests will appear here</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {requests.map((req, i) => (
                     <motion.div key={req.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-surface-light border border-border">
+                      className="flex items-center gap-4 p-4 rounded-xl bg-elevated border border-border">
                       <Avatar name={req.sender?.username || '?'} src={req.sender?.avatar_url} size="md" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{req.sender?.display_name || req.sender?.username || 'Unknown'}</p>
-                        <p className="text-xs text-text-muted">Wants to be friends</p>
+                        <p className="text-xs text-ink-mute">Wants to be friends</p>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => acceptRequest(req.id)}
-                          className="p-2 rounded-lg bg-accent-green/10 text-accent-green hover:bg-accent-green/20 transition-colors">
+                          className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors">
                           <Check className="w-4 h-4" />
                         </button>
                         <button onClick={() => rejectRequest(req.id)}
@@ -193,28 +193,28 @@ export default function FriendsPage() {
           {activeTab === 'search' && (
             <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="relative mb-6">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-mute" />
                 <input type="text" value={searchQuery} onChange={e => handleSearch(e.target.value)}
                   placeholder="Search by username..."
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-surface-light border border-border text-text-primary placeholder:text-text-muted focus:border-primary outline-none transition-colors" />
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-elevated border border-border text-ink placeholder:text-ink-mute focus:border-amber outline-none transition-colors" />
               </div>
 
               {searching ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  <Loader2 className="w-6 h-6 text-amber animate-spin" />
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="space-y-3">
                   {searchResults.map((user, i) => (
                     <motion.div key={user.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-surface-light border border-border">
+                      className="flex items-center gap-4 p-4 rounded-xl bg-elevated border border-border">
                       <Avatar name={user.username} src={user.avatar_url} size="md" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{user.display_name || user.username}</p>
-                        <p className="text-xs text-text-muted">@{user.username}</p>
+                        <p className="text-xs text-ink-mute">@{user.username}</p>
                       </div>
                       <button onClick={() => sendFriendRequest(user.id)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 text-primary text-sm font-medium hover:bg-primary/30 transition-colors">
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-strong text-amber text-sm font-medium hover:bg-amber/30 transition-colors">
                         <UserPlus className="w-4 h-4" />
                         Add
                       </button>
@@ -222,11 +222,11 @@ export default function FriendsPage() {
                   ))}
                 </div>
               ) : searchQuery.length >= 2 ? (
-                <div className="text-center py-8 text-text-muted">
-                  <p>No users found matching &quot;{searchQuery}&quot;</p>
+                <div className="text-center py-8 text-ink-mute">
+                  <p>No users found matching "{searchQuery}"</p>
                 </div>
               ) : (
-                <div className="text-center py-8 text-text-muted">
+                <div className="text-center py-8 text-ink-mute">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p>Type at least 2 characters to search</p>
                 </div>

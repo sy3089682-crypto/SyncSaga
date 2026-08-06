@@ -55,10 +55,10 @@ export default function AuthCallbackPage() {
   }, [router, setUser]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-canvas flex items-center justify-center">
       <div className="text-center">
         <LoadingSpinner size="lg" className="mb-4" />
-        <p className="text-text-secondary">Completing sign in...</p>
+        <p style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-body)' }}>Completing sign in…</p>
       </div>
     </div>
   );

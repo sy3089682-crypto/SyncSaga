@@ -1,66 +1,57 @@
-'use client';
-
 import { cn } from '@/lib/utils';
-import { type HTMLAttributes, forwardRef } from 'react';
 
-interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
+interface AvatarProps {
+  name: string;
   src?: string;
-  alt?: string;
-  name?: string;
-  size?: 'sm' | 'md' | 'lg';
-  status?: 'online' | 'offline' | 'sync' | 'none';
-  glowColor?: 'amber' | 'success' | 'error';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  status?: 'online' | 'offline' | 'away' | 'watching';
+  className?: string;
 }
 
-const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
-  (
-    { src, alt = '', name = '', size = 'md', status, glowColor, className, ...props },
-    ref,
-  ) => {
-    const sizeClasses = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-lg' };
-    const initial = (name && name.length > 0) ? name[0].toUpperCase() : '?';
+const sizeMap = {
+  sm: 'w-7 h-7 text-[0.625rem]',
+  md: 'w-9 h-9 text-xs',
+  lg: 'w-14 h-14 text-base',
+  xl: 'w-20 h-20 text-2xl',
+};
 
-    const statusColors: Record<string, string> = {
-      online: 'bg-success',
-      offline: 'bg-ink-mute',
-      sync: 'bg-amber animate-[syncPulse_3s_ease-in-out_infinite]',
-      host: 'bg-amber',
-    };
+const statusColors = {
+  online: 'bg-success',
+  offline: 'bg-ink-mute',
+  away: 'bg-amber',
+  watching: 'bg-amber',
+};
 
-    const glowMap = { accent: 'amber-glow', success: 'success/30', error: 'error/30' };
+export function Avatar({ name, src, size = 'md', status, className }: AvatarProps) {
+  const initial = name?.[0]?.toUpperCase() || '?';
 
-    return (
-      <div ref={ref} className={cn('relative shrink-0', className)} {...props}>
-        {src ? (
-          <img
-            src={src} alt={alt} referrerPolicy="no-referrer"
-            className={cn('rounded-full object-cover border-2 border-surface', sizeClasses[size])}
-          />
-        ) : (
-          <div
-            className={cn(
-              'rounded-full flex items-center justify-center font-medium',
-              'bg-surface-alt text-ink-soft border-2 border-surface',
-              sizeClasses[size],
-            )}
-          >
-            {initialClasses}
-          </div>
-        )}
-
-        {status && (
-          <span
-            className={cn(
-              'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface',
-              statusColors[status],
-              glowColor && `shadow-[0_0_6px_2px_var(--${glowMap[glowColor]})]`
-            )}
-          />
-        )}
-      </div>
-    );
-  },
-);
-
-Avatar.displayName = 'Avatar';
-export { Avatar };
+  return (
+    <div className={cn('relative inline-block shrink-0', className)}>
+      {src ? (
+        <img
+          src={src}
+          alt={name}
+          className={cn('rounded-full object-cover', sizeMap[size])}
+        />
+      ) : (
+        <div
+          className={cn(
+            'rounded-full bg-gradient-to-br from-amber-strong to-amber/10 flex items-center justify-center font-semibold text-ink',
+            sizeMap[size],
+          )}
+        >
+          {initial}
+        </div>
+      )}
+      {status && (
+        <div
+          className={cn(
+            'absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-canvas',
+            size === 'sm' ? 'w-2.5 h-2.5' : size === 'md' ? 'w-3 h-3' : 'w-4 h-4',
+            statusColors[status],
+          )}
+        />
+      )}
+    </div>
+  );
+}

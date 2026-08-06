@@ -1,0 +1,54 @@
+/* SyncSaga Player Overlay — injected into streaming sites */
+#syncsaga-overlay {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483646;
+  background: rgba(11,11,14,0.82);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  color: #EDE4D8;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  transition: opacity 300ms;
+}
+#syncsaga-overlay .sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #E8A840;
+  position: relative;
+}
+#syncsaga-overlay .sync-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #E8A840;
+  animation: ss-pulse 3s ease-in-out infinite;
+  opacity: 0.6;
+}
+@keyframes ss-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232,168,64,0.3); }
+  50% { box-shadow: 0 0 10px 4px rgba(232,168,64,0.15); }
+}
+#syncsaga-overlay button {
+  background: #E8A840;
+  color: #0B0B0E;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 200ms;
+}
+#syncsaga-overlay button:hover { background: #D49A35; }

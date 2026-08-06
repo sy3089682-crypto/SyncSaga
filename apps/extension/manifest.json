@@ -1,51 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "SyncSaga",
+  "name": "SyncSaga — Watch Together",
   "version": "1.0.0",
-  "description": "Watch videos together in perfect sync. Synchronizes HTML5 video playback across any website.",
-  "homepage_url": "https://syncsaga.app",
-  "permissions": [
-    "storage",
-    "tabs"
-  ],
-  "host_permissions": ["*://*/*"],
+  "description": "Watch anime with friends, perfectly in sync. Frame-accurate playback sync for Crunchyroll, AniList, and more.",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.svg",
-      "48": "icons/icon48.svg",
-      "128": "icons/icon128.svg"
-    },
-    "default_title": "SyncSaga"
+    "default_popup": "src/popup/popup.html",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png" }
   },
-  "content_scripts": [
-    {
-      "matches": ["*://*/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle",
-      "all_frames": true,
-      "match_about_blank": true
-    }
-  ],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "icons": {
-    "16": "icons/icon16.svg",
-    "48": "icons/icon48.svg",
-    "128": "icons/icon128.svg"
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{syncsaga@syncsaga.app}",
-      "strict_min_version": "109.0"
-    },
-    "edge": {
-      "browser_action_next_to_addressbar": true
-    }
-  }
+  "content_scripts": [{
+    "matches": ["https://*.crunchyroll.com/*", "https://*.netflix.com/watch/*", "https://anilist.co/anime/*"],
+    "js": ["src/content/overlay.js"],
+    "css": ["src/content/overlay.css"]
+  }],
+  "background": { "service_worker": "src/background/service-worker.js" },
+  "permissions": ["storage", "activeTab", "tabs"],
+  "host_permissions": ["https://*.crunchyroll.com/*", "https://*.netflix.com/*", "https://syncsaga.vercel.app/*"]
 }

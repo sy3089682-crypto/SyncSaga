@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SyncSaga</title>
+<style>
+:root {
+  --canvas:#0B0B0E;--surface:#1A191C;--ink:#EDE4D8;--ink-soft:#A49B8E;
+  --ink-mute:#6E6660;--amber:#E8A840;--amber-strong:rgba(232,168,64,0.15);
+  --border:rgba(255,255,255,0.05);--radius:8px;--ease:cubic-bezier(.22,.61,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{width:320px;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);position:relative;}
+.sync-dot::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--amber);animation:syncPulse 3s ease-in-out infinite;opacity:0.6;}
+@keyframes syncPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,168,64,0.3)}50%{box-shadow:0 0 10px 4px rgba(232,168,64,0.15)}}
+.btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 200ms;}
+.btn-primary{background:var(--amber);color:var(--bg);box-shadow:0 0 16px 1px rgba(232,168,64,0.1)}
+.btn-primary:hover{background:#D49A35;box-shadow:0 0 24px 3px rgba(232,168,64,0.2)}
+.input{width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--ink);font-size:13px;outline:none;transition:border-color 200ms;font-family:inherit;}
+.input:focus{border-color:var(--amber);}
+.input::placeholder{color:var(--ink-mute)}
+.card{background:var(--surface);border-radius:10px;padding:14px;margin:8px 0;border:1px solid var(--border);}
+a{color:var(--amber);text-decoration:none;}
+</style>
+</head>
+<body style="padding:12px;display:flex;flex-direction:column;gap:12px;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-family:'Fraunces',serif;font-size:18px;">SyncSaga</span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span class="sync-dot"></span>
+        <span style="font-size:11px;color:var(--amber);">Live</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Room Input -->
+  <div>
+    <input class="input" type="text" placeholder="Paste a room link or code..." id="roomLink" />
+    <button class="btn btn-primary" style="margin-top:8px;width:100%;justify-content:center;" onclick="joinRoom()">
+      Join Room
+    </button>
+  </div>
+
+  <!-- Active Room (hidden by default) -->
+  <div class="card" id="activeRoom" style="display:none;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="sync-dot" style="width:10px;height:10px;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="roomName">Loading...</div>
+        <div style="font-size:11px;color:var(--ink-mute);">2 watching</div>
+      </div>
+      <button style="background:transparent;border:1px solid var(--border);color:var(--ink-soft);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Leave</button>
+    </div>
+  </div>
+
+  <!-- Recent Rooms -->
+  <div>
+    <div style="font-size:11px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Recent Rooms</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div class="card" style="padding:10px 14px;cursor:pointer;transition:border-color 200ms;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">🎬</span>
+          <div style="flex:1;">
+            <div style="font-weight:500;">Anime Night Season 4</div>
+            <div style="font-size:11px;color:var(--ink-mute);">4 watching · 10 min ago</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border);">
+    <a href="https://syncsaga.vercel.app" style="font-size:11px;">Open Dashboard</a>
+    <div style="display:flex;gap:6px;">
+      <button style="background:transparent;border:none;color:var(--ink-mute);font-size:20px;cursor:pointer;" title="Settings">⚙</button>
+    </div>
+  </div>
+
+  <script>
+    function joinRoom() {
+      const link = document.getElementById('roomLink').value.trim();
+      if (link) {
+        window.open(link.startsWith('http') ? link : 'https://syncsaga.vercel.app/room/' + link, '_blank');
+      }
+    }
+  </script>
+</body>
+</html>

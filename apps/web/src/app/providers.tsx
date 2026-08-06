@@ -54,7 +54,7 @@ function InnerProviders({ children }: { children: ReactNode }) {
       <SocketInitializer token={token} />
       <GlobalShortcuts onTogglePalette={palette.toggle} />
       <CommandPalette open={palette.open} onClose={palette.close} />
-      <div className="flex min-h-screen bg-background">
+      <div className="flex min-h-screen bg-canvas">
         <Sidebar />
         <main className="flex-1 min-w-0">{children}</main>
         <BottomNav />

@@ -1,22 +1,31 @@
 'use client';
 
 import { ExtensionDiagnostics } from '@/components/extension/ExtensionDiagnostics';
-import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 export default function DiagnosticsPage() {
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <Link href="/settings" className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 hover:bg-white/10">
-          <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen bg-canvas">
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <Link
+          href="/settings"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm"
+          style={{ color: 'var(--ink-mute)' }}
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Settings
         </Link>
-        <div>
-          <h1 className="text-xl font-bold">Extension Diagnostics</h1>
-          <p className="text-sm text-muted-foreground">Troubleshoot and debug your SyncSaga browser extension</p>
-        </div>
+        <h1
+          className="mb-2"
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: '1.75rem', color: 'var(--ink)' }}
+        >
+          Extension diagnostics
+        </h1>
+        <p className="mb-8 text-sm" style={{ color: 'var(--ink-soft)' }}>
+          Check that the browser extension can talk to this tab.
+        </p>
+        <ExtensionDiagnostics />
       </div>
-      <ExtensionDiagnostics />
     </div>
   );
 }

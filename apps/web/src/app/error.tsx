@@ -22,10 +22,10 @@ export default function RootError({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8">
       <div className="rounded-full bg-red-500/10 p-4">
-        <AlertTriangle className="h-8 w-8 text-red-400" />
+        <AlertTriangle className="h-8 w-8 text-error" />
       </div>
       <h2 className="text-xl font-semibold">Something went wrong</h2>
-      <p className="max-w-md text-center text-sm text-muted-foreground">
+      <p className="max-w-md text-center text-sm text-ink-soft">
         An unexpected error occurred. Please try again or contact support if the problem persists.
       </p>
       <div className="flex gap-3">

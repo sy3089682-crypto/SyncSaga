@@ -92,15 +92,15 @@ export default function CreateRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-text-primary py-8 px-4">
+    <div className="min-h-screen bg-canvas text-ink py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 transition-colors">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-ink-soft hover:text-ink mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">Create Watch Room</h1>
-          <p className="text-text-secondary mb-8">Set up a room and invite your friends to watch together.</p>
+          <p className="text-ink-soft mb-8">Set up a room and invite your friends to watch together.</p>
 
           {animeMedia && (
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-surface border border-border mb-8">
@@ -113,14 +113,14 @@ export default function CreateRoomPage() {
                 <p className="font-semibold truncate">{animeTitle}</p>
                 <div className="flex items-center gap-2 mt-1">
                   {animeMedia.episodes && (
-                    <span className="text-xs text-text-muted">{animeMedia.episodes} episodes</span>
+                    <span className="text-xs text-ink-mute">{animeMedia.episodes} episodes</span>
                   )}
                   {animeMedia.averageScore && (
                     <span className="text-xs text-yellow-400">{(animeMedia.averageScore / 10).toFixed(1)} ★</span>
                   )}
                 </div>
                 {presetEpisode && (
-                  <p className="text-xs text-primary mt-1">Starting from Episode {presetEpisode}</p>
+                  <p className="text-xs text-amber mt-1">Starting from Episode {presetEpisode}</p>
                 )}
               </div>
             </div>
@@ -133,9 +133,9 @@ export default function CreateRoomPage() {
                 <input type="text" value={name} onChange={e => setName(e.target.value)}
                   placeholder="Give your room a cool name..."
                   maxLength={100} required
-                  className="flex-1 px-4 py-3 rounded-xl bg-surface border border-border focus:border-primary/50 text-sm outline-none transition-colors placeholder:text-text-muted" />
+                  className="flex-1 px-4 py-3 rounded-xl bg-surface border border-border focus:border-amber/50 text-sm outline-none transition-colors placeholder:text-ink-mute" />
                 <button type="button" onClick={generateName} disabled={generating}
-                  className="px-4 py-3 rounded-xl bg-surface border border-border text-text-secondary hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-50"
+                  className="px-4 py-3 rounded-xl bg-surface border border-border text-ink-soft hover:text-amber hover:border-amber/30 transition-colors disabled:opacity-50"
                   title="Generate creative name">
                   {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
                 </button>
@@ -144,7 +144,7 @@ export default function CreateRoomPage() {
                 <div className="flex flex-wrap gap-2 mt-2">
                   {nameSuggestions.map(s => (
                     <button key={s} type="button" onClick={() => setName(s)}
-                      className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs hover:bg-primary/20 transition-colors">
+                      className="px-3 py-1 rounded-full bg-amber-strong border border-amber/20 text-amber text-xs hover:bg-amber-strong transition-colors">
                       {s}
                     </button>
                   ))}
@@ -157,7 +157,7 @@ export default function CreateRoomPage() {
               <textarea value={description} onChange={e => setDescription(e.target.value)}
                 placeholder="What are you watching tonight?"
                 maxLength={500} rows={3}
-                className="w-full px-4 py-3 rounded-xl bg-surface border border-border focus:border-primary/50 text-sm outline-none transition-colors resize-none placeholder:text-text-muted" />
+                className="w-full px-4 py-3 rounded-xl bg-surface border border-border focus:border-amber/50 text-sm outline-none transition-colors resize-none placeholder:text-ink-mute" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -167,8 +167,8 @@ export default function CreateRoomPage() {
                   className={cn(
                     'w-full flex items-center gap-2 px-4 py-3 rounded-xl border text-sm transition-colors',
                     isPrivate
-                      ? 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan'
-                      : 'bg-surface border-border text-text-secondary hover:border-primary/30'
+                      ? 'bg-amber/10 border-amber/30 text-amber'
+                      : 'bg-surface border-border text-ink-soft hover:border-amber/30'
                   )}>
                   {isPrivate ? <Lock className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
                   {isPrivate ? 'Private' : 'Public'}
@@ -177,7 +177,7 @@ export default function CreateRoomPage() {
               <div>
                 <label className="block text-sm font-medium mb-2">Max Members</label>
                 <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-surface border border-border">
-                  <Users className="w-4 h-4 text-text-muted" />
+                  <Users className="w-4 h-4 text-ink-mute" />
                   <input type="number" value={maxUsers} onChange={e => setMaxUsers(Math.max(2, Math.min(50, parseInt(e.target.value) || 10)))}
                     min={2} max={50}
                     className="w-full bg-transparent text-sm outline-none" />
@@ -186,7 +186,7 @@ export default function CreateRoomPage() {
             </div>
 
             <button type="submit" disabled={!name.trim() || submitting || !token}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white font-semibold hover:shadow-xl hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber to-primary-dark text-white font-semibold hover:shadow-xl hover:shadow-amber/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
               {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
               {submitting ? 'Creating...' : 'Create Room'}
             </button>

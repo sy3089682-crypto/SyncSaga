@@ -180,7 +180,7 @@ function HowRow({
   step: string;
   title: string;
   body: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties; size?: number | string }>;
 }) {
   return (
     <StaggerItem>

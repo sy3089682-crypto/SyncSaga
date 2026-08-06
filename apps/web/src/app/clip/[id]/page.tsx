@@ -20,22 +20,22 @@ export default function ClipPage() {
       .finally(() => setLoading(false));
   }, [params.id]);
 
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><LoadingSpinner size="lg" /></div>;
-  if (!clip) return <div className="min-h-screen bg-background flex items-center justify-center text-text-secondary">Clip not found</div>;
+  if (loading) return <div className="min-h-screen bg-canvas flex items-center justify-center"><LoadingSpinner size="lg" /></div>;
+  if (!clip) return <div className="min-h-screen bg-canvas flex items-center justify-center text-ink-soft">Clip not found</div>;
 
   const duration = clip.end_time - clip.start_time;
 
   return (
-    <div className="min-h-screen bg-background text-text-primary">
+    <div className="min-h-screen bg-canvas text-ink">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-6">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-ink-soft hover:text-ink transition-colors mb-6">
           <ArrowLeft className="w-4 h-4" /> Back
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="aspect-video rounded-2xl bg-surface border border-border flex items-center justify-center mb-6 relative group">
             <div className="absolute inset-0 flex items-center justify-center">
-              <button className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center hover:bg-primary transition-colors group-hover:scale-110 transition-transform">
+              <button className="w-16 h-16 rounded-full bg-amber/90 flex items-center justify-center hover:bg-amber transition-colors group-hover:scale-110 transition-transform">
                 <Play className="w-8 h-8 text-white ml-1" />
               </button>
             </div>
@@ -52,22 +52,22 @@ export default function ClipPage() {
           </div>
 
           <h1 className="text-2xl font-bold mb-2">{clip.title || 'Untitled Clip'}</h1>
-          <div className="flex items-center gap-3 text-sm text-text-secondary mb-6">
+          <div className="flex items-center gap-3 text-sm text-ink-soft mb-6">
             <span className="flex items-center gap-1"><Film className="w-4 h-4" />{clip.anime_title}</span>
             {clip.episode_number && <span>Episode {clip.episode_number}</span>}
             <span>by @{clip.profiles?.username || 'user'}</span>
           </div>
 
           {clip.description && (
-            <p className="text-text-secondary mb-6">{clip.description}</p>
+            <p className="text-ink-soft mb-6">{clip.description}</p>
           )}
 
           <div className="flex gap-3">
-            <button className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark transition-colors flex items-center gap-2">
+            <button className="px-6 py-3 rounded-xl bg-amber text-canvas font-semibold hover:bg-amber-hover transition-colors flex items-center gap-2">
               <Play className="w-5 h-5" />
               Watch Full Episode
             </button>
-            <button className="px-6 py-3 rounded-xl bg-surface-light border border-border text-text-primary font-semibold hover:border-primary/50 transition-colors flex items-center gap-2">
+            <button className="px-6 py-3 rounded-xl bg-elevated border border-border text-ink font-semibold hover:border-amber/50 transition-colors flex items-center gap-2">
               <Share2 className="w-5 h-5" />
               Share
             </button>

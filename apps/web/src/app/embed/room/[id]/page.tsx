@@ -40,30 +40,30 @@ export default function EmbedRoomPage() {
   }, [roomId]);
 
   return (
-    <div className="h-full bg-background text-text-primary flex flex-col">
+    <div className="h-full bg-canvas text-ink flex flex-col">
       <div className="flex items-center justify-between p-2 border-b border-border">
         <div className="flex items-center gap-2 text-xs">
-          <div className={cn('w-1.5 h-1.5 rounded-full', connected ? 'bg-accent-green' : 'bg-red-500')} />
+          <div className={cn('w-1.5 h-1.5 rounded-full', connected ? 'bg-success' : 'bg-red-500')} />
           <span className="font-medium">SyncSaga</span>
         </div>
-        <div className="flex items-center gap-1 text-xs text-text-muted">
+        <div className="flex items-center gap-1 text-xs text-ink-mute">
           <Users className="w-3 h-3" /> {memberCount}
         </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-            <Play className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-full bg-amber-strong flex items-center justify-center mx-auto mb-2">
+            <Play className="w-6 h-6 text-amber" />
           </div>
-          <p className="text-xs text-text-secondary">Room connected</p>
-          <p className="text-[10px] text-text-muted mt-1">{connected ? 'Synced' : 'Connecting...'}</p>
+          <p className="text-xs text-ink-soft">Room connected</p>
+          <p className="text-[10px] text-ink-mute mt-1">{connected ? 'Synced' : 'Connecting...'}</p>
         </div>
       </div>
       <div className="flex items-center justify-around p-2 border-t border-border">
-        <Play className="w-4 h-4 text-text-muted" />
-        <Mic className="w-4 h-4 text-text-muted" />
-        <MessageSquare className="w-4 h-4 text-primary" />
-        <Users className="w-4 h-4 text-text-muted" />
+        <Play className="w-4 h-4 text-ink-mute" />
+        <Mic className="w-4 h-4 text-ink-mute" />
+        <MessageSquare className="w-4 h-4 text-amber" />
+        <Users className="w-4 h-4 text-ink-mute" />
       </div>
     </div>
   );

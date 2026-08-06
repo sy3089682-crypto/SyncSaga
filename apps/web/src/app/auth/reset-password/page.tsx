@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { KeyRound, Eye, EyeOff, CheckCircle } from 'lucide-react';
-import Link from 'next/link';
+import { Input } from '@/components/ui/Input';
+import { KeyRound, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import { AuthShell, FieldLabel, FormError, AuthSuccess } from '@/components/auth/AuthShell';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -45,72 +46,51 @@ export default function ResetPasswordPage() {
   };
 
   if (success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="rounded-full bg-green-500/10 p-4">
-            <CheckCircle className="h-10 w-10 text-green-400" />
-          </div>
-          <h1 className="text-2xl font-bold">Password reset successful</h1>
-          <p className="text-muted-foreground">Redirecting to login...</p>
-        </div>
-      </div>
-    );
+    return <AuthSuccess icon={CheckCircle2} title="Password reset" message="Taking you back to sign in…" />;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <KeyRound className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Reset your password</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Enter your new password below</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">New password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm focus:border-primary focus:outline-none"
-                placeholder="At least 8 characters"
-                required
-                minLength={8}
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+    <AuthShell icon={KeyRound} title="Set a new password" subtitle="Make it something you'll remember this time.">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <FieldLabel>New password</FieldLabel>
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="At least 8 characters"
+            iconRight={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="pointer-events-auto"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            </div>
-          </div>
+            }
+            required
+            minLength={8}
+          />
+        </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Confirm password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
-              placeholder="Repeat your password"
-              required
-            />
-          </div>
+        <div>
+          <FieldLabel>Confirm password</FieldLabel>
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repeat your password"
+            required
+          />
+        </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <FormError>{error}</FormError>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Resetting...' : 'Reset password'}
-          </Button>
-        </form>
-
-        <p className="text-center text-sm text-muted-foreground">
-          <Link href="/auth/login" className="text-primary hover:underline">Back to login</Link>
-        </p>
-      </div>
-    </div>
+        <Button type="submit" variant="primary" size="md" className="w-full" isLoading={loading}>
+          Reset password
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

@@ -107,14 +107,13 @@ export default function SearchPage() {
   const AnimeCardComponent = ({ anime, index = 0 }: { anime: AnimeCard; index?: number }) => {
     const title = anime.title?.english || anime.title?.romaji || 'Unknown';
     const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
-    const coverColor = anime.coverImage?.color || '#8b5cf6';
 
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.03 }}
-        className="group relative rounded-2xl overflow-hidden bg-surface border border-border hover:border-primary/40 transition-all hover:-translate-y-1 duration-300"
+        className="group relative rounded-2xl overflow-hidden bg-surface border border-border hover:border-amber/40 transition-all hover:-translate-y-1 duration-300"
       >
         <div className="aspect-[3/4] relative overflow-hidden">
           <img
@@ -141,10 +140,10 @@ export default function SearchPage() {
             <h3 className="text-sm font-semibold text-white truncate drop-shadow-lg">{title}</h3>
             <div className="flex items-center gap-2 mt-1">
               {anime.episodes && (
-                <span className="text-[10px] text-text-secondary">{anime.episodes} eps</span>
+                <span className="text-[10px] text-ink-soft">{anime.episodes} eps</span>
               )}
               {anime.season && anime.seasonYear && (
-                <span className="text-[10px] text-text-secondary">
+                <span className="text-[10px] text-ink-soft">
                   {anime.season.charAt(0) + anime.season.slice(1).toLowerCase()} {anime.seasonYear}
                 </span>
               )}
@@ -156,18 +155,18 @@ export default function SearchPage() {
           {anime.genres && anime.genres.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {anime.genres.slice(0, 3).map(g => (
-                <span key={g} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px]">{g}</span>
+                <span key={g} className="px-1.5 py-0.5 rounded bg-amber-strong text-amber text-[9px]">{g}</span>
               ))}
             </div>
           )}
 
           <div className="flex gap-2">
             <Link href={`/room/create?animeId=${anime.id}&title=${encodeURIComponent(title)}`}
-              className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-colors text-center">
+              className="flex-1 py-2 rounded-lg bg-amber text-canvas text-xs font-semibold hover:bg-amber-hover transition-colors text-center">
               Create Room
             </Link>
             <button onClick={() => router.push(`/search/${anime.id}`)}
-              className="px-3 py-2 rounded-lg bg-surface-light text-text-secondary hover:text-text-primary text-xs transition-colors">
+              className="px-3 py-2 rounded-lg bg-elevated text-ink-soft hover:text-ink text-xs transition-colors">
               Info
             </button>
           </div>
@@ -177,67 +176,63 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-text-primary pb-20 lg:pb-0">
+    <div className="min-h-screen bg-canvas text-ink pb-20 lg:pb-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2">Discover Anime</h1>
-          <p className="text-text-secondary">Search, explore, and create watch parties for your favorite anime.</p>
+          <p className="text-ink-soft">Search, explore, and create watch parties for your favorite anime.</p>
         </div>
 
-        {/* Search Bar */}
         <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-mute" />
           <input
             ref={searchInputRef}
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search anime by title..."
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-surface border border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/20 text-sm outline-none transition-all placeholder:text-text-muted"
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-surface border border-border focus:border-amber/50 focus:ring-1 focus:ring-primary/20 text-sm outline-none transition-all placeholder:text-ink-mute"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary">
+            <button onClick={() => setQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-mute hover:text-ink-soft">
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Filter Chips */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border',
               showFilters || hasActiveFilters
-                ? 'bg-primary/20 border-primary/30 text-primary'
-                : 'bg-surface border-border text-text-secondary hover:border-primary/30'
+                ? 'bg-amber-strong border-amber/30 text-amber'
+                : 'bg-surface border-border text-ink-soft hover:border-amber/30'
             )}>
             <SlidersHorizontal className="w-3 h-3" />
             Filters
-            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-amber" />}
           </button>
 
           {activeGenre && (
-            <span className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs">
+            <span className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-strong border border-amber/30 text-amber text-xs">
               {activeGenre}
               <button onClick={() => handleGenreClick(activeGenre)}><X className="w-3 h-3" /></button>
             </span>
           )}
           {activeFormat && (
-            <span className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 text-accent-cyan text-xs">
+            <span className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber/20 border border-amber/30 text-amber text-xs">
               {activeFormat}
               <button onClick={() => handleFormatClick(activeFormat)}><X className="w-3 h-3" /></button>
             </span>
           )}
 
           {hasActiveFilters && (
-            <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-secondary ml-1">
+            <button onClick={clearFilters} className="text-xs text-ink-mute hover:text-ink-soft ml-1">
               Clear all
             </button>
           )}
         </div>
 
-        {/* Filter Panel */}
         <AnimatePresence>
           {showFilters && (
             <motion.div
@@ -248,15 +243,15 @@ export default function SearchPage() {
             >
               <div className="p-4 rounded-2xl bg-surface border border-border space-y-4">
                 <div>
-                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2">Genre</p>
+                  <p className="text-xs text-ink-mute uppercase tracking-wider mb-2">Genre</p>
                   <div className="flex flex-wrap gap-2">
                     {genres.map(g => (
                       <button key={g} onClick={() => handleGenreClick(g)}
                         className={cn(
                           'px-3 py-1 rounded-full text-xs font-medium transition-colors border',
                           activeGenre === g
-                            ? 'bg-primary/20 border-primary/30 text-primary'
-                            : 'bg-surface-light border-border text-text-secondary hover:border-primary/30'
+                            ? 'bg-amber-strong border-amber/30 text-amber'
+                            : 'bg-elevated border-border text-ink-soft hover:border-amber/30'
                         )}>
                         {g}
                       </button>
@@ -264,15 +259,15 @@ export default function SearchPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2">Format</p>
+                  <p className="text-xs text-ink-mute uppercase tracking-wider mb-2">Format</p>
                   <div className="flex flex-wrap gap-2">
                     {formats.map(f => (
                       <button key={f} onClick={() => handleFormatClick(f)}
                         className={cn(
                           'px-3 py-1 rounded-full text-xs font-medium transition-colors border',
                           activeFormat === f
-                            ? 'bg-accent-cyan/20 border-accent-cyan/30 text-accent-cyan'
-                            : 'bg-surface-light border-border text-text-secondary hover:border-accent-cyan/30'
+                            ? 'bg-amber/20 border-amber/30 text-amber'
+                            : 'bg-elevated border-border text-ink-soft hover:border-amber/30'
                         )}>
                         {f}
                       </button>
@@ -284,7 +279,6 @@ export default function SearchPage() {
           )}
         </AnimatePresence>
 
-        {/* Search Results */}
         {query && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -292,7 +286,7 @@ export default function SearchPage() {
                 <Search className="w-4 h-4" />
                 Results for &ldquo;{query}&rdquo;
               </h2>
-              {loading && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
+              {loading && <Loader2 className="w-4 h-4 text-amber animate-spin" />}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {results.map((anime, i) => (
@@ -301,15 +295,15 @@ export default function SearchPage() {
             </div>
             {results.length === 0 && !loading && (
               <div className="text-center py-12">
-                <AlertCircle className="w-8 h-8 text-text-muted mx-auto mb-3" />
-                <p className="text-text-muted">No results found. Try different keywords or filters.</p>
+                <AlertCircle className="w-8 h-8 text-ink-mute mx-auto mb-3" />
+                <p className="text-ink-mute">No results found. Try different keywords or filters.</p>
               </div>
             )}
             {hasMore && (
               <div className="text-center mt-6">
                 <button onClick={() => doSearch(query, activeGenre, activeFormat, page + 1)}
                   disabled={loading}
-                  className="px-6 py-2.5 rounded-xl bg-surface border border-border text-sm font-medium hover:border-primary/30 transition-colors disabled:opacity-50">
+                  className="px-6 py-2.5 rounded-xl bg-surface border border-border text-sm font-medium hover:border-amber/30 transition-colors disabled:opacity-50">
                   {loading ? 'Loading...' : 'Load More'}
                 </button>
               </div>
@@ -317,13 +311,12 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Trending Section */}
         {!query && (
           <>
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-accent-pink" />
+                  <TrendingUp className="w-5 h-5 text-amber-hover" />
                   Trending Now
                 </h2>
               </div>
@@ -337,7 +330,7 @@ export default function SearchPage() {
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-accent-cyan" />
+                  <Sparkles className="w-5 h-5 text-amber" />
                   Popular This Season
                 </h2>
               </div>

@@ -166,19 +166,19 @@ export default function RoomPage() {
 
   // Desktop version
   return (
-    <div className="h-screen bg-background text-text-primary flex overflow-hidden">
+    <div className="h-screen bg-canvas text-ink flex overflow-hidden">
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-12 sm:h-14 border-b border-border glass flex items-center justify-between px-3 sm:px-4 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className={cn("w-2 h-2 rounded-full shrink-0", isConnected ? 'bg-accent-green' : 'bg-red-500')} />
+            <div className={cn("w-2 h-2 rounded-full shrink-0", isConnected ? 'bg-success' : 'bg-red-500')} />
             <h1 className="font-semibold truncate text-sm sm:text-base">{currentRoom?.name || `Room ${roomId.slice(0, 8)}`}</h1>
-            <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface text-xs text-text-secondary">
+            <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface text-xs text-ink-soft">
               <Users className="w-3 h-3" />
               {totalMembers}
             </span>
-            {isHost && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
+            {isHost && <Crown className="w-4 h-4 text-amber shrink-0" />}
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             {currentRoom?.anime_media_id && isHost && (
@@ -192,12 +192,12 @@ export default function RoomPage() {
               />
             )}
             {episode && (
-              <span className="hidden md:flex text-[10px] text-text-muted px-2 py-1 rounded bg-surface-light truncate max-w-[150px]">
+              <span className="hidden md:flex text-[10px] text-ink-mute px-2 py-1 rounded bg-surface truncate max-w-[150px]">
                 {episode}
               </span>
             )}
             {!isConnected && (
-              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/10 text-red-500 text-xs">
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-error/15 text-error text-xs">
                 <WifiOff className="w-3 h-3" />
                 Reconnecting
               </span>
@@ -205,10 +205,10 @@ export default function RoomPage() {
             <FriendsFeed collapsed={!showFeed} onToggle={() => setShowFeed(!showFeed)} />
             <AiRecap roomId={roomId} animeTitle={currentRoom?.anime_title ?? null} episodeNumber={currentRoom?.current_episode_number ?? null} />
             <button onClick={() => setShowSidebar(!showSidebar)}
-              className={cn("p-2 rounded-lg transition-colors", showSidebar ? 'bg-primary/20 text-primary' : 'hover:bg-surface-light text-text-secondary')}>
+              className={cn("p-2 rounded-lg transition-colors", showSidebar ? 'bg-amber-strong text-amber' : 'hover:bg-surface text-ink-soft')}>
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <button className="p-2 rounded-lg hover:bg-surface-light text-text-secondary transition-colors">
+            <button className="p-2 rounded-lg hover:bg-surface text-ink-soft transition-colors">
               <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
@@ -217,19 +217,19 @@ export default function RoomPage() {
         {/* Video / Sync Area */}
         <div className="flex-1 flex items-center justify-center p-2 sm:p-4 relative overflow-hidden">
           <CinemaOverlay mode={cinemaMode}>
-            <div className="w-full h-full max-w-5xl max-h-[60vh] bg-surface rounded-2xl border border-border relative flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full max-w-5xl max-h-[60vh] bg-surface rounded-xl border border-border relative flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center px-4">
                   <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 3 }}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Play className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-strong flex items-center justify-center mx-auto mb-4">
+                    <Play className="w-8 h-8 sm:w-10 sm:h-10 text-amber" />
                   </motion.div>
                   <h3 className="text-base sm:text-lg font-semibold mb-1">Ready to Watch</h3>
-                  <p className="text-text-secondary text-xs sm:text-sm max-w-xs sm:max-w-md mx-auto">
+                  <p className="text-ink-soft text-xs sm:text-sm max-w-xs sm:max-w-md mx-auto">
                     Open your anime with the SyncSaga extension installed.
                   </p>
                   {/* Mobile host hint */}
-                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-text-muted">
+                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-mute">
                     <Monitor className="w-3 h-3" />
                     <span>Host from mobile: use browser share or paste URL</span>
                   </div>
@@ -285,14 +285,14 @@ export default function RoomPage() {
                   </div>
 
                   <div className="flex-1 flex items-center gap-2">
-                    <span className="text-xs text-text-secondary w-10 text-right shrink-0">{formatTime(currentTime)}</span>
+                    <span className="text-xs text-ink-soft w-10 text-right shrink-0">{formatTime(currentTime)}</span>
                     <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden cursor-pointer group relative">
                       <div className="h-full bg-gradient-to-r from-primary to-accent-cyan rounded-full group-hover:h-2 transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
                     </div>
-                    <span className="text-xs text-text-secondary w-10 shrink-0">{formatTime(duration)}</span>
+                    <span className="text-xs text-ink-soft w-10 shrink-0">{formatTime(duration)}</span>
                   </div>
 
-                  <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary shrink-0" />
+                  <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-soft shrink-0" />
                 </div>
               </div>
             </div>
@@ -303,8 +303,8 @@ export default function RoomPage() {
         <div className="h-14 sm:h-16 border-t border-border glass flex items-center justify-between px-3 sm:px-4 shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
             {isInVoice && roomMembers.slice(0, 4).map(m => (
-              <div key={m.user_id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-light text-xs">
-                <div className={cn("w-2 h-2 rounded-full", m.user_id === user?.id ? 'bg-accent-green' : 'bg-text-muted')} />
+              <div key={m.user_id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface text-xs">
+                <div className={cn("w-2 h-2 rounded-full", m.user_id === user?.id ? 'bg-success' : 'bg-text-muted')} />
                 <span className="truncate max-w-[60px]">{m.user_id === user?.id ? 'You' : m.user_id.slice(0, 4)}</span>
               </div>
             ))}
@@ -318,11 +318,11 @@ export default function RoomPage() {
               participantCount={totalMembers}
             />
             <button onClick={() => setIsMuted(!isMuted)}
-              className={cn("p-2.5 sm:p-3 rounded-xl transition-colors", isMuted ? 'bg-red-500/20 text-red-500' : 'bg-surface-light hover:bg-surface text-text-secondary')}>
+              className={cn("p-2.5 sm:p-3 rounded-lg transition-colors", isMuted ? 'bg-error/15 text-error' : 'bg-surface hover:bg-surface text-ink-soft')}>
               {isMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
             <button onClick={toggleVoice}
-              className={cn("px-3 sm:px-4 py-2 rounded-xl font-semibold text-sm transition-colors", isInVoice ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-accent-green/20 text-accent-green hover:bg-accent-green/30')}>
+              className={cn("px-3 sm:px-4 py-2 rounded-lg font-semibold text-sm transition-colors", isInVoice ? 'bg-error/15 text-error hover:bg-red-500/30' : 'bg-success/20 text-success hover:bg-success/30')}>
               <span className="flex items-center gap-1.5 sm:gap-2">
                 {isInVoice ? <><PhoneOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Leave</> : <><Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Join Voice</>}
               </span>
@@ -344,7 +344,7 @@ export default function RoomPage() {
             <div className="flex border-b border-border shrink-0">
               {(['chat', 'users', 'anime'] as const).map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-primary' : 'text-text-secondary hover:text-text-primary')}>
+                  className={cn("flex-1 py-3 text-sm font-medium transition-colors relative", activeTab === tab ? 'text-amber' : 'text-ink-soft hover:text-ink')}>
                   <span className="flex items-center justify-center gap-1.5">
                     {tab === 'chat' ? <MessageSquare className="w-4 h-4" /> : tab === 'users' ? <Users className="w-4 h-4" /> : <Tv className="w-4 h-4" />}
                     {tab === 'chat' ? 'Chat' : tab === 'users' ? `Users (${totalMembers})` : 'Anime'}
@@ -368,37 +368,37 @@ export default function RoomPage() {
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                   {messages.length === 0 && (
-                    <div className="text-center text-text-muted text-sm py-8">No messages yet. Say hello!</div>
+                    <div className="text-center text-ink-mute text-sm py-8">No messages yet. Say hello!</div>
                   )}
                   {messages.map(msg => (
                     <div key={msg.id}>
                       <div className="flex items-start gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-amber-strong flex items-center justify-center text-xs font-semibold shrink-0">
                           {(msg as any).sender?.username?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-primary">{(msg as any).sender?.username || 'User'}</span>
-                            <span className="text-[10px] text-text-muted">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-sm font-medium text-amber">{(msg as any).sender?.username || 'User'}</span>
+                            <span className="text-[10px] text-ink-mute">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
-                          <p className="text-sm text-text-primary break-words">{msg.content}</p>
+                          <p className="text-sm text-ink break-words">{msg.content}</p>
                         </div>
                       </div>
                     </div>
                   ))}
                   {typingUsers.length > 0 && (
-                    <div className="text-xs text-text-muted italic">{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</div>
+                    <div className="text-xs text-ink-mute italic">{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</div>
                   )}
                   <div ref={chatEndRef} />
                 </div>
                 <div className="p-3 border-t border-border shrink-0">
-                  <div className="flex items-center gap-2 bg-surface-light rounded-xl px-3 py-2">
-                    <button className="text-text-muted hover:text-text-secondary transition-colors shrink-0"><Smile className="w-5 h-5" /></button>
+                  <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2">
+                    <button className="text-ink-mute hover:text-ink-soft transition-colors shrink-0"><Smile className="w-5 h-5" /></button>
                     <input type="text" value={input} onChange={e => { setInput(e.target.value); sendTyping(e.target.value.length > 0); }}
                       onKeyDown={handleKeyDown} placeholder="Type a message..." maxLength={2000}
-                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-text-muted min-w-0" />
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-ink-mute min-w-0" />
                     <button onClick={handleSend} disabled={!input.trim()}
-                      className="text-primary hover:text-primary-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0">
+                      className="text-amber hover:text-amber-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0">
                       <Send className="w-5 h-5" />
                     </button>
                   </div>
@@ -406,21 +406,21 @@ export default function RoomPage() {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-primary/5">
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-amber-strong">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent-pink flex items-center justify-center text-sm font-semibold shrink-0">
                     {(user as any)?.username?.[0]?.toUpperCase() || 'U'}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{(user as any)?.username || 'You'}</p>
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-xs text-accent-green">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />Online
+                      <span className="flex items-center gap-1 text-xs text-success">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success" />Online
                       </span>
                       {(() => {
                         const ds = driftStatuses[user?.id || ''];
                         if (!ds) return null;
-                        const dc = ds.status === 'synced' ? 'bg-accent-green' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
-                        const tc = ds.status === 'synced' ? 'text-accent-green' : ds.status === 'slight' ? 'text-yellow-500' : 'text-red-500';
+                        const dc = ds.status === 'synced' ? 'bg-success' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
+                        const tc = ds.status === 'synced' ? 'text-success' : ds.status === 'slight' ? 'text-amber' : 'text-error';
                         return <span className={`flex items-center gap-1 text-xs ${tc}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${dc}`} />
                           {ds.status === 'synced' ? 'In Sync' : ds.status === 'slight' ? 'Slight Drift' : 'Desynced'}
@@ -428,16 +428,16 @@ export default function RoomPage() {
                       })()}
                     </div>
                   </div>
-                  {isHost && <Crown className="w-4 h-4 text-yellow-500 ml-auto shrink-0" />}
+                  {isHost && <Crown className="w-4 h-4 text-amber ml-auto shrink-0" />}
                 </div>
 
                 <div className="pt-2 border-t border-border">
-                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 px-1">In Room — {totalMembers}</p>
+                  <p className="text-xs text-ink-mute uppercase tracking-wider mb-2 px-1">In Room — {totalMembers}</p>
                   {roomMembers.map(m => {
                     const ds = driftStatuses[m.user_id];
-                    const dc = !ds ? 'bg-text-muted' : ds.status === 'synced' ? 'bg-accent-green' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
+                    const dc = !ds ? 'bg-text-muted' : ds.status === 'synced' ? 'bg-success' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
                     return (
-                      <div key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-light transition-colors">
+                      <div key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-surface transition-colors">
                         <div className="relative">
                           <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-sm font-semibold shrink-0">
                             {m.user_id[0]?.toUpperCase()}
@@ -449,15 +449,15 @@ export default function RoomPage() {
                         <div className="min-w-0">
                           <p className="text-sm truncate">{m.user_id.slice(0, 8)}</p>
                           <div className="flex items-center gap-2">
-                            <p className="text-xs text-text-muted">{m.role === 'host' ? 'Host' : m.role === 'co_host' ? 'Co-Host' : 'Member'}</p>
+                            <p className="text-xs text-ink-mute">{m.role === 'host' ? 'Host' : m.role === 'co_host' ? 'Co-Host' : 'Member'}</p>
                             {ds && (
-                              <span className={cn('text-[10px]', ds.status === 'synced' ? 'text-accent-green' : ds.status === 'slight' ? 'text-yellow-500' : 'text-red-500')}>
+                              <span className={cn('text-[10px]', ds.status === 'synced' ? 'text-success' : ds.status === 'slight' ? 'text-amber' : 'text-error')}>
                                 {ds.status === 'synced' ? 'Synced' : `${ds.drift.toFixed(1)}s`}
                               </span>
                             )}
                           </div>
                         </div>
-                        {m.role === 'host' && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-auto shrink-0" />}
+                        {m.role === 'host' && <Crown className="w-3.5 h-3.5 text-amber ml-auto shrink-0" />}
                       </div>
                     );
                   })}

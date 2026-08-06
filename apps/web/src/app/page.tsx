@@ -269,7 +269,6 @@ function AmberButton({
           fontFamily: 'var(--font-body)',
           letterSpacing: '0.008em',
         }}
-        className={className}
       >
         {children}
       </motion.button>
@@ -410,11 +409,11 @@ export default function LandingPage() {
             transition={{ type: 'spring', stiffness: 160, damping: 22, delay: 0.55 }}
             className="flex flex-col sm:flex-row items-center gap-3.5"
           >
-            <amberButton href="/room/create">
+            <AmberButton href="/room/create">
               <Play style={{ width: 18, height: 18 }} />
               Start a Room
               <ArrowRight style={{ width: 16, height: 16, marginLeft: 2 }} />
-            </amberButton>
+            </AmberButton>
             <GhostButton href="/search">Browse Anime</GhostButton>
           </motion.div>
 
@@ -608,10 +607,10 @@ export default function LandingPage() {
             >
               No ads. No algorithms. Just anime, together.
             </p>
-            <amberButton href="/room/create" large>
+            <AmberButton href="/room/create" large>
               Start a Room
               <ArrowRight style={{ width: 16, height: 16 }} />
-            </amberButton>
+            </AmberButton>
           </RevealSection>
         </section>
       </main>

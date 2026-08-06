@@ -5,19 +5,27 @@ export default defineConfig({
   timeout: 30000,
   expect: { timeout: 10000 },
   retries: 2,
-  reporter: [['html'], ['list']],
+  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
   use: {
     baseURL: 'http://localhost:3000',
     screenshot: 'on',
+    trace: 'on-first-retry',
+    viewport: { width: 1600, height: 900 },
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'chromium-desktop',
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 1600, height: 900 },
-        headless: true,
+      },
+    },
+    {
+      name: 'chromium-mobile',
+      use: {
+        ...devices['iPhone 15 Pro'],
       },
     },
   ],
 });
+PWCONFIG
+echo "playwright.config.ts written — $(wc -l < /tmp/syncsaga/apps/web/playwright.config.ts) lines"

@@ -1,39 +1,60 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { InputHTMLAttributes, forwardRef } from 'react';
+import { forwardRef, type InputHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  error?: string;
-  label?: string;
+  variant?: 'default' | 'ghost';
+  inputSize?: 'sm' | 'md' | 'lg';
+  error?: boolean;
+  icon?: React.ReactNode;
+  iconRight?: React.ReactNode;
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, label, id, ...props }, ref) => {
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ variant = 'default', inputSize = 'md', error, icon, iconRight, className, ...props }, ref) => {
+
+    const sizeClasses = {
+      sm: 'h-9 px-3 text-sm',
+      md: 'h-10 px-3.5 text-base',
+      lg: 'h-12 px-4 text-lg',
+    };
+
+    const variantClasses = {
+      default: 'bg-canvas border-border focus:border-amber focus:ring-amber-glow/30',
+      ghost: 'bg-transparent border-transparent hover:border-border focus:border-amber',
+    };
+
     return (
-      <div className="flex flex-col gap-1">
-        {label && (
-          <label htmlFor={id} className="text-xs text-ink-mute font-medium tracking-wide">
-            {label}
-          </label>
+      <div className="relative">
+        {icon && (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute pointer-events-none">
+            {icon}
+          </span>
         )}
         <input
           ref={ref}
-          id={id}
           className={cn(
-            'w-full bg-surface-alt text-ink border border-border rounded-md px-3.5 py-2.5',
-            'placeholder:text-ink-faint text-[0.9375rem] font-[420]',
-            'transition-all duration-200 ease-spring',
-            'focus:outline-none focus:border-amber focus:shadow-glow-amber',
-            error && 'border-error/40 focus:border-error',
+            'w-full rounded-md border outline-none font-body text-ink placeholder:text-ink-faint',
+            'transition-colors duration-200 focus:ring-2 focus:ring-offset-0',
+            variantClasses[variant],
+            sizeClasses[inputSize],
+            icon && 'pl-9',
+            iconRight && 'pr-9',
+            error && 'border-error focus:border-error focus:ring-error/30',
             className,
           )}
           {...props}
         />
-        {error && <span className="text-xs text-error">{error}</span>}
+        {iconRight && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute pointer-events-none">
+            {iconRight}
+          </span>
+        )}
       </div>
     );
   },
 );
 
 Input.displayName = 'Input';
+export { Input };

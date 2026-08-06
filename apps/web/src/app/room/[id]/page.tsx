@@ -228,7 +228,6 @@ export default function RoomPage() {
                   <p className="text-ink-soft text-xs sm:text-sm max-w-xs sm:max-w-md mx-auto">
                     Open your anime with the SyncSaga extension installed.
                   </p>
-                  {/* Mobile host hint */}
                   <div className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-mute">
                     <Monitor className="w-3 h-3" />
                     <span>Host from mobile: use browser share or paste URL</span>
@@ -236,12 +235,10 @@ export default function RoomPage() {
                 </div>
               </div>
 
-              {/* Timeline reaction bar */}
               <div className="absolute top-0 left-0 right-0">
                 <ReactionBar reactions={timelineReactions} duration={duration} />
               </div>
 
-              {/* Floating reactions */}
               <AnimatePresence>
                 {timelineReactions.slice(-5).map((r, i) => {
                   const emojis: Record<string, string> = { laugh: '😂', cry: '😭', shock: '😱', fire: '🔥', heart: '❤️', gg: '🎉' };
@@ -261,7 +258,6 @@ export default function RoomPage() {
                 })}
               </AnimatePresence>
 
-              {/* Playback Controls Overlay */}
               <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
                 <div className="flex items-center gap-2 sm:gap-4">
                   <div className="flex items-center gap-1 sm:gap-2">
@@ -273,9 +269,7 @@ export default function RoomPage() {
                       className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0">
                       {playbackState === 'playing' ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
                     </button>
-                    {/* Clip capture */}
                     <ClipCapture roomId={roomId} currentTime={currentTime} episode={episode || undefined} />
-                    {/* Timeline reactions */}
                     <TimelineReactions
                       roomId={roomId}
                       currentTime={currentTime}
@@ -299,7 +293,6 @@ export default function RoomPage() {
           </CinemaOverlay>
         </div>
 
-        {/* Bottom Controls Bar */}
         <div className="h-14 sm:h-16 border-t border-border glass flex items-center justify-between px-3 sm:px-4 shrink-0">
           <div className="flex items-center gap-2 overflow-hidden">
             {isInVoice && roomMembers.slice(0, 4).map(m => (
@@ -331,7 +324,6 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* Chat Sidebar */}
       <AnimatePresence>
         {showSidebar && (
           <motion.aside
@@ -416,16 +408,6 @@ export default function RoomPage() {
                       <span className="flex items-center gap-1 text-xs text-success">
                         <span className="w-1.5 h-1.5 rounded-full bg-success" />Online
                       </span>
-                      {(() => {
-                        const ds = driftStatuses[user?.id || ''];
-                        if (!ds) return null;
-                        const dc = ds.status === 'synced' ? 'bg-success' : ds.status === 'slight' ? 'bg-yellow-500' : 'bg-red-500';
-                        const tc = ds.status === 'synced' ? 'text-success' : ds.status === 'slight' ? 'text-amber' : 'text-error';
-                        return <span className={`flex items-center gap-1 text-xs ${tc}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${dc}`} />
-                          {ds.status === 'synced' ? 'In Sync' : ds.status === 'slight' ? 'Slight Drift' : 'Desynced'}
-                        </span>;
-                      })()}
                     </div>
                   </div>
                   {isHost && <Crown className="w-4 h-4 text-amber ml-auto shrink-0" />}
@@ -442,20 +424,10 @@ export default function RoomPage() {
                           <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-sm font-semibold shrink-0">
                             {m.user_id[0]?.toUpperCase()}
                           </div>
-                          {ds && (
-                            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dc} border-2 border-surface`} title={`Drift: ${ds.drift.toFixed(2)}s`} />
-                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm truncate">{m.user_id.slice(0, 8)}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs text-ink-mute">{m.role === 'host' ? 'Host' : m.role === 'co_host' ? 'Co-Host' : 'Member'}</p>
-                            {ds && (
-                              <span className={cn('text-[10px]', ds.status === 'synced' ? 'text-success' : ds.status === 'slight' ? 'text-amber' : 'text-error')}>
-                                {ds.status === 'synced' ? 'Synced' : `${ds.drift.toFixed(1)}s`}
-                              </span>
-                            )}
-                          </div>
+                          <p className="text-xs text-ink-mute">{m.role === 'host' ? 'Host' : m.role === 'co_host' ? 'Co-Host' : 'Member'}</p>
                         </div>
                         {m.role === 'host' && <Crown className="w-3.5 h-3.5 text-amber ml-auto shrink-0" />}
                       </div>
@@ -463,7 +435,6 @@ export default function RoomPage() {
                   })}
                 </div>
 
-                {/* Taste Graph */}
                 <div className="pt-3">
                   <TasteGraph onSelect={(title) => setEpisode(title)} />
                 </div>
@@ -473,7 +444,6 @@ export default function RoomPage() {
         )}
       </AnimatePresence>
 
-      {/* Activity Feed Sidebar */}
       <AnimatePresence>
         {showFeed && (
           <FriendsFeed collapsed={false} onToggle={() => setShowFeed(false)} />

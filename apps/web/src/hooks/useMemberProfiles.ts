@@ -55,7 +55,6 @@ export function useMemberProfiles(userIds: string[]) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   return profiles;

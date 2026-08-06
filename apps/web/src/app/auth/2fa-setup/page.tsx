@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Shield, Copy, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Shield, Copy, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { AuthShell, FieldLabel, FormError, AuthSuccess } from '@/components/auth/AuthShell';
 
 export default function TwoFactorSetupPage() {
   const router = useRouter();
@@ -21,12 +22,14 @@ export default function TwoFactorSetupPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.post('/api/auth/2fa/setup', {}).then((data: any) => {
-      setQrCode(data.qrCode);
-      setSecret(data.secret);
-    }).catch((err: any) => {
-      setError(err.message || 'Failed to setup 2FA');
-    }).finally(() => setLoading(false));
+    api
+      .post('/api/auth/2fa/setup', {})
+      .then((data: any) => {
+        setQrCode(data.qrCode);
+        setSecret(data.secret);
+      })
+      .catch((err: any) => setError(err.message || 'Failed to set up 2FA'))
+      .finally(() => setLoading(false));
   }, [token]);
 
   const handleVerify = async () => {
@@ -51,82 +54,100 @@ export default function TwoFactorSetupPage() {
 
   if (enabled) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="rounded-full bg-green-500/10 p-4">
-            <CheckCircle className="h-10 w-10 text-green-400" />
-          </div>
-          <h1 className="text-2xl font-bold">2FA enabled!</h1>
-          <p className="text-muted-foreground">Two-factor authentication is now active on your account.</p>
-        </div>
-      </div>
+      <AuthSuccess
+        icon={ShieldCheck}
+        title="Two-factor is on"
+        message="Your account now asks for a code every time you sign in."
+      />
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <Shield className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Set up two-factor auth</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Scan the QR code with an authenticator app like Google Authenticator or Authy
-          </p>
+    <AuthShell
+      icon={Shield}
+      eyebrow="Account security"
+      title="Set up two-factor auth"
+      subtitle="Scan this with Google Authenticator, Authy, or any TOTP app."
+      width="md"
+    >
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <div
+            className="h-7 w-7 animate-spin rounded-full border-2 border-t-transparent"
+            style={{ borderColor: 'var(--amber)', borderTopColor: 'transparent' }}
+          />
         </div>
-
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-surface-light border-t-primary" />
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-center">
-              {qrCode ? (
-                <img src={qrCode} alt="QR Code" className="rounded-xl border border-white/10" />
-              ) : (
-                <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-surface-light">
-                  <AlertTriangle className="h-8 w-8 text-yellow-400" />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Or enter this key manually:</p>
-              <div className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2.5">
-                <code className="flex-1 text-sm font-mono">{secret}</code>
-                <button onClick={handleCopy} className="text-primary hover:text-primary/80">
-                  <Copy className="h-4 w-4" />
-                </button>
+      ) : (
+        <div className="space-y-5">
+          <div className="flex justify-center">
+            {qrCode ? (
+              <div className="rounded-lg p-3" style={{ background: '#fff' }}>
+                <img src={qrCode} alt="Scan to enable two-factor authentication" className="rounded" width={176} height={176} />
               </div>
-              {copied && <p className="text-xs text-green-400">Copied!</p>}
-            </div>
+            ) : (
+              <div
+                className="flex h-44 w-44 items-center justify-center rounded-lg"
+                style={{ background: 'var(--elevated)' }}
+              >
+                <AlertTriangle className="h-7 w-7" style={{ color: 'var(--error)' }} />
+              </div>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-muted-foreground">Verify code</label>
-              <input
-                type="text"
-                value={verifyToken}
-                onChange={(e) => setVerifyToken(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-center font-mono tracking-widest focus:border-primary focus:outline-none"
-                placeholder="000 000"
-                maxLength={6}
-              />
-            </div>
-
-            {error && <p className="text-sm text-red-400">{error}</p>}
-
-            <Button
-              onClick={handleVerify}
-              className="w-full"
-              disabled={verifying || verifyToken.length < 6}
+          <div>
+            <FieldLabel>Or enter this key manually</FieldLabel>
+            <div
+              className="flex items-center gap-2 rounded-md px-3.5 py-2.5"
+              style={{ background: 'var(--canvas)', border: '1px solid var(--border)' }}
             >
-              {verifying ? 'Verifying...' : 'Enable 2FA'}
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
+              <code className="flex-1 text-sm truncate" style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>
+                {secret}
+              </code>
+              <button
+                onClick={handleCopy}
+                aria-label="Copy key"
+                style={{ color: copied ? 'var(--success)' : 'var(--amber)' }}
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Verify code</FieldLabel>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={verifyToken}
+              onChange={(e) => setVerifyToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              maxLength={6}
+              className="w-full rounded-md border px-4 py-2.5 text-center outline-none transition-colors"
+              style={{
+                background: 'var(--canvas)',
+                borderColor: 'var(--border)',
+                color: 'var(--ink)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '1.25rem',
+                letterSpacing: '0.4em',
+              }}
+            />
+          </div>
+
+          {error && <FormError>{error}</FormError>}
+
+          <Button
+            onClick={handleVerify}
+            variant="primary"
+            size="md"
+            className="w-full"
+            isLoading={verifying}
+            disabled={verifyToken.length < 6}
+          >
+            Enable 2FA
+          </Button>
+        </div>
+      )}
+    </AuthShell>
   );
 }

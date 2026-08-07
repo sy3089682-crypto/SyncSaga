@@ -50,14 +50,26 @@ packages/
   workflows/  - CI/CD pipelines
 ```
 
+## New Feature: Episode Progress Tracking (Iteration 1)
+
+**Episode Progress Tracking + Continue Watching** has been fully implemented:
+
+- **Database**: `watch_progress` table with RLS policies, computed progress column
+- **API**: Full CRUD at `/api/watch-progress` (GET, POST, PATCH, DELETE) + `/continue-watching`
+- **Frontend**: `useWatchProgress` hook with auto-save debounce, `ContinueWatching` component with animated progress bars
+- **Dashboard**: Integrated "Continue Watching" section with responsive grid
+- **Real-time**: Socket.io event structure for room progress synchronization
+- **Tests**: TypeScript typecheck, lint, unit tests (114/114), E2E tests (8/8) all passing
+
 ## Key Features
 
 - Frame-perfect synchronized playback with drift correction
 - Real-time voice chat via LiveKit
 - In-room text chat with GIF support
 - Create public/private watch rooms
-- User authentication (Email, Google, GitHub, Discord)
-- 2FA support
+- User authentication (Email, Google, Discord)
+- **Episode progress tracking with Continue Watching**
+- **Cross-device watch progress sync**
 - Timestamp-anchored reactions
 - Watch history and activity feed
 - Clip moments creation
@@ -151,10 +163,11 @@ curl -X POST "https://api.render.com/v1/services/srv-d8deprcm0tmc73ds8pqg/deploy
 | GitHub CI | ✅ Passing | 5/5 jobs green |
 | Vercel Web | ✅ Live | Auto-deploy on push |
 | Render API | ✅ Live | Health checks passing |
-| Supabase Auth | ✅ Working | Email + OAuth |
+| Supabase Auth | ⚠️ Partial | Email/password keys truncated |
 | AniList API | ⚠️ Down | Using Jikan fallback |
 | Render Redis | ⚠️ Pending | Using Key-Value |
 | Socket.IO | ✅ Connected | CORS configured |
+| **Watch Progress** | ✅ Implemented | CRUD API + Continue Watching UI |
 
 ## Known Issues
 

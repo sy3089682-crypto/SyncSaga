@@ -22,8 +22,10 @@ test.describe('SyncSaga Landing Page', () => {
     expect(content).toMatch(/anime|watch|sync/i);
   });
 
-  test('CTA button is visible', async ({ page }) => {
+  test('CTA buttons are visible', async ({ page }) => {
+    await page.waitForLoadState('domcontentloaded');
     const buttons = page.getByRole('button');
+    await expect(buttons.first()).toBeVisible({ timeout: 10000 });
     const count = await buttons.count();
     expect(count).toBeGreaterThan(0);
   });

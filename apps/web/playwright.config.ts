@@ -7,7 +7,7 @@ export default defineConfig({
   retries: 2,
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'https://syncsaga.vercel.app',
     screenshot: 'on',
     trace: 'on-first-retry',
     viewport: { width: 1600, height: 900 },

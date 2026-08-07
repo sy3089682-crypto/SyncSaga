@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Globe, Tv, Lock, Trophy, Flame, Clock, Play, ChevronRight } from 'lucide-react';
+import { Plus, Users, Globe, Tv, Lock, Trophy, Flame, Play, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
@@ -12,15 +12,10 @@ import { useRetention, useStreakDisplay } from '@/hooks/useRetention';
 import { api } from '@/lib/api';
 import { Room } from '@syncsaga/shared';
 import { cn } from '@/lib/utils';
+import { ContinueWatching } from '@/components/ContinueWatching';
 import { EmptyState, PageSkeleton } from '@/components/ui/Loading';
 
-interface ContinueWatching {
-  animeTitle: string;
-  mediaId: number;
-  episode: number;
-  coverImage?: string;
-  progress?: number;
-}
+
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -30,7 +25,6 @@ export default function DashboardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newRoom, setNewRoom] = useState({ name: '', description: '', isPrivate: false });
   const [creating, setCreating] = useState(false);
-  const [continueWatching, setContinueWatching] = useState<ContinueWatching[]>([]);
 
   useAnalytics();
   const { stats, recordRoomJoin, xpProgress, xpToNext } = useRetention();
@@ -38,13 +32,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!token) return;
-    Promise.all([
-      api.get<{ rooms: Room[] }>('/api/rooms'),
-      api.get<{ recent: ContinueWatching[] }>('/api/activity/continue-watching').catch(() => ({ recent: [] })),
-    ]).then(([roomsData, watchData]) => {
-      setRooms(roomsData.rooms);
-      setContinueWatching(watchData.recent || []);
-    }).catch(console.error).finally(() => setLoading(false));
+    api.get<{ rooms: Room[] }>('/api/rooms')
+      .then(roomsData => {
+        setRooms(roomsData.rooms);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [token, setRooms]);
 
   const createRoom = async () => {
@@ -118,50 +111,9 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {continueWatching.length > 0 && (
-          <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold flex items-center gap-2">
-                <Clock className="w-4 h-4 text-accent-cyan" />
-                Continue Watching
-              </h2>
-              <Link href="/search" className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                Browse <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-              {continueWatching.map(item => (
-                <motion.button
-                  key={`${item.mediaId}-${item.episode}`}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => router.push(`/search/${item.mediaId}?episode=${item.episode}`)}
-                  className="shrink-0 w-32 sm:w-36 text-left group"
-                >
-                  <div className="aspect-[3/4] rounded-xl overflow-hidden border border-border bg-surface-light mb-2 relative">
-                    {item.coverImage ? (
-                      <img src={item.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-text-muted"><Tv className="w-6 h-6" /></div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent">
-                      <p className="text-[10px] text-white font-medium">Ep. {item.episode}</p>
-                    </div>
-                    {item.progress !== undefined && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface">
-                        <div className="h-full bg-primary rounded-full" style={{ width: `${item.progress}%` }} />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity rounded-xl">
-                      <Play className="w-8 h-8 text-white" />
-                    </div>
-                  </div>
-                  <p className="text-xs font-medium truncate group-hover:text-primary transition-colors">{item.animeTitle}</p>
-                </motion.button>
-              ))}
-            </div>
-          </motion.section>
-        )}
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <ContinueWatching />
+        </motion.section>
 
         <div className="flex flex-wrap gap-3 mb-8">
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}

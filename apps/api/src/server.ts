@@ -23,6 +23,7 @@ import friendsRouter from './routes/friends';
 import usersRouter from './routes/users';
 import profileRouter from './routes/profile';
 import { docsRouter } from './routes/docs';
+import watchProgressRouter from './routes/watch-progress.routes';
 import { initializeSocketHandlers } from './socket';
 import { redisService } from './services/redis.service';
 import { wsBridge } from './services/wsBridge';
@@ -196,6 +197,7 @@ v1Router.use('/friends', friendsRouter);
 v1Router.use('/users', usersRouter);
 v1Router.use('/profile', profileRouter);
   v1Router.use('/docs', docsRouter);
+  v1Router.use('/watch-progress', watchProgressRouter);
 
   app.use('/api/v1', v1Router);
 

@@ -241,6 +241,53 @@ CREATE TABLE IF NOT EXISTS public.reports (
     resolved_at TIMESTAMPTZ
 );
 
+
+-- Watch Progress Tracking
+CREATE TABLE IF NOT EXISTS public.watch_progress (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    anime_id INTEGER NOT NULL,
+    anime_title TEXT NOT NULL,
+    anime_cover_url TEXT,
+    episode INTEGER NOT NULL,
+    season INTEGER DEFAULT 1,
+    timestamp FLOAT DEFAULT 0,
+    duration FLOAT,
+    progress FLOAT GENERATED ALWAYS AS (
+        CASE WHEN duration > 0 THEN LEAST(100, GREATEST(0, (timestamp / duration) * 100)) ELSE 0 END
+    ) STORED,
+    completed BOOLEAN DEFAULT false,
+    last_watched_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, anime_id, episode, season)
+);
+
+-- Indexes for watch progress
+CREATE INDEX IF NOT EXISTS idx_watch_progress_user ON public.watch_progress(user_id, last_watched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_watch_progress_anime ON public.watch_progress(anime_id);
+CREATE INDEX IF NOT EXISTS idx_watch_progress_user_anime ON public.watch_progress(user_id, anime_id, episode, season);
+
+-- RLS for watch_progress
+ALTER TABLE public.watch_progress ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own watch progress"
+    ON public.watch_progress FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own watch progress"
+    ON public.watch_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own watch progress"
+    ON public.watch_progress FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own watch progress"
+    ON public.watch_progress FOR DELETE USING (auth.uid() = user_id);
+
+-- Trigger for updated_at
+CREATE TRIGGER update_watch_progress_updated_at BEFORE UPDATE ON public.watch_progress
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_friendships_requester ON public.friendships(requester_id);
 CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON public.friendships(addressee_id);

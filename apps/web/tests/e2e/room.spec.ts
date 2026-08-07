@@ -5,32 +5,23 @@ test.describe('SyncSaga Room Page (Operate Surface)', () => {
     await page.goto('/room/test-room-01');
   });
 
-  test('renders with warm dark background', async ({ page }) => {
-    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bg).toBe('rgb(11, 11, 14)');
+  test('redirects unauthenticated users to login', async ({ page }) => {
+    await page.waitForURL('**/auth/login**', { timeout: 10000 });
+    expect(page.url()).toContain('/auth/login');
   });
 
-  test('header displays room name', async ({ page }) => {
-    await expect(page.locator('h1')).toBeVisible();
+  test('login page has OAuth buttons', async ({ page }) => {
+    await page.waitForURL('**/auth/login**', { timeout: 10000 });
+    const googleBtn = page.getByRole('button', { name: 'Google' });
+    const discordBtn = page.getByRole('button', { name: 'Discord' });
+    await expect(googleBtn).toBeVisible();
+    await expect(discordBtn).toBeVisible();
   });
 
-  test('header has action buttons', async ({ page }) => {
-    await page.waitForLoadState('domcontentloaded');
-    const buttons = page.locator('button');
-    const count = await buttons.count();
-    // Room page Must have more controls than landing
-    expect(count).toBeGreaterThan(3);
-  });
-
-  test('chat toggle sidebar exists', async ({ page }) => {
-    // MessageSquare icon is the chat toggle
-    const allButtons = page.locator('button');
-    expect(await allButtons.count()).toBeGreaterThan(2);
-  });
-
-  test('footer has voice controls', async ({ page }) => {
-    await page.waitForLoadState('domcontentloaded');
-    const text = await page.textContent('body');
-    expect(text).toMatch(/voice|audio/i);
+  test('login page has email/password form', async ({ page }) => {
+    await page.waitForURL('**/auth/login**', { timeout: 10000 });
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
   });
 });

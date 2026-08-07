@@ -153,3 +153,49 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents extends SocketEventMap {}
+
+// Watch Progress Tracking
+export interface WatchProgress {
+  id: string;
+  user_id: string;
+  anime_id: number;
+  anime_title: string;
+  anime_cover_url: string | null;
+  episode: number;
+  season: number;
+  timestamp: number;
+  duration: number;
+  progress: number; // 0-100
+  completed: boolean;
+  last_watched_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContinueWatchingItem {
+  anime_id: number;
+  anime_title: string;
+  anime_cover_url: string | null;
+  episode: number;
+  season: number;
+  timestamp: number;
+  duration: number;
+  progress: number;
+  last_watched_at: string;
+  room_id?: string; // If watching in a room
+}
+
+export interface WatchProgressUpdate {
+  anime_id: number;
+  anime_title: string;
+  anime_cover_url?: string | null;
+  episode: number;
+  season?: number;
+  timestamp: number;
+  duration: number;
+  completed?: boolean;
+}
+
+export interface WatchProgressCreate extends WatchProgressUpdate {
+  user_id: string;
+}

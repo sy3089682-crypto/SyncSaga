@@ -78,6 +78,20 @@ export const kickBanSchema = z.object({
   userId: z.string().min(1),
 });
 
+
+export const watchProgressSchema = z.object({
+  room_id: z.string().min(1).max(100),
+  anime_id: z.number().int().positive(),
+  anime_title: z.string().min(1).max(200),
+  anime_cover_url: z.string().url().nullable().optional(),
+  episode: z.number().int().positive(),
+  season: z.number().int().positive().optional().default(1),
+  timestamp: z.number().min(0),
+  duration: z.number().positive().optional(),
+  progress: z.number().min(0).max(100),
+  completed: z.boolean().optional(),
+});
+
 export function validate<T>(schema: ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data);
   if (result.success) return { success: true, data: result.data };

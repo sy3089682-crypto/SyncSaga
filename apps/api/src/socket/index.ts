@@ -5,6 +5,7 @@ import { syncHandler } from './handlers/sync.handler';
 import { chatHandler } from './handlers/chat.handler';
 import { presenceHandler } from './handlers/presence.handler';
 import { voiceHandler } from './handlers/voice.handler';
+import { watchProgressHandler } from './handlers/watch-progress.handler';
 import { ServerToClientEvents, ClientToServerEvents } from '@syncsaga/shared';
 import { redisService } from '../services/redis.service';
 import { supabase } from '../lib/supabase';
@@ -44,6 +45,7 @@ export function initializeSocketHandlers(io: Server<ClientToServerEvents, Server
     chatHandler(io, socket);
     presenceHandler(io, socket);
     voiceHandler(io, socket);
+    watchProgressHandler(io, socket);
 
     socket.on('disconnect', async (reason) => {
       logger.info({ socketId: socket.id, userId: uid, reason }, 'Socket disconnected');

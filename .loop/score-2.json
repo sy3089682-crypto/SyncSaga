@@ -1,0 +1,19 @@
+{
+  "iteration": 2,
+  "score": 8,
+  "what_is_still_bad": [
+    "Supabase auth keys truncated in Vercel/Render - email/password login returns 401",
+    "Render service cold-starts (30s+ health check)",
+    "No unit tests for watch progress API endpoints",
+    "No E2E test for Continue Watching flow (login -> watch -> progress saved -> resume)",
+    "Mobile Playwright tests not running (browser not installed)",
+    "Socket.io real-time progress sync not fully tested (no E2E test for multi-user sync)"
+  ],
+  "next_must_fix": [
+    "Fix Supabase auth keys in Vercel/Render (requires manual dashboard access)",
+    "Add unit tests for watch progress API endpoints (GET, POST, PATCH, DELETE /api/watch-progress)",
+    "Add E2E test for Continue Watching flow",
+    "Add E2E test for real-time progress sync in rooms",
+    "Configure Render to prevent cold-starts or add keep-warm ping"
+  ]
+}

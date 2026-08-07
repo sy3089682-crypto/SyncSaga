@@ -11,6 +11,7 @@ import {
 import { useAppStore } from '@/store/useAppStore';
 import { useRoom } from '@/hooks/useRoom';
 import { getSocket } from '@/lib/socket';
+import type { WatchProgressEvent } from '@syncsaga/shared';
 import { cn, formatTime } from '@/lib/utils';
 import { VirtualCinema, CinemaOverlay } from '@/components/cinema/VirtualCinema';
 import { TimelineReactions, ReactionBar } from '@/components/cinema/TimelineReactions';
@@ -51,6 +52,8 @@ export default function RoomPage() {
   const [isMuted, setIsMuted] = useState(false);
   const [isInVoice, setIsInVoice] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [watchProgressUpdates, setWatchProgressUpdates] = useState<WatchProgressEvent[]>([]);
+  const [currentWatchProgress, setCurrentWatchProgress] = useState<WatchProgressEvent | null>(null);
   const [timelineReactions, setTimelineReactions] = useState<TimelineReaction[]>([]);
   const [cinemaMode, setCinemaMode] = useState<'flat' | 'cinema' | 'immersive'>('flat');
   const [episode, setEpisode] = useState<string | null>('Attack on Titan S4 E5');
@@ -61,6 +64,24 @@ export default function RoomPage() {
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
     const onSync = (event: any) => {
+    // Also emit watch progress for room members to see
+    if (['play', 'pause', 'seek'].includes(event.type) && episode) {
+      const epMatch = episode.match(/Episode (\d+)/);
+      if (epMatch) {
+        emitWatchProgress({
+          room_id: roomId,
+          anime_id: currentRoom?.anime_media_id || 0,
+          anime_title: currentRoom?.anime_title || episode,
+          anime_cover_url: currentRoom?.anime_cover_url || null,
+          episode: parseInt(epMatch[1]),
+          season: 1,
+          timestamp: event.timestamp || currentTime,
+          duration: duration,
+          progress: duration > 0 ? ((event.timestamp || currentTime) / duration) * 100 : 0,
+          completed: false,
+        });
+      }
+    }
       if (event.type === 'play') setPlaybackState('playing');
       if (event.type === 'pause') setPlaybackState('paused');
       if (event.type === 'seek') setCurrentTime(event.timestamp);
@@ -95,6 +116,10 @@ export default function RoomPage() {
       sock.on('chat:message', onMessage);
       sock.on('chat:typing', onTyping);
       sock.on('reaction:new', onReaction);
+      sock.on('watch:progress_update', (data: WatchProgressEvent) => {
+      setWatchProgressUpdates(prev => [...prev.slice(-49), data]); // Keep last 50
+      setCurrentWatchProgress(data);
+    });
       sock.on('voice:joined', onVoiceJoined);
       sock.on('voice:left', onVoiceLeft);
     }).catch(() => {});
@@ -123,6 +148,7 @@ export default function RoomPage() {
         socket.off('sync:state', onState);
         socket.off('chat:typing', onTyping);
         socket.off('reaction:new', onReaction);
+        socket.off('watch:progress_update', (data: WatchProgressEvent) => {});
         socket.off('sync:drift_update', onDriftUpdate);
         socket.off('room:new_host', onNewHost);
         socket.off('chat:message', onMessage);
@@ -139,6 +165,12 @@ export default function RoomPage() {
     const interval = setInterval(() => setCurrentTime(t => Math.min(t + 0.5, duration)), 500);
     return () => clearInterval(interval);
   }, [playbackState, duration]);
+
+
+  const emitWatchProgress = useCallback(async (data: Omit<WatchProgressEvent, 'user_id' | 'server_time'>) => {
+    const socket = await getSocket();
+    socket.emit('watch:progress', data);
+  }, []);
 
   const handleSend = useCallback(() => {
     const content = input.trim();

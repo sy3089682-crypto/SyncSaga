@@ -199,3 +199,26 @@ export interface WatchProgressUpdate {
 export interface WatchProgressCreate extends WatchProgressUpdate {
   user_id: string;
 }
+
+
+// Watch Progress Socket Events
+export interface WatchProgressEvent {
+  room_id: string;
+  user_id: string;
+  anime_id: number;
+  anime_title: string;
+  anime_cover_url: string | null;
+  episode: number;
+  season: number;
+  timestamp: number;
+  duration: number;
+  progress: number; // 0-100
+  completed: boolean;
+  server_time: number;
+}
+
+// Extended SocketEventMap with watch progress events
+export interface ExtendedSocketEventMap extends SocketEventMap {
+  'watch:progress': WatchProgressEvent;
+  'watch:progress_update': WatchProgressEvent;
+}

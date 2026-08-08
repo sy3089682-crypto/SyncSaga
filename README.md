@@ -1,179 +1,162 @@
 # SyncSaga
 
-Realtime synchronized anime watch-party platform. Watch anime together in perfect sync with voice chat, messaging, and friends.
+> Watch anime together, in sync.
 
-## 🚀 Live Deployments
+SyncSaga is a realtime social watch-party platform for synchronized anime viewing, rooms, chat, voice, reactions, watch progress, and community features.
 
-| Service | URL | Status |
-|---------|-----|--------|
-| **Web App (Vercel)** | https://syncsaga.vercel.app | ✅ Live |
-| **API (Render)** | https://syncsaga.onrender.com | ✅ Live |
-| **Health Check** | https://syncsaga.onrender.com/health | ✅ Passing |
+## Production
 
-## Tech Stack
+| Service | URL | Role |
+| --- | --- | --- |
+| Web | https://syncsaga.vercel.app | Next.js application |
+| API | https://syncsaga.onrender.com | Express + Socket.IO |
+| API health | https://syncsaga.onrender.com/health | Liveness check |
 
-- **Frontend**: Next.js 15 (Vercel)
-- **Backend**: Express + Socket.IO (Render)
-- **Database**: Supabase (PostgreSQL + Auth)
-- **Cache/State**: Render Key-Value (Redis)
-- **Voice**: LiveKit Cloud
-- **CDN/Security**: Cloudflare
-- **Monitoring**: Sentry + PostHog
-- **CI/CD**: GitHub Actions
-- **Distribution**: PWA + PWABuilder APK
+**Canonical web origin:** `https://syncsaga.vercel.app`
 
-## Quick Start
+Preview and deployment-specific Vercel URLs are for testing only. Authentication redirects should use the canonical origin.
+
+## Architecture
+
+```text
+                         GitHub
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+          Vercel                     Render
+        Next.js web             Express + Socket.IO
+              │                         │
+              └──────────┬──────────────┘
+                         ▼
+                    Supabase
+                 PostgreSQL + Auth
+                         │
+                    ┌────┴────┐
+                    ▼         ▼
+                  Redis    LiveKit
+                 presence  voice/video
+```
+
+## Repository layout
+
+```text
+apps/
+  web/          Next.js frontend and PWA
+  api/          Express + Socket.IO backend
+  extension/   Browser extension
+
+packages/
+  shared/       Shared types and contracts
+  config/       Runtime/build configuration
+  db/           Database schema and data access
+
+.github/
+  workflows/    CI and automation
+  ISSUE_TEMPLATE/
+  PULL_REQUEST_TEMPLATE.md
+
+```
+
+## Core capabilities
+
+- Synchronized watch-party rooms with drift correction
+- Supabase authentication with Google, Discord, and email/password
+- Realtime room state and chat through Socket.IO
+- Voice/video infrastructure through LiveKit
+- Watch progress and Continue Watching
+- Reactions, clips, achievements, friends, and community features
+- Installable PWA
+- Browser extension
+- Anime discovery with external-provider fallbacks
+
+## Development
+
+### Requirements
+
+- Node.js 20+ (Node 24 is used in production where configured)
+- npm
+- Git
+
+### Setup
 
 ```bash
-# Install dependencies
-npm install --legacy-peer-deps
-
-# Copy and fill env vars
+npm install
 cp .env.example .env
-
-# Start development
 npm run dev
 ```
 
-## Project Structure
+Do not commit `.env` files or production credentials.
 
-```
-apps/
-  api/        - Express + Socket.IO backend
-  web/        - Next.js frontend
-  extension/  - Chrome extension (Manifest V3)
-packages/
-  shared/     - Shared TypeScript types
-  config/     - Environment configuration
-  db/         - Drizzle ORM schema
-.github/
-  workflows/  - CI/CD pipelines
-```
+### Validation
 
-## New Feature: Episode Progress Tracking (Iteration 1)
-
-**Episode Progress Tracking + Continue Watching** has been fully implemented:
-
-- **Database**: `watch_progress` table with RLS policies, computed progress column
-- **API**: Full CRUD at `/api/watch-progress` (GET, POST, PATCH, DELETE) + `/continue-watching`
-- **Frontend**: `useWatchProgress` hook with auto-save debounce, `ContinueWatching` component with animated progress bars
-- **Dashboard**: Integrated "Continue Watching" section with responsive grid
-- **Real-time**: Socket.io event structure for room progress synchronization
-- **Tests**: TypeScript typecheck, lint, unit tests (114/114), E2E tests (8/8) all passing
-
-## Key Features
-
-- Frame-perfect synchronized playback with drift correction
-- Real-time voice chat via LiveKit
-- In-room text chat with GIF support
-- Create public/private watch rooms
-- User authentication (Email, Google, Discord)
-- **Episode progress tracking with Continue Watching**
-- **Cross-device watch progress sync**
-- Timestamp-anchored reactions
-- Watch history and activity feed
-- Clip moments creation
-- AI-powered recommendations
-- Achievement system
-- PWA with install prompt
-- Chrome extension for syncing across streaming sites
-
-## Deployment Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        GitHub (main)                        │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ Push
-          ┌───────────┴───────────┐
-          ▼                       ▼
-    ┌─────────────┐         ┌─────────────┐
-    │   Vercel    │         │   Render    │
-    │  (Frontend) │         │   (API)     │
-    │ syncsaga.   │         │ syncsaga.   │
-    │ vercel.app  │         │ onrender.com│
-    └──────┬──────┘         └──────┬──────┘
-           │                       │
-           │              ┌────────┴────────┐
-           │              ▼                 ▼
-           │       ┌──────────┐       ┌──────────┐
-           │       │ Supabase │       │ Render   │
-           │       │ (Auth +  │       │ Key-Value│
-           └──────▶│   DB)    │       │ (Redis)  │
-                  └──────────┘       └──────────┘
-```
-
-## Environment Variables
-
-### Vercel (Frontend)
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-
-### Render (API)
-| Variable | Description |
-|----------|-------------|
-| `NODE_ENV` | `production` |
-| `PORT` | `4000` |
-| `REDIS_URL` | `fromKeyValue: syncsaga-redis` |
-| `JWT_SECRET` | Secret for JWT tokens |
-| `JWT_REFRESH_SECRET` | Secret for refresh tokens |
-| `CORS_ORIGIN` | `https://syncsaga.vercel.app,...` |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase service role key |
-| `SUPABASE_ANON_KEY` | Supabase anon key |
-
-## CI/CD Pipeline
-
-```yaml
-# .github/workflows/ci.yml
-- Lint (ESLint + Prettier)
-- Typecheck (TypeScript)
-- Test (Vitest + Playwright)
-- Build (Turbo)
-- Deploy Preview (Vercel)
-- Deploy Production (Vercel + Render)
-```
-
-## Test Coverage
-
-- **Unit/Integration**: `npm run test` (Vitest)
-- **E2E**: `npm run test:e2e` (Playwright)
-- **Type Safety**: `npm run typecheck`
-
-## Deployment Commands
+Before opening a pull request, run the checks relevant to your change:
 
 ```bash
-# Deploy to Vercel (auto on push to main)
-vercel --prod
-
-# Deploy to Render (auto on push to main)
-# Or trigger manually:
-curl -X POST "https://api.render.com/v1/services/srv-d8deprcm0tmc73ds8pqg/deploys" \
-  -H "Authorization: Bearer $RENDER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"clearCache":"clear"}'
+npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
+npm run build
 ```
 
-## Current Status (Aug 2026)
+If a command is not available in a particular workspace, document that clearly in the pull request rather than bypassing the check.
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| GitHub CI | ✅ Passing | 5/5 jobs green |
-| Vercel Web | ✅ Live | Auto-deploy on push |
-| Render API | ✅ Live | Health checks passing |
-| Supabase Auth | ⚠️ Partial | Email/password keys truncated |
-| AniList API | ⚠️ Down | Using Jikan fallback |
-| Render Redis | ⚠️ Pending | Using Key-Value |
-| Socket.IO | ✅ Connected | CORS configured |
-| **Watch Progress** | ✅ Implemented | CRUD API + Continue Watching UI |
+## Authentication rules
 
-## Known Issues
+SyncSaga uses Supabase as the source of truth for user authentication and sessions.
 
-1. **AniList API temporarily disabled** - Using Jikan (MyAnimeList) as fallback
-2. **Render Key-Value internal DNS** - May need manual env var sync
-3. **Demo room video source** - Requires manual video URL configuration
+The intended flow is:
+
+```text
+Provider
+  ↓
+Supabase OAuth
+  ↓
+/auth/callback
+  ↓
+PKCE code exchange
+  ↓
+Supabase SSR cookies
+  ↓
+Next.js middleware refresh
+  ↓
+Client session hydration
+```
+
+Do not introduce a second browser authentication store or custom JWT session flow without an architecture decision and tests covering the complete lifecycle.
+
+For production OAuth, use the canonical origin:
+
+```text
+https://syncsaga.vercel.app
+```
+
+## Deployment
+
+- Pushes to the production branch are deployed through the configured Vercel and Render integrations.
+- Supabase migrations must be reviewed before production application.
+- Environment variables are managed by the deployment platforms, not committed to Git.
+- Production changes should be verified through health checks and the relevant automated tests.
+
+## Engineering principles
+
+1. **One source of truth.** Avoid duplicate auth, room, or session state.
+2. **Small changes.** Prefer focused commits over large mixed feature/fix merges.
+3. **Tests before confidence.** A green build is not enough for auth, realtime, or database changes.
+4. **Schema and code move together.** Database migrations must be explicit and reversible where practical.
+5. **Production domains are stable.** Never make authentication depend on preview URLs.
+6. **No secrets in Git.** Use platform-managed environment variables.
+7. **Document decisions.** Architectural changes belong in a short ADR or design document.
+
+## Project status
+
+SyncSaga is under active development. The production infrastructure is deployed, while some product areas and external integrations continue to evolve.
+
+For the current technical state, see [`AUDIT.md`](./AUDIT.md). Do not treat historical status tables or old commit messages as proof that a production feature is currently healthy.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) before making changes. Security-sensitive issues should follow [`SECURITY.md`](./SECURITY.md).
 
 ## License
 

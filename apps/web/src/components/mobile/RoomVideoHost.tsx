@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Film, Loader2, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RoomVideoHostProps {
   roomId: string;
@@ -22,6 +23,8 @@ const ALLOWED_TYPES = new Set([
 
 export function RoomVideoHost({ roomId, userId, onReady }: RoomVideoHostProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { user: authUser } = useAuth();
+  const effectiveUserId = userId || authUser?.id;
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export function RoomVideoHost({ roomId, userId, onReady }: RoomVideoHostProps) {
   const selectVideo = async (file: File) => {
     setError(null);
 
-    if (!userId) {
+    if (!effectiveUserId) {
       setError('You need to be signed in to host a video.');
       return;
     }
@@ -47,7 +50,7 @@ export function RoomVideoHost({ roomId, userId, onReady }: RoomVideoHostProps) {
 
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${userId}/${roomId}/${crypto.randomUUID()}-${safeName}`;
+      const path = `${effectiveUserId}/${roomId}/${crypto.randomUUID()}-${safeName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('room-videos')

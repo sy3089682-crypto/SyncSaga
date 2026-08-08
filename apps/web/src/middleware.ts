@@ -3,8 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import type { CookieOptions } from '@supabase/ssr';
 
-const publicPaths = [
-  '/',
+const authPaths = [
   '/auth/login',
   '/auth/register',
   '/auth/forgot-password',
@@ -12,12 +11,9 @@ const publicPaths = [
   '/auth/callback',
 ];
 
-const authPaths = [
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/auth/callback',
+const publicPaths = [
+  '/',
+  ...authPaths,
 ];
 
 const MOBILE_USER_AGENTS = [
@@ -75,7 +71,10 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey || isPublicPath(pathname)) {
+  // API/embed/public assets own their own access rules. Auth pages are checked
+  // below so authenticated users cannot get stuck on the login screen.
+  const needsAuthCheck = !isPublicPath(pathname) || isAuthPath(pathname);
+  if (!supabaseUrl || !supabaseAnonKey || !needsAuthCheck) {
     return response;
   }
 
@@ -97,8 +96,8 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // getUser() validates the JWT with Supabase and refreshes the session when needed.
-  // Do not use getSession() as the server-side source of truth.
+  // Server-side auth source of truth. getUser() validates the JWT with
+  // Supabase instead of trusting an unverified session payload.
   const {
     data: { user },
     error,
@@ -112,7 +111,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  if (!user && !error) {
+  if (!user && !error && !isAuthPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/auth/login';
     redirectUrl.searchParams.set('redirect', pathname);

@@ -8,6 +8,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  *
  * Uses the modern Supabase publishable key when available. The publishable
  * key is intentionally safe for browser use and can be independently rotated.
+ *
+ * Auth persistence is explicit because SyncSaga is also installed as a PWA:
+ * the standalone app must keep the same Supabase session across launches,
+ * refreshes and background/foreground transitions.
  */
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabasePublishableKey =
@@ -21,7 +25,15 @@ if (!supabaseUrl) {
 
 export const supabase: SupabaseClient = createBrowserClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabasePublishableKey
+  supabasePublishableKey,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+      flowType: 'pkce',
+    },
+  }
 );
 
 export async function signInWithOAuth(provider: 'google' | 'discord') {

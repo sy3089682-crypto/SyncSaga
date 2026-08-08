@@ -6,30 +6,24 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /**
  * Supabase browser client.
  *
- * Uses @supabase/ssr for proper cookie-based session management.
- * The session is stored in cookies (not localStorage), which:
- * - Is secure against XSS attacks (httpOnly cookies)
- * - Works with Next.js middleware for server-side auth checks
- * - Supports SSR (server components can read the session)
+ * Uses the modern Supabase publishable key when available. The publishable
+ * key is intentionally safe for browser use and can be independently rotated.
  */
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabasePublishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+if (!supabaseUrl) {
+  console.warn('Missing NEXT_PUBLIC_SUPABASE_URL');
 }
 
-// Use default cookie handling - @supabase/ssr handles secure/httpOnly correctly on HTTPS
 export const supabase: SupabaseClient = createBrowserClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabasePublishableKey
 );
 
-/**
- * OAuth sign-in helper.
- * Redirects to the provider's OAuth flow and returns to the callback page.
- */
 export async function signInWithOAuth(provider: 'google' | 'discord') {
   return supabase.auth.signInWithOAuth({
     provider,
@@ -43,12 +37,6 @@ export async function signInWithOAuth(provider: 'google' | 'discord') {
   });
 }
 
-/**
- * Get the current session's access token.
- * Returns null if not authenticated.
- *
- * Use this to pass the token to the backend API or Socket.IO.
- */
 export async function getAccessToken(): Promise<string | null> {
   const {
     data: { session },
@@ -56,10 +44,6 @@ export async function getAccessToken(): Promise<string | null> {
   return session?.access_token || null;
 }
 
-/**
- * Get the current user's ID.
- * Returns null if not authenticated.
- */
 export async function getCurrentUserId(): Promise<string | null> {
   const {
     data: { user },

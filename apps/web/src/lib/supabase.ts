@@ -6,17 +6,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /**
  * Supabase browser client.
  *
- * Uses the modern Supabase publishable key when available. The publishable
- * key is intentionally safe for browser use and can be independently rotated.
- *
- * Auth persistence is explicit because SyncSaga is also installed as a PWA:
- * the standalone app must keep the same Supabase session across launches,
- * refreshes and background/foreground transitions.
+ * The publishable key is intentionally safe for browser use. A known-good
+ * project key is used here so a truncated Vercel environment variable cannot
+ * invalidate the browser's OAuth/session client.
  */
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+const SUPABASE_PUBLISHABLE_KEY =
   'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
 
 if (!supabaseUrl) {
@@ -25,7 +20,7 @@ if (!supabaseUrl) {
 
 export const supabase: SupabaseClient = createBrowserClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabasePublishableKey,
+  SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
       persistSession: true,

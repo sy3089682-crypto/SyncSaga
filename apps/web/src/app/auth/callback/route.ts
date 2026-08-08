@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import type { CookieOptions } from '@supabase/ssr';
 
+const SUPABASE_PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
@@ -22,17 +27,18 @@ export async function GET(request: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('OAuth callback: missing Supabase environment variables');
+  if (!supabaseUrl) {
+    console.error('OAuth callback: missing NEXT_PUBLIC_SUPABASE_URL');
     return NextResponse.redirect(
       new URL('/auth/login?error=Authentication%20configuration%20error', origin)
     );
   }
 
   const cookieStore = await cookies();
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const response = NextResponse.redirect(new URL('/dashboard', origin));
+
+  const supabase = createServerClient(supabaseUrl, SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -40,6 +46,7 @@ export async function GET(request: Request) {
       setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value, options }) => {
           cookieStore.set(name, value, options);
+          response.cookies.set(name, value, options);
         });
       },
     },
@@ -88,6 +95,5 @@ export async function GET(request: Request) {
     console.warn('OAuth callback: profile upsert failed:', profileError.message);
   }
 
-  const response = NextResponse.redirect(new URL('/dashboard', origin));
   return response;
 }

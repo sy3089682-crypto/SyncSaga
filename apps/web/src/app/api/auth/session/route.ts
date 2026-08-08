@@ -9,6 +9,13 @@ const SUPABASE_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
 
+function copyCookies(from: NextResponse, to: NextResponse) {
+  for (const cookie of from.cookies.getAll()) {
+    to.cookies.set(cookie);
+  }
+  return to;
+}
+
 export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) {
@@ -36,11 +43,9 @@ export async function GET() {
   });
 
   const { data: { session }, error } = await supabase.auth.getSession();
-  if (error || !session) {
-    return response;
-  }
+  if (error || !session) return response;
 
-  return NextResponse.json(
+  const finalResponse = NextResponse.json(
     {
       session: {
         access_token: session.access_token,
@@ -51,8 +56,10 @@ export async function GET() {
         user: session.user,
       },
     },
-    {
-      headers: { 'Cache-Control': 'no-store, private' },
-    }
+    { headers: { 'Cache-Control': 'no-store, private' } }
   );
+
+  // getSession() can rotate/refresh the auth cookies. Preserve those Set-Cookie
+  // headers on the response that actually reaches the PWA client.
+  return copyCookies(response, finalResponse);
 }

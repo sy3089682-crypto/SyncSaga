@@ -4,9 +4,6 @@ import { createServerClient } from '@supabase/ssr';
 import type { CookieOptions } from '@supabase/ssr';
 
 const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -59,7 +56,5 @@ export async function GET() {
     { headers: { 'Cache-Control': 'no-store, private' } }
   );
 
-  // getSession() can rotate/refresh the auth cookies. Preserve those Set-Cookie
-  // headers on the response that actually reaches the PWA client.
   return copyCookies(response, finalResponse);
 }

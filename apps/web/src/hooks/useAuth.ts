@@ -18,6 +18,52 @@ interface AuthState {
   error: string | null;
 }
 
+// A browser/PWA fallback independent of SSR cookies. This is deliberately
+// separate from Supabase's own storage so an installed PWA can recover even
+// when its cookie jar is not immediately available after a cold launch.
+const PWA_SESSION_KEY = 'syncsaga.auth.session.v1';
+
+function readPersistedSession(): Session | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(PWA_SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Session;
+  } catch {
+    return null;
+  }
+}
+
+function persistSession(session: Session | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (session) {
+      window.localStorage.setItem(PWA_SESSION_KEY, JSON.stringify(session));
+    } else {
+      window.localStorage.removeItem(PWA_SESSION_KEY);
+    }
+  } catch {
+    // Storage can be unavailable in private/restricted browser contexts.
+  }
+}
+
+async function restorePersistedSession(): Promise<Session | null> {
+  const stored = readPersistedSession();
+  if (!stored?.access_token || !stored?.refresh_token) return null;
+
+  try {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: stored.access_token,
+      refresh_token: stored.refresh_token,
+    });
+    if (error || !data.session) return null;
+    persistSession(data.session);
+    return data.session;
+  } catch {
+    return null;
+  }
+}
+
 async function restoreSessionFromServer(): Promise<Session | null> {
   try {
     const response = await fetch('/api/auth/session', {
@@ -36,7 +82,9 @@ async function restoreSessionFromServer(): Promise<Session | null> {
       refresh_token: session.refresh_token,
     });
 
-    return error ? null : data.session;
+    if (error || !data.session) return null;
+    persistSession(data.session);
+    return data.session;
   } catch {
     return null;
   }
@@ -55,6 +103,7 @@ export function useAuth() {
 
     const applySession = (session: Session | null) => {
       if (!mounted) return;
+      persistSession(session);
       setState({
         user: session?.user ? (session.user as AppUser) : null,
         accessToken: session?.access_token || null,
@@ -71,18 +120,14 @@ export function useAuth() {
 
     async function init() {
       try {
-        let {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        let { data: { session }, error } = await supabase.auth.getSession();
 
-        // In an installed PWA the standalone client can start before the
-        // browser-side cookie adapter has rehydrated. Ask the SSR side for the
-        // authenticated session, then persist it into the browser client.
-        if (!session && !error) {
-          session = await restoreSessionFromServer();
-        }
-
+        // 1. Normal Supabase browser session.
+        // 2. Explicit PWA local persistence.
+        // 3. SSR cookie bridge.
+        // 4. Refresh any surviving refresh token.
+        if (!session && !error) session = await restorePersistedSession();
+        if (!session && !error) session = await restoreSessionFromServer();
         if (!session && !error) {
           const refreshed = await supabase.auth.refreshSession();
           session = refreshed.data.session;
@@ -119,13 +164,14 @@ export function useAuth() {
       if (document.visibilityState !== 'visible') return;
       try {
         const { data, error } = await supabase.auth.refreshSession();
-        if (!error && data.session) applySession(data.session);
-        else if (!data.session) {
-          const restored = await restoreSessionFromServer();
+        if (!error && data.session) {
+          applySession(data.session);
+        } else if (!data.session) {
+          const restored = await restorePersistedSession() || await restoreSessionFromServer();
           if (restored) applySession(restored);
         }
       } catch {
-        // Keep the current session state if refresh is temporarily unavailable.
+        // Keep the current session if a transient refresh fails.
       }
     };
 
@@ -141,6 +187,7 @@ export function useAuth() {
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
+    persistSession(data.session);
     return data;
   }, []);
 
@@ -151,12 +198,14 @@ export function useAuth() {
       options: { data: { username } },
     });
     if (error) throw new Error(error.message);
+    persistSession(data.session);
     return data;
   }, []);
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw new Error(error.message);
+    persistSession(null);
     setState({ user: null, accessToken: null, loading: false, error: null });
   }, []);
 
@@ -174,6 +223,8 @@ export function useAuth() {
 
   const refreshToken = useCallback(async () => {
     const token = await getAccessToken();
+    const { data } = await supabase.auth.getSession();
+    if (data.session) persistSession(data.session);
     setState((prev) => ({ ...prev, accessToken: token }));
     return token;
   }, []);

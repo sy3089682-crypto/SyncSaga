@@ -29,18 +29,29 @@ export function useMobileHost(options: MobileHostOptions) {
       const socket = await getSocket();
       socketRef.current = socket;
 
-      socket.emit('room:status', { roomId }, (response: any) => {
-        const host = Boolean(
-          response?.isHost ||
-          response?.user_role === 'host' ||
-          response?.host_id === user?.id
-        );
-        setIsHost(host);
-      });
+      // The API does not implement a `room:status` event. Host ownership is
+      // included in the authoritative `room:state` payload after joining.
+      const updateFromRoom = (room: any) => {
+        if (!room || !user?.id) return;
+        const host =
+          room.host_id === user.id ||
+          (Array.isArray(room.co_hosts) && room.co_hosts.includes(user.id));
+        setIsHost(Boolean(host));
+      };
+
+      socket.on('room:state', updateFromRoom);
+      socket.emit('room:join', { roomId });
     } catch (err) {
       console.error('Failed to check host status:', err);
     }
   }, [roomId, user?.id]);
+
+  useEffect(() => {
+    void checkHostStatus();
+    return () => {
+      socketRef.current?.off('room:state');
+    };
+  }, [checkHostStatus]);
 
   const requestScreenShare = useCallback(async () => {
     try {

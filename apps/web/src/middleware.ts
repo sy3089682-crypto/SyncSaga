@@ -21,8 +21,6 @@ const authPaths = [
 ];
 
 const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.SUPABASE_PUBLISHABLE_KEY ||
   'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
 
 const MOBILE_USER_AGENTS = [
@@ -115,9 +113,6 @@ export async function middleware(request: NextRequest) {
   const { data: { session }, error } = await supabase.auth.getSession();
   const { pathname } = request.nextUrl;
 
-  // If an authenticated user launches the installed PWA at its `/` start URL,
-  // redirect on the server before the client AuthGuard can render the public
-  // landing page. This makes PWA relaunches deterministic.
   if (session && pathname === '/') {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/dashboard';

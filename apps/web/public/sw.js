@@ -1,4 +1,4 @@
-const CACHE = 'syncsaga-v2';
+const CACHE = 'syncsaga-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -7,7 +7,6 @@ const STATIC_ASSETS = [
   '/robots.txt',
 ];
 
-// Install: cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -15,38 +14,71 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith('syncsaga-') && key !== CACHE)
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
+
   const url = new URL(event.request.url);
-  
-  // API calls: network-first with offline fallback
+
+  // Never cache authentication/session URLs. OAuth callbacks and auth pages
+  // must always reach the network so a stale PWA cannot break login.
+  if (
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/api/auth/') ||
+    url.pathname.includes('/callback') ||
+    url.searchParams.has('code') ||
+    url.searchParams.has('error') ||
+    url.searchParams.has('access_token') ||
+    url.searchParams.has('refresh_token')
+  ) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // API calls are always network-first. Do not let stale authenticated data
+  // masquerade as current server state.
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(event.request));
     return;
   }
-  
-  // Static assets: cache-first
-  event.respondWith(cacheFirst(event.request));
+
+  // HTML/navigation requests must be network-first. The previous cache-first
+  // strategy could keep an installed PWA on an old Next.js application shell.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(networkFirstNavigation(event.request));
+    return;
+  }
+
+  // Immutable-ish static assets can safely use cache-first, with the versioned
+  // cache name forcing a clean refresh when the service worker changes.
+  if (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.match(/\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|otf)$/i)
+  ) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  event.respondWith(networkFirst(event.request));
 });
 
 async function networkFirst(request) {
   const cache = await caches.open(CACHE);
   try {
     const response = await fetch(request);
-    if (response.ok) {
-      cache.put(request, response.clone());
+    if (response.ok && response.type !== 'opaque') {
+      await cache.put(request, response.clone());
     }
     return response;
   } catch {
@@ -55,15 +87,26 @@ async function networkFirst(request) {
   }
 }
 
+async function networkFirstNavigation(request) {
+  try {
+    const response = await fetch(request, { cache: 'no-store' });
+    return response;
+  } catch {
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match('/');
+    return cached || new Response('Offline', { status: 503 });
+  }
+}
+
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
-  
+
   try {
     const response = await fetch(request);
-    if (response.ok) {
-      cache.put(request, response.clone());
+    if (response.ok && response.type !== 'opaque') {
+      await cache.put(request, response.clone());
     }
     return response;
   } catch {
@@ -71,17 +114,16 @@ async function cacheFirst(request) {
   }
 }
 
-// Push notifications for guests
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  
+
   let data;
   try {
     data = event.data.json();
   } catch {
     data = { title: 'SyncSaga', body: 'New notification', url: '/' };
   }
-  
+
   const options = {
     body: data.body || 'New notification',
     icon: '/icon-192.png',
@@ -95,52 +137,50 @@ self.addEventListener('push', (event) => {
     tag: data.tag || 'syncsaga-notification',
     renotify: data.renotify || false,
   };
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'SyncSaga', options)
   );
 });
 
-// Notification click: open room
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   const url = event.notification.data?.url || '/';
   const roomId = event.notification.data?.roomId;
-  const action = event.action;
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there's already a window open for this room
       for (const client of clientList) {
         if (roomId && client.url.includes(`room/${roomId}`)) {
-          client.focus();
-          return Promise.resolve();
+          return client.focus();
         }
       }
-      // Open new window
       return clients.openWindow(roomId ? `/room/${roomId}` : url);
     })
   );
 });
 
-// Handle messages from client
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+
   if (event.data?.type === 'CACHE_URLS') {
     event.waitUntil(cacheUrls(event.data.urls));
   }
+
   if (event.data?.type === 'SHOW_NOTIFICATION') {
-    self.registration.showNotification(
-      event.data.title || 'SyncSaga',
-      {
-        body: event.data.body || '',
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
-        data: event.data.data || {},
-      }
+    event.waitUntil(
+      self.registration.showNotification(
+        event.data.title || 'SyncSaga',
+        {
+          body: event.data.body || '',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          data: event.data.data || {},
+        }
+      )
     );
   }
 });

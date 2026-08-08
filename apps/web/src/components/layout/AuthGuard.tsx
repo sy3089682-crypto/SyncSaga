@@ -25,8 +25,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (loading) return;
+
+    // A PWA normally reopens at `/`. If Supabase restored the persisted
+    // session, take the user straight back into the app instead of showing
+    // the public landing page and making them sign in again.
+    if (isAuthenticated && pathname === '/') {
+      router.replace('/dashboard');
+      return;
+    }
+
     if (!isAuthenticated && !isPublic) {
-      router.push('/auth/login');
+      router.replace('/auth/login');
     }
   }, [isAuthenticated, loading, isPublic, pathname, router]);
 

@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getSocket } from '@/lib/socket';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 
 interface MobileHostOptions {
   roomId: string;
@@ -25,12 +26,27 @@ export function useMobileHost(options: MobileHostOptions) {
   const screenShareStreamRef = useRef<MediaStream | null>(null);
 
   const checkHostStatus = useCallback(async () => {
+    if (!user?.id) {
+      setIsHost(false);
+      return;
+    }
+
+    // Use the authoritative REST room record first. This avoids depending on
+    // Socket.IO timing and guarantees the host control can render as soon as
+    // the authenticated room page loads.
+    try {
+      const room = await api.get<{ host_id: string; co_hosts?: string[] }>(`/api/rooms/${roomId}`);
+      const host = room.host_id === user.id || (Array.isArray(room.co_hosts) && room.co_hosts.includes(user.id));
+      setIsHost(Boolean(host));
+    } catch (err) {
+      console.warn('REST host check failed; falling back to room state:', err);
+    }
+
+    // Keep Socket.IO as the live fallback/update path.
     try {
       const socket = await getSocket();
       socketRef.current = socket;
 
-      // The API does not implement a `room:status` event. Host ownership is
-      // included in the authoritative `room:state` payload after joining.
       const updateFromRoom = (room: any) => {
         if (!room || !user?.id) return;
         const host =
@@ -42,14 +58,15 @@ export function useMobileHost(options: MobileHostOptions) {
       socket.on('room:state', updateFromRoom);
       socket.emit('room:join', { roomId });
     } catch (err) {
-      console.error('Failed to check host status:', err);
+      console.warn('Socket host check failed:', err);
     }
   }, [roomId, user?.id]);
 
   useEffect(() => {
     void checkHostStatus();
     return () => {
-      socketRef.current?.off('room:state');
+      const socket = socketRef.current;
+      if (socket) socket.off('room:state');
     };
   }, [checkHostStatus]);
 

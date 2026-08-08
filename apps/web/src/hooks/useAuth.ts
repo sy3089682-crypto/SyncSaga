@@ -12,17 +12,6 @@ export type AppUser = User & {
   avatar_url?: string | null;
 };
 
-/**
- * useAuth — unified authentication hook
- *
- * Uses Supabase Auth exclusively for all auth operations.
- * Session is managed by Supabase (cookie-based, auto-refresh).
- *
- * Compatibility aliases:
- *   - token      → accessToken  (legacy consumers)
- *   - logout     → signOut
- */
-
 interface AuthState {
   user: AppUser | null;
   accessToken: string | null;
@@ -38,152 +27,131 @@ export function useAuth() {
     error: null,
   });
 
-  // Initialize — get existing session
   useEffect(() => {
     let mounted = true;
 
+    const applySession = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+      if (!mounted) return;
+      setState({
+        user: session?.user ? (session.user as AppUser) : null,
+        accessToken: session?.access_token || null,
+        loading: false,
+        error: null,
+      });
+    };
+
+    // Subscribe first so a session restored/rotated during startup cannot be missed.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session);
+    });
+
     async function init() {
       try {
-        const {
+        let {
           data: { session },
+          error,
         } = await supabase.auth.getSession();
+
+        // PWAs can be resumed after the access token expires while the app is
+        // suspended. Explicitly refresh once during startup so the restored
+        // session is available before protected UI is evaluated.
+        if (!session && !error) {
+          const refreshed = await supabase.auth.refreshSession();
+          session = refreshed.data.session;
+          error = refreshed.error;
+        }
 
         if (!mounted) return;
 
-        if (session) {
-          setState({
-            user: session.user as AppUser,
-            accessToken: session.access_token,
-            loading: false,
-            error: null,
-          });
-        } else {
+        if (error) {
           setState({
             user: null,
             accessToken: null,
             loading: false,
-            error: null,
+            error: error.message,
           });
+          return;
         }
+
+        applySession(session);
       } catch (error) {
         if (!mounted) return;
         setState({
           user: null,
           accessToken: null,
           loading: false,
-          error: error instanceof Error ? error.message : 'Failed to get session',
+          error: error instanceof Error ? error.message : 'Failed to restore session',
         });
       }
     }
 
     init();
 
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+    // Android PWAs may be suspended for a long time. Refresh the session when
+    // the app becomes visible again instead of forcing another login.
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (!error && data.session) applySession(data.session);
+      } catch {
+        // Supabase's normal session state remains the source of truth.
+      }
+    };
 
-      setState({
-        user: session?.user || null,
-        accessToken: session?.access_token || null,
-        loading: false,
-        error: null,
-      });
-    });
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       mounted = false;
+      document.removeEventListener('visibilitychange', handleVisibility);
       subscription.unsubscribe();
     };
   }, []);
 
-  /**
-   * Sign in with email and password.
-   */
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
+    if (error) throw new Error(error.message);
     return data;
   }, []);
 
-  /**
-   * Sign up with email, password, and username.
-   * The profile is auto-created by a database trigger on auth.users insert.
-   */
   const signUp = useCallback(
     async (email: string, password: string, username: string) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { username },
-        },
+        options: { data: { username } },
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
+      if (error) throw new Error(error.message);
       return data;
     },
     []
   );
 
-  /**
-   * Sign out — destroys the session on both client and server.
-   */
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw new Error(error.message);
-    }
-    setState({
-      user: null,
-      accessToken: null,
-      loading: false,
-      error: null,
-    });
+    if (error) throw new Error(error.message);
+    setState({ user: null, accessToken: null, loading: false, error: null });
   }, []);
 
-  /**
-   * Send a password reset email.
-   */
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
     });
-
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
   }, []);
 
-  /**
-   * Update the user's password (after reset).
-   */
   const updatePassword = useCallback(async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(error.message);
   }, []);
 
-  /**
-   * Refresh the access token manually.
-   * Supabase auto-refreshes, but this is useful before API calls
-   * that need a fresh token.
-   */
   const refreshToken = useCallback(async () => {
     const token = await getAccessToken();
     setState((prev) => ({ ...prev, accessToken: token }));
@@ -193,7 +161,6 @@ export function useAuth() {
   return {
     user: state.user,
     accessToken: state.accessToken,
-    /** @deprecated use accessToken — kept for backward compatibility */
     token: state.accessToken,
     loading: state.loading,
     error: state.error,
@@ -201,7 +168,6 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
-    /** @deprecated use signOut — kept for backward compatibility */
     logout: signOut,
     resetPassword,
     updatePassword,

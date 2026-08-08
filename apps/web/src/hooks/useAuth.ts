@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import type { User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import { supabase, getAccessToken } from '@/lib/supabase';
 
-/** App-facing user shape: Supabase auth user + app profile fields. */
 export type AppUser = User & {
   username?: string | null;
   display_name?: string | null;
@@ -19,6 +18,30 @@ interface AuthState {
   error: string | null;
 }
 
+async function restoreSessionFromServer(): Promise<Session | null> {
+  try {
+    const response = await fetch('/api/auth/session', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-store' },
+    });
+
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const session = payload?.session as Session | null;
+    if (!session?.access_token || !session?.refresh_token) return null;
+
+    const { data, error } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+
+    return error ? null : data.session;
+  } catch {
+    return null;
+  }
+}
+
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -30,7 +53,7 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    const applySession = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+    const applySession = (session: Session | null) => {
       if (!mounted) return;
       setState({
         user: session?.user ? (session.user as AppUser) : null,
@@ -40,7 +63,6 @@ export function useAuth() {
       });
     };
 
-    // Subscribe first so a session restored/rotated during startup cannot be missed.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -54,9 +76,13 @@ export function useAuth() {
           error,
         } = await supabase.auth.getSession();
 
-        // PWAs can be resumed after the access token expires while the app is
-        // suspended. Explicitly refresh once during startup so the restored
-        // session is available before protected UI is evaluated.
+        // In an installed PWA the standalone client can start before the
+        // browser-side cookie adapter has rehydrated. Ask the SSR side for the
+        // authenticated session, then persist it into the browser client.
+        if (!session && !error) {
+          session = await restoreSessionFromServer();
+        }
+
         if (!session && !error) {
           const refreshed = await supabase.auth.refreshSession();
           session = refreshed.data.session;
@@ -87,17 +113,19 @@ export function useAuth() {
       }
     }
 
-    init();
+    void init();
 
-    // Android PWAs may be suspended for a long time. Refresh the session when
-    // the app becomes visible again instead of forcing another login.
     const handleVisibility = async () => {
       if (document.visibilityState !== 'visible') return;
       try {
         const { data, error } = await supabase.auth.refreshSession();
         if (!error && data.session) applySession(data.session);
+        else if (!data.session) {
+          const restored = await restoreSessionFromServer();
+          if (restored) applySession(restored);
+        }
       } catch {
-        // Supabase's normal session state remains the source of truth.
+        // Keep the current session state if refresh is temporarily unavailable.
       }
     };
 
@@ -111,28 +139,20 @@ export function useAuth() {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
     return data;
   }, []);
 
-  const signUp = useCallback(
-    async (email: string, password: string, username: string) => {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { username } },
-      });
-
-      if (error) throw new Error(error.message);
-      return data;
-    },
-    []
-  );
+  const signUp = useCallback(async (email: string, password: string, username: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  }, []);
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();

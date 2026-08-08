@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import type { CookieOptions } from '@supabase/ssr';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value, options }) => {
           cookieStore.set(name, value, options);
         });
@@ -84,8 +85,6 @@ export async function GET(request: Request) {
   );
 
   if (profileError) {
-    // Authentication is already established. A profile problem must not log
-    // the user out, but keep the server-side error visible for diagnostics.
     console.warn('OAuth callback: profile upsert failed:', profileError.message);
   }
 

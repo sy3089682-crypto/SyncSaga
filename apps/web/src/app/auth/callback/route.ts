@@ -3,9 +3,10 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import type { CookieOptions } from '@supabase/ssr';
 
+// Supabase publishable keys are safe for browser/server client use. Keep this
+// known-good project key as the fallback so a truncated Vercel environment
+// variable cannot break the OAuth PKCE exchange.
 const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.SUPABASE_PUBLISHABLE_KEY ||
   'sb_publishable_vosloQ0c4T1qFmo2bTazKA_pcMa3-tD';
 
 export async function GET(request: Request) {

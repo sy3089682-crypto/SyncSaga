@@ -11,6 +11,7 @@ import { getEnv } from '@syncsaga/config';
 
 import { authRouter } from './routes/auth.routes';
 import { roomRouter } from './routes/room.routes';
+import roomVideoRouter from './routes/room-video.routes';
 import reactionsRouter from './routes/reactions';
 import clipsRouter from './routes/clips';
 import activityRouter from './routes/activity';
@@ -79,7 +80,6 @@ export async function createServer() {
     autoLogging: { ignore: (req) => req.url === '/health/live' || req.url === '/health/ready' || req.url === '/metrics' },
   }));
 
-  // Request ID middleware — generates unique ID for each request for tracing
   app.use((req, _res, next) => {
     const requestId = (req.headers['x-request-id'] as string) || randomUUID();
     req.headers['x-request-id'] = requestId;
@@ -87,30 +87,17 @@ export async function createServer() {
     next();
   });
 
-  // Liveness probe — process is running (before rate limiting so health checks always pass)
   app.get('/health/live', (_req, res) => {
-    res.status(200).json({
-      status: 'alive',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    });
+    res.status(200).json({ status: 'alive', uptime: process.uptime(), timestamp: new Date().toISOString() });
   });
 
-  // Legacy health endpoint — lightweight, no external deps (before rate limiting)
   app.get('/health', (_req, res) => {
-    res.status(200).json({
-      status: 'ok',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-      environment: env.NODE_ENV,
-    });
+    res.status(200).json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString(), environment: env.NODE_ENV });
   });
 
-  // Rate limiting and CSRF (after health so probes aren't rate-limited or blocked by Redis)
   app.use(rateLimitMiddleware(100, 60));
   app.use(csrfProtection);
 
-  // HTTP metrics
   app.use((req, _res, next) => {
     const start = Date.now();
     _res.on('finish', () => {
@@ -120,17 +107,6 @@ export async function createServer() {
     next();
   });
 
-  // Liveness probe — process is running
-  app.get('/health/live', (_req, res) => {
-    res.status(200).json({
-      status: 'alive',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // Ping Redis with a hard timeout — ping() on an unconnected client can
-  // queue forever while reconnectStrategy retries a dead endpoint.
   async function pingRedis(): Promise<boolean> {
     const client = redisService.getClient();
     if (!client || !client.isOpen) return false;
@@ -142,7 +118,6 @@ export async function createServer() {
     }
   }
 
-  // Ping Supabase with a hard timeout — a slow/dead DB must not block probes.
   async function pingDatabase(): Promise<boolean> {
     try {
       await Promise.race([
@@ -155,12 +130,9 @@ export async function createServer() {
     }
   }
 
-  // Readiness probe — dependencies are ready
   app.get('/health/ready', async (_req, res) => {
-    let dbPing = false;
-    let redisPing = false;
-    dbPing = await pingDatabase();
-    redisPing = await pingRedis();
+    const dbPing = await pingDatabase();
+    const redisPing = await pingRedis();
     const ready = dbPing && redisPing;
     res.status(ready ? 200 : 503).json({
       status: ready ? 'ready' : 'degraded',
@@ -172,20 +144,10 @@ export async function createServer() {
     });
   });
 
-  // Legacy health endpoint (backward compatibility) - lightweight, no external deps
-  app.get('/health', (_req, res) => {
-    res.status(200).json({
-      status: 'ok',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-      environment: env.NODE_ENV,
-    });
-  });
-
-  // API v1 routes
   const v1Router = express.Router();
   v1Router.use('/auth', authRouter);
   v1Router.use('/rooms', roomRouter);
+  v1Router.use('/rooms', roomVideoRouter);
   v1Router.use('/reactions', reactionsRouter);
   v1Router.use('/clips', clipsRouter);
   v1Router.use('/activity', activityRouter);
@@ -193,17 +155,17 @@ export async function createServer() {
   v1Router.use('/ai', aiRouter);
   v1Router.use('/features', featuresRouter);
   v1Router.use('/payments', paymentsRouter);
-v1Router.use('/friends', friendsRouter);
-v1Router.use('/users', usersRouter);
-v1Router.use('/profile', profileRouter);
+  v1Router.use('/friends', friendsRouter);
+  v1Router.use('/users', usersRouter);
+  v1Router.use('/profile', profileRouter);
   v1Router.use('/docs', docsRouter);
   v1Router.use('/watch-progress', watchProgressRouter);
 
   app.use('/api/v1', v1Router);
 
-  // Backward-compatible unversioned routes (deprecated — will be removed in v2)
   app.use('/api/auth', authRouter);
   app.use('/api/rooms', roomRouter);
+  app.use('/api/rooms', roomVideoRouter);
   app.use('/api/reactions', reactionsRouter);
   app.use('/api/clips', clipsRouter);
   app.use('/api/activity', activityRouter);
@@ -211,25 +173,16 @@ v1Router.use('/profile', profileRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/features', featuresRouter);
   app.use('/api/payments', paymentsRouter);
-app.use('/api/friends', friendsRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/profile', profileRouter);
+  app.use('/api/friends', friendsRouter);
+  app.use('/api/users', usersRouter);
+  app.use('/api/profile', profileRouter);
 
-  // Metrics endpoint
   app.use('/metrics', metricsRouter);
-
-  // Sentry error handler (before custom error handler)
   app.use(sentryErrorHandler());
-
-  // Centralized error handler (must be last)
   app.use(errorHandler);
 
-  // Socket.IO server
   const io = new Server(httpServer, {
-    cors: {
-      origin: env.CORS_ORIGIN.split(',').map(s => s.trim()),
-      credentials: true,
-    },
+    cors: { origin: env.CORS_ORIGIN.split(',').map(s => s.trim()), credentials: true },
     transports: ['websocket', 'polling'],
     pingTimeout: 60000,
     pingInterval: 25000,
@@ -238,11 +191,6 @@ app.use('/api/profile', profileRouter);
     perMessageDeflate: { threshold: 1024 },
   });
 
-  // Redis is optional at boot: if it's down (bad URL, cold start), start
-  // the server anyway and let node-redis's reconnectStrategy retry in the
-  // background. The /health and /health/ready probes report degraded state.
-  // Race the connect against a timeout — node-redis can hang on DNS failures
-  // instead of rejecting, and boot must never block on Redis.
   await Promise.race([
     redisService.connect(),
     new Promise((resolve) => setTimeout(resolve, 3000)),
@@ -254,7 +202,6 @@ app.use('/api/profile', profileRouter);
   setNotificationSocket(io);
   setQueueSocket(io);
 
-  // Socket-level reaction handler
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket;
     metrics.setConnectedSockets(io.engine.clientsCount);
@@ -266,13 +213,7 @@ app.use('/api/profile', profileRouter);
 
         const { data: reaction } = await supabase
           .from('timeline_reactions')
-          .insert({
-            room_id: roomId,
-            user_id: authSocket.userId,
-            timestamp_sec: timestampSec,
-            type,
-            content,
-          })
+          .insert({ room_id: roomId, user_id: authSocket.userId, timestamp_sec: timestampSec, type, content })
           .select('*, profiles:user_id(username, avatar_url)')
           .single();
 
